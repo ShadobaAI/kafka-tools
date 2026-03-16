@@ -1,0 +1,46 @@
+version: '3.8'
+
+services:
+  elasticsearch:
+    image: elasticsearch:9.2.1
+    container_name: elasticsearch
+    environment:
+      - discovery.type=single-node
+      - bootstrap.memory_lock=true
+      - "ES_JAVA_OPTS=-Xms1g -Xmx1g"
+      - xpack.security.enabled=false
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    ports:
+      - "9200:9200"
+    volumes:
+      - elastic_data:/usr/share/elasticsearch/data
+
+  kibana:
+    image: kibana:9.2.1
+    container_name: kibana
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      - SERVER_NAME=kibana
+    ports:
+      - "5601:5601"
+    depends_on:
+      - elasticsearch
+
+  logstash:
+    image: logstash:9.2.1
+    container_name: logstash
+    environment:
+      - LS_JAVA_OPTS=-Xms1g -Xmx1g
+    ports:
+      - "8082:8080"
+    volumes:
+      - ./config/logstash.conf:/usr/share/logstash/pipeline/logstash.conf:ro
+    depends_on:
+      - elasticsearch
+    restart: unless-stopped
+
+volumes:
+  elastic_data:

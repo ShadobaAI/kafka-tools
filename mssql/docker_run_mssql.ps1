@@ -1,0 +1,1 @@
+docker run --name mssql -e ACCEPT_EULA=Y -e MSSQL_SA_PASSWORD='Qwerty123!' -e MSSQL_COLLATION='Cyrillic_General_CI_AS' -e MSSQL_LCID=1049 -p 1433:1433 -v "C:\docker-backups\mssql:/var/opt/mssql/backup" -d mcr.microsoft.com/mssql/server:2022-latest

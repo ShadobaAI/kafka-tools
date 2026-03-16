@@ -1,0 +1,60 @@
+version: "3.8"
+
+services:
+  node1:
+    image: apache/kafka:3.9.1
+    container_name: node1
+    user: "0:0"
+    ports:
+      - "29091:29091"  # внешний доступ к broker
+      - "9093:9093"    # контроллер внутренний (для кластера)
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@node1:9093,2@node2:9093
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,PLAINTEXT_HOST://0.0.0.0:29091,CONTROLLER://0.0.0.0:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://node1:9092,PLAINTEXT_HOST://localhost:29091,CONTROLLER://node1:9093
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_NUM_PARTITIONS: 1
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_LOG_DIRS: /kafka-logs
+    volumes:
+      - node1-data:/kafka-logs
+
+  node2:
+    image: apache/kafka:3.9.1
+    container_name: node2
+    user: "0:0"
+    ports:
+      - "29092:29092"  # внешний доступ к broker
+      - "9094:9093"    # контроллер внутренний (для кластера)
+    environment:
+      KAFKA_NODE_ID: 2
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@node1:9093,2@node2:9093
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,PLAINTEXT_HOST://0.0.0.0:29092,CONTROLLER://0.0.0.0:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://node2:9092,PLAINTEXT_HOST://localhost:29092,CONTROLLER://node2:9093
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_NUM_PARTITIONS: 1
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_LOG_DIRS: /kafka-logs
+    volumes:
+      - node2-data:/kafka-logs
+
+  kafka-ui:
+    image: kafbat/kafka-ui:latest
+    container_name: kafka-ui
+    ports:
+      - "8081:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: node1:9092,node2:9092
+    depends_on:
+      - node1
+      - node2
+
+volumes:
+  node1-data:
+  node2-data:

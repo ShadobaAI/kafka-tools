@@ -1,0 +1,9 @@
+# Базовые настройки
+server.host: "0.0.0.0"
+
+# Подключение к OpenSearch (твоя dev-сборка без security)
+opensearch.hosts: ["http://opensearch:9200"]
+
+data_source.enabled: false   # разрешает несколько источников
+workspace.enabled: false     # включает рабочие области
+explore.enabled: true        # включает новый UI Discover
