@@ -7,6 +7,7 @@
 | Каталог | Назначение |
 |---------|------------|
 | `kafka/` | Apache Kafka — двухузловой кластер KRaft + Kafka UI |
+| `kafka/scripts/` | Вспомогательные скрипты для тестирования Kafka |
 | `elk/` | ELK-стек — Elasticsearch + Logstash + Kibana |
 | `opensearch/` | Альтернатива ELK — OpenSearch + Dashboards + Fluent Bit |
 | `mssql/` | MS SQL Server 2022 — скрипт запуска и утилитарные SQL-скрипты |
@@ -30,6 +31,31 @@ docker compose up -d
 | Kafka UI | http://localhost:8081 |
 
 Bootstrap-серверы для адаптера: `localhost:29091,localhost:29092`
+
+### kafka/scripts/kafka_sender.py
+
+Генератор нагрузки для тестирования адаптера — отправляет случайные JSON-сообщения в топики Kafka.
+
+**Зависимости:** `pip install kafka-python`
+
+Скрипт отправляет сообщения двух типов:
+
+| Топик | Описание |
+|-------|----------|
+| `1c.test-register` | Сообщение регистра (событие, UUID, число, строка, дата, булево) |
+| `1c.test-catalog` | Сообщение справочника (ref, наименование, перечисление, табличная часть) |
+
+Параметры задаются в секции `data` внутри скрипта:
+
+| Параметр | Описание |
+|----------|----------|
+| `total` | Количество сообщений |
+| `speed` | Скорость (msg/sec); `0` — максимальная |
+| `topic` | `"register"`, `"catalog"` или `None` (оба топика) |
+
+```bash
+python kafka/scripts/kafka_sender.py
+```
 
 ---
 
