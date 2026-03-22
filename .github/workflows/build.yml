@@ -162,6 +162,7 @@ jobs:
             -e "VERSION_FILES=${{ inputs.version_files }}" \
             ${{ inputs.dockerhub_username }}/${{ inputs.dockerhub_image }}:latest \
             /build.sh
+          sudo chown -R "$(id -u):$(id -g)" output/ output-xml/
 
       - name: Package artifacts
         id: pkg
@@ -180,7 +181,6 @@ jobs:
           cd output-xml && zip -r "../output/${BASE}-XML.zip" . && cd ..
 
           # CF/CFE
-          sudo chown "$USER" "output/config.${EXT}"
           mv "output/config.${EXT}" "output/${BASE}.${EXT}"
           echo "base=${BASE}" >> "$GITHUB_OUTPUT"
 
