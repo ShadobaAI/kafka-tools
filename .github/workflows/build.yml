@@ -142,7 +142,8 @@ jobs:
           NAME="${{ steps.cfg.outputs.name }}"
           EXT="${{ steps.types.outputs.build_type }}"
           SUFFIX="${{ inputs.name_suffix }}"
-          BASE=$([ -n "$SUFFIX" ] && echo "${NAME}-${SUFFIX}" || echo "${NAME}")
+          VERSION="${{ steps.version.outputs.value }}"
+          BASE=$([ -n "$SUFFIX" ] && echo "${NAME}-${SUFFIX}-${VERSION}" || echo "${NAME}-${VERSION}")
 
           # EDT zip
           zip -qr "output/${BASE}-EDT.zip" \
