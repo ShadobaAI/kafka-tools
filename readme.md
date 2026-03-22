@@ -6,12 +6,23 @@
 
 | Каталог | Назначение |
 |---------|------------|
+| `build1c/` | Docker-образ для сборки 1С: Платформа + EDT + OScript + vrunner |
 | `kafka/` | Apache Kafka — двухузловой кластер KRaft + Kafka UI |
 | `kafka/scripts/` | Вспомогательные скрипты для тестирования Kafka |
 | `elk/` | ELK-стек — Elasticsearch + Logstash + Kibana |
 | `opensearch/` | Альтернатива ELK — OpenSearch + Dashboards + Fluent Bit |
 | `mssql/` | MS SQL Server 2022 — скрипт запуска и утилитарные SQL-скрипты |
 | `xdto/` | `asyncapi2xsd.py` — генератор XSD из AsyncAPI-спецификации |
+
+---
+
+## build1c
+
+Docker-образ для CI/CD-сборки проектов на платформе 1С. Включает: 1С:Предприятие (ibcmd), EDT (1cedtcli, ring), OneScript (oscript, opm) и vanessa-runner.
+
+**Предварительно** — разместить дистрибутивы в `build1c/distr/` (см. [build1c/distr/README.md](build1c/distr/README.md)).
+
+Версии задаются прямо в скрипте сборки. Сборка образа:
 
 ---
 
