@@ -18,27 +18,21 @@ on:
         type: string
         required: false
         default: ''
-      dockerhub_username:
-        description: 'Docker Hub логин'
-        type: string
-        required: true
       dockerhub_image:
-        description: 'Имя образа на Docker Hub'
+        description: 'Имя образа (должен быть зеркалирован в GHCR)'
         type: string
         required: true
     outputs:
       version:
         description: 'Версия из тега релиза'
         value: ${{ jobs.build.outputs.version }}
-    secrets:
-      DOCKERHUB_TOKEN:
-        required: true
 
 jobs:
   build:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      packages: read
     outputs:
       version: ${{ steps.version.outputs.value }}
 
@@ -116,38 +110,12 @@ jobs:
                       /opt/hostedtoolcache/CodeQL /usr/local/share/boost \
                       /usr/share/swift
 
-      - name: Log in to Docker Hub
+      - name: Log in to GHCR
         uses: docker/login-action@v3
         with:
-          username: ${{ inputs.dockerhub_username }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: Get image digest
-        id: digest
-        run: |
-          IMAGE="${{ inputs.dockerhub_username }}/${{ inputs.dockerhub_image }}:latest"
-          digest=$(docker manifest inspect "$IMAGE" 2>/dev/null | \
-            jq -r 'if .manifests then .manifests[0].digest else .config.digest end // "fallback"')
-          echo "value=$digest" >> "$GITHUB_OUTPUT"
-
-      - name: Cache Docker image
-        id: cache
-        uses: actions/cache@v4
-        with:
-          path: /tmp/docker-cache/image.tar
-          key: docker-${{ inputs.dockerhub_username }}-${{ inputs.dockerhub_image }}-${{ steps.digest.outputs.value }}
-
-      - name: Load image from cache
-        if: steps.cache.outputs.cache-hit == 'true'
-        run: docker load -i /tmp/docker-cache/image.tar
-
-      - name: Pull and cache image
-        if: steps.cache.outputs.cache-hit != 'true'
-        run: |
-          IMAGE="${{ inputs.dockerhub_username }}/${{ inputs.dockerhub_image }}:latest"
-          docker pull "$IMAGE"
-          mkdir -p /tmp/docker-cache
-          docker save "$IMAGE" -o /tmp/docker-cache/image.tar
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build
         run: |
@@ -160,7 +128,7 @@ jobs:
             -e BUILD_TYPE=${{ steps.types.outputs.build_type }} \
             -e VERSION=${{ steps.version.outputs.value }} \
             -e "VERSION_FILES=${{ inputs.version_files }}" \
-            ${{ inputs.dockerhub_username }}/${{ inputs.dockerhub_image }}:latest \
+            ghcr.io/${{ github.repository_owner }}/${{ inputs.dockerhub_image }}:latest \
             /build.sh
           sudo chown -R "$(id -u):$(id -g)" output/ output-xml/
 
