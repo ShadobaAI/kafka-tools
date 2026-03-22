@@ -8,25 +8,16 @@ on:
         type: string
         required: false
         default: ''
-      artifact_prefix:
-        description: 'Префикс имени файла. Итог: {prefix}{version}.{cf|cfe}'
-        type: string
-        required: true
-      version_placeholder:
-        description: 'Заглушка версии в исходниках'
+      name_suffix:
+        description: 'Суффикс имени файла (необязательно). Итог: {name}-{suffix}-EDT.zip, {name}-{suffix}-XML.zip'
         type: string
         required: false
-        default: '9.9.9.9'
+        default: ''
       version_files:
         description: 'Доп. файлы для замены версии (через пробел, относительно корня)'
         type: string
         required: false
         default: ''
-      edt_memory:
-        description: 'Память JVM для EDT'
-        type: string
-        required: false
-        default: '2g'
       dockerhub_username:
         description: 'Docker Hub логин'
         type: string
@@ -45,7 +36,6 @@ on:
 
 jobs:
   build:
-    name: ${{ inputs.build_type == 'cf' && 'CF' || 'cfe' }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -72,6 +62,53 @@ jobs:
             echo "ERROR: неверный формат тега. Ожидается X.X.X.X"
             exit 1
           fi
+
+      - name: Detect project type and build target
+        id: types
+        run: |
+          if grep -q 'V8ExtensionNature' .project 2>/dev/null; then
+            project_type="cfe"
+          else
+            project_type="cf"
+          fi
+          build_type="${{ inputs.build_type }}"
+          [ -z "$build_type" ] && build_type="$project_type"
+          echo "project_type=$project_type" >> "$GITHUB_OUTPUT"
+          echo "build_type=$build_type"     >> "$GITHUB_OUTPUT"
+
+      - name: Get configuration name
+        id: cfg
+        run: |
+          name=$(grep -oP '(?<=<name>)[^<]+' src/Configuration/Configuration.mdo | head -1)
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+
+      - name: Convert cfe → cf
+        if: steps.types.outputs.project_type == 'cfe' && steps.types.outputs.build_type == 'cf'
+        run: |
+          # Удаляем теги расширения из Configuration.mdo
+          python3 - <<'PYEOF'
+          import re
+          path = 'src/Configuration/Configuration.mdo'
+          tags = [
+            'objectBelonging',
+            'extension',
+            'keepMappingToExtendedConfigurationObjectsByIDs',
+            'namePrefix',
+            'configurationExtensionPurpose',
+            'configurationExtensionCompatibilityMode',
+          ]
+          with open(path, 'r', encoding='utf-8') as f:
+              content = f.read()
+          for tag in tags:
+              content = re.sub(rf'\s*<{tag}/>', '', content)
+              content = re.sub(rf'\s*<{tag}>.*?</{tag}>', '', content, flags=re.DOTALL)
+          with open(path, 'w', encoding='utf-8') as f:
+              f.write(content)
+          PYEOF
+          # Меняем природу проекта
+          sed -i 's/V8ExtensionNature/V8ConfigurationNature/g' .project
+          # Удаляем строку Base-Project из PMF
+          sed -i '/Base-Project/d' DT-INF/PROJECT.PMF
 
       - name: Free disk space
         run: |
@@ -113,49 +150,48 @@ jobs:
           docker save "$IMAGE" -o /tmp/docker-cache/image.tar
 
       - name: Build
-        id: build
         run: |
           mkdir -p output output-xml
           docker run --rm \
             -v "${{ github.workspace }}:/src:ro" \
-            -v "${{ github.workspace }}/.ci/build1c/git-workflows/scripts/build.sh:/build.sh:ro" \
+            -v "${{ github.workspace }}/.ci/.github/scripts/build.sh:/build.sh:ro" \
             -v "${{ github.workspace }}/output:/output" \
             -v "${{ github.workspace }}/output-xml:/tmp/xml" \
-            -e BUILD_TYPE=${{ inputs.build_type }} \
+            -e BUILD_TYPE=${{ steps.types.outputs.build_type }} \
             -e VERSION=${{ steps.version.outputs.value }} \
-            -e VERSION_PLACEHOLDER=${{ inputs.version_placeholder }} \
             -e "VERSION_FILES=${{ inputs.version_files }}" \
-            -e EDT_MEMORY=${{ inputs.edt_memory }} \
             ${{ inputs.dockerhub_username }}/${{ inputs.dockerhub_image }}:latest \
             /build.sh
-          ext=$(ls output/config.cf output/config.cfe 2>/dev/null | head -1 | sed 's/.*\.//')
-          echo "ext=$ext" >> "$GITHUB_OUTPUT"
 
       - name: Package artifacts
         id: pkg
         run: |
-          PREFIX="${{ inputs.artifact_prefix }}"
-          VER="${{ steps.version.outputs.value }}"
-          EXT="${{ steps.build.outputs.ext }}"
-          # EDT sources
-          zip -r "output/${PREFIX}${VER}-edt.zip" \
+          NAME="${{ steps.cfg.outputs.name }}"
+          EXT="${{ steps.types.outputs.build_type }}"
+          SUFFIX="${{ inputs.name_suffix }}"
+          BASE=$([ -n "$SUFFIX" ] && echo "${NAME}-${SUFFIX}" || echo "${NAME}")
+
+          # EDT zip
+          zip -r "output/${BASE}-EDT.zip" \
             .project .settings DT-INF src 2>/dev/null || \
-          zip -r "output/${PREFIX}${VER}-edt.zip" src
-          # XML
-          cd output-xml && zip -r "../output/${PREFIX}${VER}-xml.zip" . && cd ..
+          zip -r "output/${BASE}-EDT.zip" src
+
+          # XML zip
+          cd output-xml && zip -r "../output/${BASE}-XML.zip" . && cd ..
+
           # CF/CFE
-          sudo chown $USER "output/config.${EXT}"
-          mv "output/config.${EXT}" "output/${PREFIX}${VER}.${EXT}"
+          sudo chown "$USER" "output/config.${EXT}"
+          mv "output/config.${EXT}" "output/${BASE}.${EXT}"
+          echo "base=${BASE}" >> "$GITHUB_OUTPUT"
 
       - name: Upload to release
         run: |
-          PREFIX="${{ inputs.artifact_prefix }}"
-          VER="${{ steps.version.outputs.value }}"
-          EXT="${{ steps.build.outputs.ext }}"
+          BASE="${{ steps.pkg.outputs.base }}"
+          EXT="${{ steps.types.outputs.build_type }}"
           gh release upload "${{ github.event.release.tag_name }}" \
-            "output/${PREFIX}${VER}.${EXT}" \
-            "output/${PREFIX}${VER}-edt.zip" \
-            "output/${PREFIX}${VER}-xml.zip" \
+            "output/${BASE}.${EXT}" \
+            "output/${BASE}-EDT.zip" \
+            "output/${BASE}-XML.zip" \
             --clobber
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

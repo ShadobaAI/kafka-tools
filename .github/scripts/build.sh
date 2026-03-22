@@ -1,14 +1,12 @@
 #!/bin/bash
 # EDT → XML → .cf или .cfe
 # Переменные:
-#   BUILD_TYPE          — 'cf' или 'cfe'. Если не задан — определяется автоматически
-#                         по .project: V8ExtensionNature → cfe, V8ConfigurationNature → cf
-#   VERSION             — X.X.X.X (обязательно)
-#   VERSION_PLACEHOLDER — заглушка в исходниках, по умолчанию 9.9.9.9
-#   VERSION_FILES       — доп. файлы для замены (через пробел, относительно корня проекта)
-#   SRC_DIR             — исходники EDT-проекта, по умолчанию /src
-#   OUTPUT_DIR          — куда сохранить результат, по умолчанию /output
-#   EDT_MEMORY          — память JVM, по умолчанию 2g
+#   BUILD_TYPE    — 'cf' или 'cfe'. Если не задан — определяется автоматически
+#                   по .project: V8ExtensionNature → cfe, V8ConfigurationNature → cf
+#   VERSION       — X.X.X.X (обязательно)
+#   VERSION_FILES — доп. файлы для замены версии (через пробел, относительно корня проекта)
+#   SRC_DIR       — исходники EDT-проекта, по умолчанию /src
+#   OUTPUT_DIR    — куда сохранить результат, по умолчанию /output
 
 set -euo pipefail
 
@@ -22,12 +20,10 @@ if [ -z "${BUILD_TYPE:-}" ]; then
     echo "→ BUILD_TYPE определён автоматически: $BUILD_TYPE"
 fi
 VERSION="${VERSION:-0.0.0.0}"
-VERSION_PLACEHOLDER="${VERSION_PLACEHOLDER:-9.9.9.9}"
 VERSION_FILES="${VERSION_FILES:-}"
 SRC_DIR="${SRC_DIR:-/src}"
 OUTPUT_DIR="${OUTPUT_DIR:-/output}"
 EDT_WORKSPACE=/tmp/edt-ws
-EDT_MEMORY="${EDT_MEMORY:-2g}"
 PROJECT_DIR=/tmp/project
 XML_DIR=/tmp/xml
 
@@ -58,14 +54,13 @@ mkdir -p "$PROJECT_DIR"
 cp -r "$SRC_DIR/.project" "$SRC_DIR/.settings" "$SRC_DIR/DT-INF" "$SRC_DIR/src" "$PROJECT_DIR/"
 
 # ── 3. Замена версии ─────────────────────────────────────────────────────────
-echo "→ Версия $VERSION (замена '$VERSION_PLACEHOLDER')..."
-PLACEHOLDER_ESC="${VERSION_PLACEHOLDER//./\\.}"
-sed -i "s/${PLACEHOLDER_ESC}/${VERSION}/g" "$PROJECT_DIR/src/Configuration/Configuration.mdo"
+echo "→ Версия $VERSION (замена '9.9.9.9')..."
+sed -i "s/9\\.9\\.9\\.9/${VERSION}/g" "$PROJECT_DIR/src/Configuration/Configuration.mdo"
 if [ -n "$VERSION_FILES" ]; then
     for f in $VERSION_FILES; do
         target="$PROJECT_DIR/$f"
         if [ -f "$target" ]; then
-            sed -i "s/${PLACEHOLDER_ESC}/${VERSION}/g" "$target"
+            sed -i "s/9\\.9\\.9\\.9/${VERSION}/g" "$target"
             echo "  патч: $f"
         else
             echo "  WARN: файл не найден — $f"
@@ -81,7 +76,7 @@ mkdir -p "$XML_DIR" "$EDT_WORKSPACE"
 EDTCLI=$(command -v 1cedtcli 2>/dev/null || find /opt/1C/EDT -name "1cedtcli" -type f 2>/dev/null | head -1)
 [ -z "$EDTCLI" ] && echo "ERROR: 1cedtcli не найден" && exit 1
 
-"$EDTCLI" -data "$EDT_WORKSPACE" -vmargs "-Xmx${EDT_MEMORY}" \
+"$EDTCLI" -data "$EDT_WORKSPACE" -vmargs "-Xmx2g" \
     -command export --project "$PROJECT_DIR" --configuration-files "$XML_DIR"
 
 # ── 5. XML → CF / CFE ────────────────────────────────────────────────────────
