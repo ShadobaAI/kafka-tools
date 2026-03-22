@@ -77,7 +77,7 @@ jobs:
       - name: Get configuration name
         id: cfg
         run: |
-          name=$(grep -oP '(?<=<name>)[^<]+' src/Configuration/Configuration.mdo | head -1)
+          name=$(LC_ALL=C.UTF-8 grep -oP '(?<=<name>)[^<]+' src/Configuration/Configuration.mdo | head -1)
           echo "name=$name" >> "$GITHUB_OUTPUT"
 
       - name: Convert cfe → cf
