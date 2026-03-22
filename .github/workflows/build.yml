@@ -145,12 +145,12 @@ jobs:
           BASE=$([ -n "$SUFFIX" ] && echo "${NAME}-${SUFFIX}" || echo "${NAME}")
 
           # EDT zip
-          zip -r "output/${BASE}-EDT.zip" \
+          zip -qr "output/${BASE}-EDT.zip" \
             .project .settings DT-INF src 2>/dev/null || \
-          zip -r "output/${BASE}-EDT.zip" src
+          zip -qr "output/${BASE}-EDT.zip" src
 
           # XML zip
-          cd output-xml && zip -r "../output/${BASE}-XML.zip" . && cd ..
+          cd output-xml && zip -qr "../output/${BASE}-XML.zip" . && cd ..
 
           # CF/CFE
           mv "output/config.${EXT}" "output/${BASE}.${EXT}"
