@@ -70,7 +70,7 @@ fi
 
 # ── 4. EDT → XML ─────────────────────────────────────────────────────────────
 echo "→ EDT → XML..."
-rm -rf "$XML_DIR" "$EDT_WORKSPACE"
+rm -rf "$XML_DIR"/* "$EDT_WORKSPACE"
 mkdir -p "$XML_DIR" "$EDT_WORKSPACE"
 
 EDTCLI=$(command -v 1cedtcli 2>/dev/null || find /opt/1C/EDT -name "1cedtcli" -type f 2>/dev/null | head -1)
