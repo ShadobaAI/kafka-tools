@@ -113,12 +113,14 @@ jobs:
           docker save "$IMAGE" -o /tmp/docker-cache/image.tar
 
       - name: Build
+        id: build
         run: |
-          mkdir -p output
+          mkdir -p output output-xml
           docker run --rm \
             -v "${{ github.workspace }}:/src:ro" \
             -v "${{ github.workspace }}/.ci/build1c/git-workflows/scripts/build.sh:/build.sh:ro" \
             -v "${{ github.workspace }}/output:/output" \
+            -v "${{ github.workspace }}/output-xml:/tmp/xml" \
             -e BUILD_TYPE=${{ inputs.build_type }} \
             -e VERSION=${{ steps.version.outputs.value }} \
             -e VERSION_PLACEHOLDER=${{ inputs.version_placeholder }} \
@@ -126,15 +128,34 @@ jobs:
             -e EDT_MEMORY=${{ inputs.edt_memory }} \
             ${{ inputs.dockerhub_username }}/${{ inputs.dockerhub_image }}:latest \
             /build.sh
+          ext=$(ls output/config.cf output/config.cfe 2>/dev/null | head -1 | sed 's/.*\.//')
+          echo "ext=$ext" >> "$GITHUB_OUTPUT"
 
-      - name: Fix permissions
-        run: sudo chown $USER output/config.${{ inputs.build_type }}
+      - name: Package artifacts
+        id: pkg
+        run: |
+          PREFIX="${{ inputs.artifact_prefix }}"
+          VER="${{ steps.version.outputs.value }}"
+          EXT="${{ steps.build.outputs.ext }}"
+          # EDT sources
+          zip -r "output/${PREFIX}${VER}-edt.zip" \
+            .project .settings DT-INF src 2>/dev/null || \
+          zip -r "output/${PREFIX}${VER}-edt.zip" src
+          # XML
+          cd output-xml && zip -r "../output/${PREFIX}${VER}-xml.zip" . && cd ..
+          # CF/CFE
+          sudo chown $USER "output/config.${EXT}"
+          mv "output/config.${EXT}" "output/${PREFIX}${VER}.${EXT}"
 
       - name: Upload to release
         run: |
-          FILENAME="${{ inputs.artifact_prefix }}${{ steps.version.outputs.value }}.${{ inputs.build_type }}"
-          mv "output/config.${{ inputs.build_type }}" "output/$FILENAME"
+          PREFIX="${{ inputs.artifact_prefix }}"
+          VER="${{ steps.version.outputs.value }}"
+          EXT="${{ steps.build.outputs.ext }}"
           gh release upload "${{ github.event.release.tag_name }}" \
-            "output/$FILENAME" --clobber
+            "output/${PREFIX}${VER}.${EXT}" \
+            "output/${PREFIX}${VER}-edt.zip" \
+            "output/${PREFIX}${VER}-xml.zip" \
+            --clobber
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
