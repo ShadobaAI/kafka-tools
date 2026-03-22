@@ -27,6 +27,14 @@ on:
         type: string
         required: false
         default: '2g'
+      dockerhub_username:
+        description: 'Docker Hub логин'
+        type: string
+        required: true
+      dockerhub_image:
+        description: 'Имя образа на Docker Hub'
+        type: string
+        required: true
     outputs:
       version:
         description: 'Версия из тега релиза'
@@ -74,13 +82,13 @@ jobs:
       - name: Log in to Docker Hub
         uses: docker/login-action@v3
         with:
-          username: ${{ vars.DOCKERHUB_USERNAME }}
+          username: ${{ inputs.dockerhub_username }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Get image digest
         id: digest
         run: |
-          IMAGE="${{ vars.DOCKERHUB_USERNAME }}/${{ vars.DOCKERHUB_IMAGE }}:latest"
+          IMAGE="${{ inputs.dockerhub_username }}/${{ inputs.dockerhub_image }}:latest"
           digest=$(docker manifest inspect "$IMAGE" 2>/dev/null | \
             jq -r 'if .manifests then .manifests[0].digest else .config.digest end // "fallback"')
           echo "value=$digest" >> "$GITHUB_OUTPUT"
@@ -90,7 +98,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: /tmp/docker-cache/image.tar
-          key: docker-${{ vars.DOCKERHUB_USERNAME }}-${{ vars.DOCKERHUB_IMAGE }}-${{ steps.digest.outputs.value }}
+          key: docker-${{ inputs.dockerhub_username }}-${{ inputs.dockerhub_image }}-${{ steps.digest.outputs.value }}
 
       - name: Load image from cache
         if: steps.cache.outputs.cache-hit == 'true'
@@ -99,7 +107,7 @@ jobs:
       - name: Pull and cache image
         if: steps.cache.outputs.cache-hit != 'true'
         run: |
-          IMAGE="${{ vars.DOCKERHUB_USERNAME }}/${{ vars.DOCKERHUB_IMAGE }}:latest"
+          IMAGE="${{ inputs.dockerhub_username }}/${{ inputs.dockerhub_image }}:latest"
           docker pull "$IMAGE"
           mkdir -p /tmp/docker-cache
           docker save "$IMAGE" -o /tmp/docker-cache/image.tar
@@ -116,7 +124,7 @@ jobs:
             -e VERSION_PLACEHOLDER=${{ inputs.version_placeholder }} \
             -e "VERSION_FILES=${{ inputs.version_files }}" \
             -e EDT_MEMORY=${{ inputs.edt_memory }} \
-            ${{ vars.DOCKERHUB_USERNAME }}/${{ vars.DOCKERHUB_IMAGE }}:latest \
+            ${{ inputs.dockerhub_username }}/${{ inputs.dockerhub_image }}:latest \
             /build.sh
 
       - name: Fix permissions
