@@ -104,7 +104,7 @@ jobs:
           mkdir -p output
           docker run --rm \
             -v "${{ github.workspace }}:/src:ro" \
-            -v "${{ github.workspace }}/.ci/scripts/cfe2cf.sh:/build.sh:ro" \
+            -v "${{ github.workspace }}/.ci/build1c/git-workflows/scripts/cfe2cf.sh:/build.sh:ro" \
             -v "${{ github.workspace }}/output:/output" \
             -e VERSION=${{ steps.version.outputs.value }} \
             -e VERSION_PLACEHOLDER=${{ inputs.version_placeholder }} \
