@@ -6,7 +6,8 @@
 
 | Каталог | Назначение |
 |---------|------------|
-| `build1c/` | Docker-образ для сборки 1С: Платформа + EDT + OScript + vrunner |
+| `build1c/docker-image/` | Docker-образ для сборки 1С: Платформа + EDT + OScript + vrunner |
+| `build1c/git-workflows/` | Скрипты и GitHub Actions workflows для сборки 1С-проектов в CI/CD |
 | `kafka/` | Apache Kafka — двухузловой кластер KRaft + Kafka UI |
 | `kafka/scripts/` | Вспомогательные скрипты для тестирования Kafka |
 | `elk/` | ELK-стек — Elasticsearch + Logstash + Kibana |
@@ -18,11 +19,91 @@
 
 ## build1c
 
-Docker-образ для CI/CD-сборки проектов на платформе 1С. Включает: 1С:Предприятие (ibcmd), EDT (1cedtcli, ring), OneScript (oscript, opm) и vanessa-runner.
+### build1c/docker-image
 
-**Предварительно** — разместить дистрибутивы в `build1c/distr/` (см. [build1c/distr/README.md](build1c/distr/README.md)).
+Многоэтапный Docker-образ для CI/CD-сборки проектов на платформе 1С. Включает:
 
-Версии задаются прямо в скрипте сборки. Сборка образа:
+- **1С:Предприятие** (ibcmd) — только компоненты `common` + `server`
+- **EDT** (1cedtcli, ring) — с bundled JRE
+- **OneScript** (oscript, opm)
+- **vanessa-runner**
+
+**Актуальные версии** (заданы в `build1c/docker-image/build.ps1`):
+
+| Компонент | Версия |
+|-----------|--------|
+| 1С:Платформа | `8.3.27.2074` |
+| EDT | `2025.2.3` |
+| OneScript | `2.0.1` |
+
+**Предварительно** — разместить дистрибутивы в `build1c/docker-image/distr/` (см. [build1c/docker-image/distr/README.md](build1c/docker-image/distr/README.md)):
+
+| Файл | Описание |
+|------|----------|
+| `deb64_*.zip` | 1С:Предприятие — deb-пакеты для Linux x86_64 |
+| `1c_edt_distr_offline_*_linux_x86_64.tar.gz` | EDT — офлайн-дистрибутив для Linux x86_64 |
+| `OneScript-*-linux-x64.zip` | OneScript для Linux x64 |
+
+Сборка образа:
+
+```powershell
+.\build1c\docker-image\build.ps1
+```
+
+---
+
+### build1c/git-workflows
+
+Переиспользуемые скрипты и GitHub Actions workflows для сборки 1С-проектов.
+
+#### scripts/build.sh — сборка CF / CFE
+
+Собирает `.cf` или `.cfe` из EDT-проекта: EDT → XML → артефакт.
+`BUILD_TYPE` определяется автоматически по `.project` (V8ExtensionNature → `cfe`, V8ConfigurationNature → `cf`).
+
+| Переменная | Описание | По умолчанию |
+|------------|----------|:---:|
+| `VERSION` | Версия в формате X.X.X.X | `0.0.0.0` |
+| `BUILD_TYPE` | `cf` или `cfe` (авто, если не задан) | — |
+| `VERSION_PLACEHOLDER` | Заглушка версии в исходниках | `9.9.9.9` |
+| `VERSION_FILES` | Доп. файлы для замены версии (через пробел, относительно корня) | — |
+| `SRC_DIR` | Исходники EDT-проекта | `/src` |
+| `OUTPUT_DIR` | Каталог результата | `/output` |
+| `EDT_MEMORY` | Память JVM для EDT | `2g` |
+
+#### scripts/cfe2cf.sh — сборка CF из проекта расширения
+
+Собирает `.cf` из EDT-проекта расширения: вырезает extension-атрибуты из `Configuration.mdo`, меняет природу проекта (`V8ExtensionNature` → `V8ConfigurationNature`) и затем выполняет EDT → XML → CF.
+
+Переменные — те же, что у `build.sh`, кроме `BUILD_TYPE` (всегда `cf`).
+
+#### .github/workflows/build.yml — reusable workflow: CF/CFE
+
+Вызываемый workflow (`workflow_call`) для сборки `.cf` / `.cfe` по тегу релиза (формат `X.X.X.X`).
+Использует Docker-образ из Docker Hub (переменные `DOCKERHUB_USERNAME`, `DOCKERHUB_IMAGE`), кэширует образ между запусками и загружает артефакт в GitHub Release.
+
+| Входной параметр | Обязательный | Описание |
+|-----------------|:---:|----------|
+| `artifact_prefix` | да | Префикс имени файла: `{prefix}{version}.{cf\|cfe}` |
+| `build_type` | нет | `cf` или `cfe`; авто, если не задан |
+| `version_placeholder` | нет | Заглушка версии (по умолчанию `9.9.9.9`) |
+| `version_files` | нет | Доп. файлы для замены версии |
+| `edt_memory` | нет | Память JVM (по умолчанию `2g`) |
+
+Требует секрет `DOCKERHUB_TOKEN`.
+
+#### .github/workflows/cfe2cf.yml — reusable workflow: CF из расширения
+
+Аналогичен `build.yml`, но запускает `cfe2cf.sh`. Всегда собирает `.cf`.
+
+| Входной параметр | Обязательный | Описание |
+|-----------------|:---:|----------|
+| `artifact_prefix` | да | Префикс имени файла: `{prefix}{version}.cf` |
+| `version_placeholder` | нет | Заглушка версии (по умолчанию `9.9.9.9`) |
+| `version_files` | нет | Доп. файлы для замены версии |
+| `edt_memory` | нет | Память JVM (по умолчанию `2g`) |
+
+Требует секрет `DOCKERHUB_TOKEN`.
 
 ---
 
