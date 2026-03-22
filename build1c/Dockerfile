@@ -80,9 +80,11 @@ RUN cd /tmp/edt \
 FROM ubuntu:22.04
 
 ARG PLATFORM_VERSION
+ARG EDT_VERSION
+ARG OSCRIPT_VERSION
 ARG OSCRIPT_ZIP
 
-LABEL description="1C Build image: Platform ${PLATFORM_VERSION} + EDT + OScript + vrunner"
+LABEL description="1C Build image: Platform ${PLATFORM_VERSION} + EDT ${EDT_VERSION} + OScript ${OSCRIPT_VERSION} + vrunner"
 
 ENV DEBIAN_FRONTEND=noninteractive
 

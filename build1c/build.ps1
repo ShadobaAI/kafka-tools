@@ -1,5 +1,6 @@
 $PLATFORM_VERSION = "8.3.27.2074"
 $EDT_VERSION      = "2025.2.3"
+$OSCRIPT_VERSION  = "2.0.1"
 $PLATFORM_DEB_ZIP = "distr/deb64_8_3_27_2074.zip"
 $EDT_DISTR_TGZ    = "distr/1c_edt_distr_offline_2025.2.3_30_linux_x86_64.tar.gz"
 $OSCRIPT_ZIP      = "distr/OneScript-2.0.1-linux-x64.zip"
@@ -7,8 +8,10 @@ $REGISTRY         = ("https://index.docker.io/v1/" | docker-credential-desktop g
 
 docker build `
   --build-arg PLATFORM_VERSION="$PLATFORM_VERSION" `
+  --build-arg EDT_VERSION="$EDT_VERSION" `
+  --build-arg OSCRIPT_VERSION="$OSCRIPT_VERSION" `
   --build-arg PLATFORM_DEB_ZIP="$PLATFORM_DEB_ZIP" `
   --build-arg EDT_DISTR_TGZ="$EDT_DISTR_TGZ" `
   --build-arg OSCRIPT_ZIP="$OSCRIPT_ZIP" `
-  -t "${REGISTRY}/1c-build:${PLATFORM_VERSION}-edt${EDT_VERSION}" `
+  -t "${REGISTRY}/1c-build:latest" `
   "$PSScriptRoot"
