@@ -19,13 +19,14 @@ jobs:
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
-          username: ${{ github.repository_owner }}
+          username: ${{ vars.DOCKERHUB_USERNAME }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Mirror image
         run: |
+          OWNER="${GITHUB_REPOSITORY_OWNER,,}"
           SRC="${{ vars.DOCKERHUB_USERNAME }}/${{ vars.DOCKERHUB_IMAGE }}:latest"
-          DST="ghcr.io/${{ github.repository_owner }}/${{ vars.DOCKERHUB_IMAGE }}:latest"
+          DST="ghcr.io/${OWNER}/${{ vars.DOCKERHUB_IMAGE }}:latest"
           docker pull "$SRC"
           docker tag "$SRC" "$DST"
           docker push "$DST"
