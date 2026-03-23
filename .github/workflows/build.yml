@@ -123,9 +123,11 @@ jobs:
 
       - name: Package artifacts
         id: pkg
+        env:
+          CFG_NAME: ${{ steps.meta.outputs.cfg_name }}
         run: |
           python3 .ci/.github/scripts/package.py \
-            --name    "${{ steps.meta.outputs.cfg_name }}" \
+            --name    "$CFG_NAME" \
             --ext     "${{ steps.meta.outputs.build_type }}" \
             --suffix  "${{ inputs.name_suffix }}" \
             --version "${{ steps.version.outputs.value }}"
