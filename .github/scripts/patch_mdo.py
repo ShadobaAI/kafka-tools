@@ -6,7 +6,8 @@
   - удаляет строку Base-Project из DT-INF/PROJECT.PMF
 """
 import re
-import sys
+
+from ci_utils import MDO_PATH
 
 EXTENSION_TAGS = [
     'objectBelonging',
@@ -17,38 +18,37 @@ EXTENSION_TAGS = [
     'configurationExtensionCompatibilityMode',
 ]
 
-MDO_PATH     = 'src/Configuration/Configuration.mdo'
 PROJECT_PATH = '.project'
 PMF_PATH     = 'DT-INF/PROJECT.PMF'
 
 
-def patch_mdo():
-    with open(MDO_PATH, 'r', encoding='utf-8') as f:
+def patch_file(path: str, transform):
+    with open(path, 'r', encoding='utf-8') as f:
         content = f.read()
-    for tag in EXTENSION_TAGS:
-        content = re.sub(rf'\s*<{tag}/>', '', content)
-        content = re.sub(rf'\s*<{tag}>.*?</{tag}>', '', content, flags=re.DOTALL)
-    with open(MDO_PATH, 'w', encoding='utf-8') as f:
+    content = transform(content)
+    with open(path, 'w', encoding='utf-8') as f:
         f.write(content)
-    print(f'  patched: {MDO_PATH}')
+    print(f'  patched: {path}')
+
+
+def patch_mdo():
+    def transform(content):
+        for tag in EXTENSION_TAGS:
+            content = re.sub(rf'\s*<{tag}/>', '', content)
+            content = re.sub(rf'\s*<{tag}>.*?</{tag}>', '', content, flags=re.DOTALL)
+        return content
+    patch_file(MDO_PATH, transform)
 
 
 def patch_project():
-    with open(PROJECT_PATH, 'r', encoding='utf-8') as f:
-        content = f.read()
-    content = content.replace('V8ExtensionNature', 'V8ConfigurationNature')
-    with open(PROJECT_PATH, 'w', encoding='utf-8') as f:
-        f.write(content)
-    print(f'  patched: {PROJECT_PATH}')
+    patch_file(PROJECT_PATH, lambda c: c.replace('V8ExtensionNature', 'V8ConfigurationNature'))
 
 
 def patch_pmf():
-    with open(PMF_PATH, 'r', encoding='utf-8') as f:
-        lines = f.readlines()
-    lines = [l for l in lines if 'Base-Project' not in l]
-    with open(PMF_PATH, 'w', encoding='utf-8') as f:
-        f.writelines(lines)
-    print(f'  patched: {PMF_PATH}')
+    def transform(content):
+        lines = [l for l in content.splitlines(keepends=True) if 'Base-Project' not in l]
+        return ''.join(lines)
+    patch_file(PMF_PATH, transform)
 
 
 if __name__ == '__main__':

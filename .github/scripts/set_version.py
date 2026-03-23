@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
 """
 Заменяет плейсхолдер версии 9.9.9.9 на реальную версию в указанных файлах.
+MDO_PATH всегда включён автоматически.
 
-Использование: set_version.py VERSION file1 [file2 ...]
+Использование: set_version.py VERSION [file2 ...]
 """
 import sys
+
+from ci_utils import MDO_PATH
 
 PLACEHOLDER = '9.9.9.9'
 
@@ -25,7 +28,7 @@ def set_version(version: str, paths: list):
 
 
 if __name__ == '__main__':
-    if len(sys.argv) < 3:
-        print('Использование: set_version.py VERSION file1 [file2 ...]', file=sys.stderr)
+    if len(sys.argv) < 2:
+        print('Использование: set_version.py VERSION [file2 ...]', file=sys.stderr)
         sys.exit(1)
-    set_version(sys.argv[1], sys.argv[2:])
+    set_version(sys.argv[1], [MDO_PATH] + sys.argv[2:])

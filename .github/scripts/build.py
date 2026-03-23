@@ -3,10 +3,11 @@
 EDT → XML → .cf или .cfe
 
 Переменные окружения:
-  BUILD_TYPE  — 'cf' или 'cfe' (обязательно, задаётся из detect_project.py)
-  VERSION     — X.X.X.X (обязательно, версия уже проставлена в исходниках)
-  SRC_DIR     — исходники EDT-проекта, по умолчанию /src
-  OUTPUT_DIR  — куда сохранить результат, по умолчанию /output
+  BUILD_TYPE      — 'cf' или 'cfe' (обязательно, задаётся из detect_project.py)
+  VERSION         — X.X.X.X (обязательно, версия уже проставлена в исходниках)
+  ARTIFACT_NAME   — имя результирующего файла без расширения (обязательно)
+  SRC_DIR         — исходники EDT-проекта, по умолчанию /src
+  OUTPUT_DIR      — куда сохранить результат, по умолчанию /output
 """
 import os
 import shutil
@@ -14,20 +15,21 @@ import subprocess
 import sys
 from pathlib import Path
 
+from ci_utils import EDT_PROJECT_ENTRIES
+
 
 def copy_sources(src_dir: Path, project_dir: Path):
     print('→ Копирование исходников...')
     if project_dir.exists():
         shutil.rmtree(project_dir)
     project_dir.mkdir(parents=True)
-    for entry in ('.project', '.settings', 'DT-INF', 'src'):
+    for entry in EDT_PROJECT_ENTRIES:
         src = src_dir / entry
         dst = project_dir / entry
         if src.is_dir():
             shutil.copytree(src, dst)
         elif src.is_file():
             shutil.copy2(src, dst)
-
 
 
 def find_edtcli() -> Path:
@@ -70,9 +72,9 @@ def edt_to_xml(edtcli: Path, project_dir: Path, xml_dir: Path, edt_workspace: Pa
     ])
 
 
-def xml_to_artifact(build_type: str, xml_dir: Path, output_dir: Path):
+def xml_to_artifact(build_type: str, xml_dir: Path, output_dir: Path, artifact_name: str):
     output_dir.mkdir(parents=True, exist_ok=True)
-    artifact = output_dir / f'config.{build_type}'
+    artifact = output_dir / f'{artifact_name}.{build_type}'
     if build_type == 'cf':
         print('→ XML → CF...')
         run(['vrunner', 'compile', '-s', xml_dir, '-o', artifact, '--ibcmd'])
@@ -84,13 +86,14 @@ def xml_to_artifact(build_type: str, xml_dir: Path, output_dir: Path):
 
 
 def main():
-    src_dir     = Path(os.environ.get('SRC_DIR',    '/src'))
-    output_dir  = Path(os.environ.get('OUTPUT_DIR', '/output'))
-    version    = os.environ.get('VERSION',    '')
-    build_type = os.environ.get('BUILD_TYPE', '')
+    src_dir       = Path(os.environ.get('SRC_DIR',    '/src'))
+    output_dir    = Path(os.environ.get('OUTPUT_DIR', '/output'))
+    version       = os.environ.get('VERSION',       '')
+    build_type    = os.environ.get('BUILD_TYPE',    '')
+    artifact_name = os.environ.get('ARTIFACT_NAME', '')
 
-    if not version or not build_type:
-        sys.exit('ERROR: VERSION и BUILD_TYPE обязательны')
+    if not version or not build_type or not artifact_name:
+        sys.exit('ERROR: VERSION, BUILD_TYPE и ARTIFACT_NAME обязательны')
 
     edt_workspace = Path('/tmp/edt-ws')
     project_dir   = Path('/tmp/project')
@@ -104,7 +107,7 @@ def main():
 
     copy_sources(src_dir, project_dir)
     edt_to_xml(find_edtcli(), project_dir, xml_dir, edt_workspace)
-    xml_to_artifact(build_type, xml_dir, output_dir)
+    xml_to_artifact(build_type, xml_dir, output_dir, artifact_name)
 
 
 if __name__ == '__main__':

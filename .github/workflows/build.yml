@@ -27,10 +27,7 @@ on:
         description: 'Имя образа (должен быть зеркалирован в GHCR)'
         type: string
         required: true
-    outputs:
-      version:
-        description: 'Версия из тега релиза'
-        value: ${{ jobs.build.outputs.version }}
+
 
 jobs:
   build:
@@ -38,9 +35,6 @@ jobs:
     permissions:
       contents: write
       packages: read
-    outputs:
-      version: ${{ steps.version.outputs.value }}
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -50,10 +44,6 @@ jobs:
         with:
           repository: ${{ github.repository_owner }}/kafka-tools
           path: .ci
-
-      - name: Extract version
-        id: version
-        run: echo "value=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
 
       - name: Lowercase owner
         id: owner
@@ -74,7 +64,7 @@ jobs:
         id: meta
         run: |
           python3 .ci/.github/scripts/detect_project.py \
-            --version "${{ steps.version.outputs.value }}" \
+            --version "${{ github.ref_name }}" \
             --build-type "${{ inputs.build_type }}"
 
       - name: Convert cfe → cf
@@ -87,8 +77,7 @@ jobs:
         run: |
           read -ra extra_files <<< "$VERSION_FILES"
           python3 .ci/.github/scripts/set_version.py \
-            "${{ steps.version.outputs.value }}" \
-            src/Configuration/Configuration.mdo \
+            "${{ github.ref_name }}" \
             "${extra_files[@]}"
 
       - name: Free disk space
@@ -105,8 +94,6 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build
-        env:
-          VERSION_FILES: ${{ inputs.version_files }}
         run: |
           mkdir -p output output-xml
           docker run --rm \
@@ -115,27 +102,21 @@ jobs:
             -v "${{ github.workspace }}/output:/output" \
             -v "${{ github.workspace }}/output-xml:/tmp/xml" \
             -e BUILD_TYPE=${{ steps.meta.outputs.build_type }} \
-            -e VERSION=${{ steps.version.outputs.value }} \
-            -e VERSION_FILES \
+            -e VERSION=${{ github.ref_name }} \
+            -e ARTIFACT_NAME=${{ github.event.repository.name }} \
             ghcr.io/${{ steps.owner.outputs.value }}/${{ inputs.dockerhub_image }}:latest \
             python3 /build.py
           sudo chown -R "$(id -u):$(id -g)" output/ output-xml/
 
       - name: Package artifacts
         id: pkg
-        env:
-          CFG_NAME: ${{ steps.meta.outputs.cfg_name }}
         run: |
           python3 .ci/.github/scripts/package.py \
-            --name    "$CFG_NAME" \
-            --ext     "${{ steps.meta.outputs.build_type }}" \
-            --suffix  "${{ inputs.name_suffix }}" \
-            --version "${{ steps.version.outputs.value }}"
+            --repo-name "${{ github.event.repository.name }}" \
+            --ext       "${{ steps.meta.outputs.build_type }}" \
+            --suffix    "${{ inputs.name_suffix }}"
 
       - name: Upload to release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          python3 .ci/.github/scripts/upload_release.py \
-            --tag  "${{ github.event.release.tag_name }}" \
-            --repo "${{ github.repository }}"
+        uses: softprops/action-gh-release@v2
+        with:
+          files: output/*
