@@ -133,13 +133,14 @@ jobs:
             --version "${{ steps.version.outputs.value }}"
 
       - name: Upload to release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BASE: ${{ steps.pkg.outputs.base }}
+          EXT: ${{ steps.meta.outputs.build_type }}
+          TAG: ${{ github.event.release.tag_name }}
         run: |
-          BASE="${{ steps.pkg.outputs.base }}"
-          EXT="${{ steps.meta.outputs.build_type }}"
-          gh release upload "${{ github.event.release.tag_name }}" \
+          gh release upload "$TAG" \
             "output/${BASE}.${EXT}" \
             "output/${BASE}-EDT.zip" \
             "output/${BASE}-XML.zip" \
             --clobber
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
