@@ -99,6 +99,7 @@ jobs:
           docker run --rm \
             -v "${{ github.workspace }}:/src:ro" \
             -v "${{ github.workspace }}/.ci/.github/scripts/build.py:/build.py:ro" \
+            -v "${{ github.workspace }}/.ci/.github/scripts/ci_utils.py:/ci_utils.py:ro" \
             -v "${{ github.workspace }}/output:/output" \
             -v "${{ github.workspace }}/output-xml:/tmp/xml" \
             -e BUILD_TYPE=${{ steps.meta.outputs.build_type }} \
