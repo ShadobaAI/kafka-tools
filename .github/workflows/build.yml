@@ -18,6 +18,11 @@ on:
         type: string
         required: false
         default: ''
+      pre_script:
+        description: 'Скрипт для выполнения на EDT-исходниках до сборки (относительно корня, .py или .sh)'
+        type: string
+        required: false
+        default: ''
       dockerhub_image:
         description: 'Имя образа (должен быть зеркалирован в GHCR)'
         type: string
@@ -53,6 +58,15 @@ jobs:
       - name: Lowercase owner
         id: owner
         run: echo "value=${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_OUTPUT"
+
+      - name: Pre-build script
+        if: inputs.pre_script != ''
+        run: |
+          case "${{ inputs.pre_script }}" in
+            *.py) python3 "${{ inputs.pre_script }}" ;;
+            *.sh) bash    "${{ inputs.pre_script }}" ;;
+            *)    echo "ERROR: pre_script должен быть .py или .sh" && exit 1 ;;
+          esac
 
       - name: Detect project, validate version, get config name
         id: meta
