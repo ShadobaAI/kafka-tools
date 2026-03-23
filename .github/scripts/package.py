@@ -9,8 +9,8 @@
 
 Итоговые имена файлов:
   <repo>.cf(e)
-  <repo>-<suffix>-EDT.zip  (без suffix: <repo>-EDT.zip)
-  <repo>-<suffix>-XML.zip  (без suffix: <repo>-XML.zip)
+  <repo>-<suffix>-edt.zip  (без suffix: <repo>-edt.zip)
+  <repo>-<suffix>-xml.zip  (без suffix: <repo>-xml.zip)
 """
 import argparse
 import zipfile
@@ -64,12 +64,12 @@ def main():
     edt_paths = [p for p in EDT_PROJECT_ENTRIES if Path(p).exists()]
     if not edt_paths:
         edt_paths = ['src']
-    edt_zip = out / f'{zip_base}-EDT.zip'
+    edt_zip = out / f'{zip_base}-edt.zip'
     zip_paths(edt_paths, edt_zip)
     print(f'  EDT : {edt_zip}  ({human(edt_zip)})')
 
     # XML zip
-    xml_zip = out / f'{zip_base}-XML.zip'
+    xml_zip = out / f'{zip_base}-xml.zip'
     zip_dir(xml, xml_zip)
     print(f'  XML : {xml_zip}  ({human(xml_zip)})')
 

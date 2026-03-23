@@ -9,7 +9,7 @@ on:
         required: false
         default: ''
       name_suffix:
-        description: 'Суффикс имени файла (необязательно). Итог: {name}-{suffix}-EDT.zip, {name}-{suffix}-XML.zip'
+        description: 'Суффикс имени файла (необязательно). Итог: {name}-{suffix}-edt.zip, {name}-{suffix}-xml.zip'
         type: string
         required: false
         default: ''

@@ -98,6 +98,7 @@
 | `set_version.py` | Заменяет `9.9.9.9` на реальную версию в указанных файлах |
 | `patch_mdo.py` | Вырезает атрибуты расширения при сборке CFE-проекта как CF |
 | `package.py` | Упаковывает артефакты в ZIP и формирует итоговые имена файлов |
+| `ci_utils.py` | Общие утилиты для CI-скриптов (`EDT_PROJECT_ENTRIES`, `MDO_PATH`, `write_github_output`) |
 
 ### .github/workflows/build.yml — reusable workflow: CF/CFE
 
@@ -106,7 +107,7 @@
 
 Образ берётся из GHCR (`ghcr.io/shadobaai/1c-build:latest`). Загружает в GitHub Release три артефакта:
 - `{name}-{version}.{cf|cfe}` — скомпилированный файл конфигурации / расширения
-- `{name}-{version}-EDT.zip` — исходники в формате EDT
+- `{name}-{version}-edt.zip` — исходники в формате EDT
 - `{name}-{version}-XML.zip` — промежуточные XML-файлы
 
 Имя `{name}` берётся из тега `<name>` в `src/Configuration/Configuration.mdo`.
@@ -115,11 +116,9 @@
 |-----------------|:---:|----------|
 | `dockerhub_image` | да | Имя образа в GHCR (без префикса `ghcr.io/<owner>/`) |
 | `build_type` | нет | `cf` или `cfe`; авто, если не задан |
-| `name_suffix` | нет | Суффикс имени файлов: `{name}-{suffix}-{version}-EDT.zip` и т.д. |
+| `name_suffix` | нет | Суффикс имени файлов: `{name}-{suffix}-{version}-edt.zip` и т.д. |
 | `version_files` | нет | Доп. файлы для замены версии (через пробел, относительно корня) |
 | `pre_script` | нет | Скрипт (`.py` или `.sh`) для выполнения на EDT-исходниках до сборки |
-
-Выходной параметр: `version` — версия из тега релиза.
 
 Использует `GITHUB_TOKEN` (встроен автоматически) для публикации в Release и GHCR.
 
