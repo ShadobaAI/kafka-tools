@@ -130,6 +130,3 @@ RUN unzip -q /tmp/$(basename "${OSCRIPT_ZIP}") -d /opt/oscript \
 RUN opm install vanessa-runner
 
 WORKDIR /build
-
-# скрипт сборки монтируется снаружи — образ универсальный
-ENTRYPOINT ["/bin/bash"]

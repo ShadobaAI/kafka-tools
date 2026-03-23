@@ -47,12 +47,19 @@ def run(cmd: list, **kwargs):
         sys.exit(result.returncode)
 
 
+def reset_dir(d: Path):
+    """Очищает содержимое директории или создаёт её. Не удаляет саму директорию (может быть точкой монтирования)."""
+    if d.exists():
+        for item in d.iterdir():
+            shutil.rmtree(item) if item.is_dir() else item.unlink()
+    else:
+        d.mkdir(parents=True)
+
+
 def edt_to_xml(edtcli: Path, project_dir: Path, xml_dir: Path, edt_workspace: Path):
     print('→ EDT → XML...')
     for d in (xml_dir, edt_workspace):
-        if d.exists():
-            shutil.rmtree(d)
-        d.mkdir(parents=True)
+        reset_dir(d)
     run([
         edtcli,
         '-data', edt_workspace,
