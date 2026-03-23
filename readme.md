@@ -50,30 +50,25 @@
 ```
 
 После успешной сборки образ автоматически пушится в `ghcr.io/<owner>/1c-build:latest`.
-Владелец задаётся переменной `$OWNER` в начале скрипта.
-
-**Предварительно** — войти в GHCR (один раз):
-
-```powershell
-docker login ghcr.io -u <owner>
-# ввести GitHub PAT с правом write:packages
-```
+`$OWNER` определяется автоматически из учётных данных Docker Desktop (ghcr.io).
 
 ### docker-image/push-dt.ps1 — публикация шаблона базы (.dt)
 
 Публикует файл `.dt` как OCI-артефакт в GHCR через [ORAS](https://oras.land/).
 
+Перед запуском задать `$TOKEN` в начале скрипта (GitHub PAT с правом `packages:write`), затем:
+
 ```powershell
-.\docker-image\push-dt.ps1 -Token "<PAT>" -Owner "<owner>" -File "путь/к/template.dt"
+.\docker-image\push-dt.ps1
 ```
 
-| Параметр | Описание | По умолчанию |
-|----------|----------|:---:|
-| `Token` | GitHub PAT с правом `packages:write` | — |
-| `Owner` | Владелец реестра | — |
-| `Repo` | Имя пакета в GHCR | `kfk-tmpl-dt` |
-| `Tag` | Тег образа | `latest` |
-| `File` | Путь к `.dt`-файлу | `/template.dt` |
+`$OWNER` и `$IMAGE` определяются автоматически из учётных данных Docker Desktop (ghcr.io).
+
+| Переменная | Описание | По умолчанию |
+|------------|----------|:---:|
+| `$TOKEN` | GitHub PAT с правом `packages:write` | — |
+| `$FILE` | Путь к `.dt`-файлу | `.\template.dt` |
+| `$IMAGE` | Целевой образ в GHCR | `ghcr.io/<owner>/kfk-tmpl-dt:latest` |
 
 Получить артефакт: `oras pull ghcr.io/<owner>/kfk-tmpl-dt:latest`
 

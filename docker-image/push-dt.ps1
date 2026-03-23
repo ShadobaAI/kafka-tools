@@ -1,21 +1,15 @@
-param(
-    [string]$Token = "",           # GITHUB_TOKEN или PAT с правом packages:write
-    [string]$Owner = "",
-    [string]$Repo  = "kfk-tmpl-dt",
-    [string]$Tag   = "latest",
-    [string]$File  = "/template.dt"
-)
+$FILE  = ".\template.dt"
 
-$Image = "ghcr.io/$Owner/${Repo}:$Tag"
+$OWNER  = ("ghcr.io" | docker-credential-desktop get | ConvertFrom-Json).Username
+$IMAGE  = "ghcr.io/$OWNER/kfk-tmpl-dt:latest"
 
 # Логин в GHCR
-$Token | oras login ghcr.io --username $Owner --password-stdin
+$TOKEN | oras login ghcr.io --username $OWNER --password-stdin
 
 # Публикация артефакта
-oras push $Image `
+oras push $IMAGE `
     --artifact-type "application/vnd.1c.dt" `
     --disable-path-validation `
-    --annotation "org.opencontainers.image.source=https://github.com/$Owner/kafka-adapter" `
-    "${File}:application/octet-stream"
+    "${FILE}:application/octet-stream"
 
-Write-Host "Pushed: $Image"
+Write-Host "Pushed: $IMAGE"

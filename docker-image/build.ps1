@@ -1,4 +1,4 @@
-$OWNER            = ""
+$OWNER            = ("ghcr.io" | docker-credential-desktop get | ConvertFrom-Json).Username
 
 $PLATFORM_VERSION = "8.3.27.2074"
 $EDT_VERSION      = "2025.2.3"
