@@ -83,8 +83,10 @@ ARG PLATFORM_VERSION
 ARG EDT_VERSION
 ARG OSCRIPT_VERSION
 ARG OSCRIPT_ZIP
+ARG BUILD_DATE
 
-LABEL description="1C Build image: Platform ${PLATFORM_VERSION} + EDT ${EDT_VERSION} + OScript ${OSCRIPT_VERSION} + vrunner"
+LABEL description="1C Build image: Platform ${PLATFORM_VERSION} + EDT ${EDT_VERSION} + OScript ${OSCRIPT_VERSION} + vrunner" \
+      build-date="${BUILD_DATE}"
 
 ENV DEBIAN_FRONTEND=noninteractive
 
