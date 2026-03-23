@@ -53,44 +53,58 @@
 
 ## .github
 
-### .github/scripts/build.sh — сборка CF / CFE
+### .github/scripts/build.py — сборка CF / CFE
 
 Собирает `.cf` или `.cfe` из EDT-проекта: EDT → XML → артефакт.
-`BUILD_TYPE` определяется автоматически по `.project` (V8ExtensionNature → `cfe`, V8ConfigurationNature → `cf`).
+`BUILD_TYPE` определяется автоматически по `.project` (`V8ExtensionNature` → `cfe`, `V8ConfigurationNature` → `cf`).
 
 | Переменная | Описание | По умолчанию |
 |------------|----------|:---:|
-| `VERSION` | Версия в формате X.X.X.X | `0.0.0.0` |
+| `VERSION` | Версия в формате X.X.X.X | — |
 | `BUILD_TYPE` | `cf` или `cfe` (авто, если не задан) | — |
-| `VERSION_FILES` | Доп. файлы для замены версии (через пробел, относительно корня) | — |
 | `SRC_DIR` | Исходники EDT-проекта | `/src` |
 | `OUTPUT_DIR` | Каталог результата | `/output` |
 
-Заглушка версии в исходниках — `9.9.9.9` (фиксировано).
+Заглушка версии в исходниках — `9.9.9.9` (подставляется скриптом `set_version.py` до запуска сборки).
+
+Вспомогательные скрипты в `.github/scripts/`:
+
+| Скрипт | Описание |
+|--------|----------|
+| `detect_project.py` | Валидирует версию, определяет тип проекта и имя конфигурации |
+| `set_version.py` | Заменяет `9.9.9.9` на реальную версию в указанных файлах |
+| `patch_mdo.py` | Вырезает атрибуты расширения при сборке CFE-проекта как CF |
+| `package.py` | Упаковывает артефакты в ZIP и формирует итоговые имена файлов |
 
 ### .github/workflows/build.yml — reusable workflow: CF/CFE
 
 Вызываемый workflow (`workflow_call`) для сборки `.cf` / `.cfe` по тегу релиза (формат `X.X.X.X`).
 Поддерживает сборку CF из проекта расширения (cfe → cf): если `.project` содержит `V8ExtensionNature`, а `build_type: cf` — атрибуты расширения вырезаются автоматически.
 
-Кэширует Docker-образ между запусками. Загружает в GitHub Release три артефакта:
-- `{name}.{cf|cfe}` — скомпилированный файл конфигурации / расширения
-- `{name}-EDT.zip` — исходники в формате EDT
-- `{name}-XML.zip` — промежуточные XML-файлы
+Образ берётся из GHCR (зеркалируется через `mirror-docker.yml`). Загружает в GitHub Release три артефакта:
+- `{name}-{version}.{cf|cfe}` — скомпилированный файл конфигурации / расширения
+- `{name}-{version}-EDT.zip` — исходники в формате EDT
+- `{name}-{version}-XML.zip` — промежуточные XML-файлы
 
 Имя `{name}` берётся из тега `<name>` в `src/Configuration/Configuration.mdo`.
 
 | Входной параметр | Обязательный | Описание |
 |-----------------|:---:|----------|
-| `dockerhub_username` | да | Логин Docker Hub |
-| `dockerhub_image` | да | Имя образа на Docker Hub |
+| `dockerhub_image` | да | Имя образа (должен быть зеркалирован в GHCR) |
 | `build_type` | нет | `cf` или `cfe`; авто, если не задан |
-| `name_suffix` | нет | Суффикс имени файлов: `{name}-{suffix}-EDT.zip` и т.д. |
+| `name_suffix` | нет | Суффикс имени файлов: `{name}-{suffix}-{version}-EDT.zip` и т.д. |
 | `version_files` | нет | Доп. файлы для замены версии (через пробел, относительно корня) |
+| `pre_script` | нет | Скрипт (`.py` или `.sh`) для выполнения на EDT-исходниках до сборки |
 
 Выходной параметр: `version` — версия из тега релиза.
 
-Требует секрет `DOCKERHUB_TOKEN`.
+Использует `GITHUB_TOKEN` (встроен автоматически) для публикации в Release и GHCR.
+
+### .github/workflows/mirror-docker.yml — зеркало образа
+
+Запускается вручную (`workflow_dispatch`). Копирует образ из Docker Hub в GHCR, откуда его использует `build.yml`.
+
+Требует переменные `DOCKERHUB_USERNAME`, `DOCKERHUB_IMAGE` и секрет `DOCKERHUB_TOKEN`.
 
 ---
 
