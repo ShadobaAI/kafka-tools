@@ -43,10 +43,19 @@
 | `1c_edt_distr_offline_*_linux_x86_64.tar.gz` | EDT — офлайн-дистрибутив для Linux x86_64 |
 | `OneScript-*-linux-x64.zip` | OneScript для Linux x64 |
 
-Сборка образа:
+Сборка и публикация в GHCR:
 
 ```powershell
 .\docker-image\build.ps1
+```
+
+После успешной сборки образ автоматически пушится в `ghcr.io/shadobaai/1c-build:latest`.
+
+**Предварительно** — войти в GHCR (один раз):
+
+```powershell
+docker login ghcr.io -u shadobaai
+# ввести GitHub PAT с правом write:packages
 ```
 
 ---
@@ -81,7 +90,7 @@
 Вызываемый workflow (`workflow_call`) для сборки `.cf` / `.cfe` по тегу релиза (формат `X.X.X.X`).
 Поддерживает сборку CF из проекта расширения (cfe → cf): если `.project` содержит `V8ExtensionNature`, а `build_type: cf` — атрибуты расширения вырезаются автоматически.
 
-Образ берётся из GHCR (зеркалируется через `mirror-docker.yml`). Загружает в GitHub Release три артефакта:
+Образ берётся из GHCR (`ghcr.io/shadobaai/1c-build:latest`). Загружает в GitHub Release три артефакта:
 - `{name}-{version}.{cf|cfe}` — скомпилированный файл конфигурации / расширения
 - `{name}-{version}-EDT.zip` — исходники в формате EDT
 - `{name}-{version}-XML.zip` — промежуточные XML-файлы
@@ -99,12 +108,6 @@
 Выходной параметр: `version` — версия из тега релиза.
 
 Использует `GITHUB_TOKEN` (встроен автоматически) для публикации в Release и GHCR.
-
-### .github/workflows/mirror-docker.yml — зеркало образа
-
-Запускается вручную (`workflow_dispatch`). Копирует образ из Docker Hub в GHCR, откуда его использует `build.yml`.
-
-Требует переменные `DOCKERHUB_USERNAME`, `DOCKERHUB_IMAGE` и секрет `DOCKERHUB_TOKEN`.
 
 ---
 
