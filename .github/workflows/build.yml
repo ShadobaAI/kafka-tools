@@ -145,6 +145,14 @@ jobs:
           VERSION="${{ steps.version.outputs.value }}"
           BASE=$([ -n "$SUFFIX" ] && echo "${NAME}-${SUFFIX}-${VERSION}" || echo "${NAME}-${VERSION}")
 
+          # Замена версии в исходниках перед упаковкой EDT
+          sed -i "s/9\\.9\\.9\\.9/${VERSION}/g" src/Configuration/Configuration.mdo
+          if [ -n "${{ inputs.version_files }}" ]; then
+            for f in ${{ inputs.version_files }}; do
+              [ -f "$f" ] && sed -i "s/9\\.9\\.9\\.9/${VERSION}/g" "$f"
+            done
+          fi
+
           # EDT zip
           zip -qr "output/${BASE}-EDT.zip" \
             .project .settings DT-INF src 2>/dev/null || \
