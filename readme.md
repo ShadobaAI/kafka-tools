@@ -49,14 +49,33 @@
 .\docker-image\build.ps1
 ```
 
-После успешной сборки образ автоматически пушится в `ghcr.io/shadobaai/1c-build:latest`.
+После успешной сборки образ автоматически пушится в `ghcr.io/<owner>/1c-build:latest`.
+Владелец задаётся переменной `$OWNER` в начале скрипта.
 
 **Предварительно** — войти в GHCR (один раз):
 
 ```powershell
-docker login ghcr.io -u shadobaai
+docker login ghcr.io -u <owner>
 # ввести GitHub PAT с правом write:packages
 ```
+
+### docker-image/push-dt.ps1 — публикация шаблона базы (.dt)
+
+Публикует файл `.dt` как OCI-артефакт в GHCR через [ORAS](https://oras.land/).
+
+```powershell
+.\docker-image\push-dt.ps1 -Token "<PAT>" -Owner "<owner>" -File "путь/к/template.dt"
+```
+
+| Параметр | Описание | По умолчанию |
+|----------|----------|:---:|
+| `Token` | GitHub PAT с правом `packages:write` | — |
+| `Owner` | Владелец реестра | — |
+| `Repo` | Имя пакета в GHCR | `kfk-tmpl-dt` |
+| `Tag` | Тег образа | `latest` |
+| `File` | Путь к `.dt`-файлу | `/template.dt` |
+
+Получить артефакт: `oras pull ghcr.io/<owner>/kfk-tmpl-dt:latest`
 
 ---
 
@@ -99,7 +118,7 @@ docker login ghcr.io -u shadobaai
 
 | Входной параметр | Обязательный | Описание |
 |-----------------|:---:|----------|
-| `dockerhub_image` | да | Имя образа (должен быть зеркалирован в GHCR) |
+| `dockerhub_image` | да | Имя образа в GHCR (без префикса `ghcr.io/<owner>/`) |
 | `build_type` | нет | `cf` или `cfe`; авто, если не задан |
 | `name_suffix` | нет | Суффикс имени файлов: `{name}-{suffix}-{version}-EDT.zip` и т.д. |
 | `version_files` | нет | Доп. файлы для замены версии (через пробел, относительно корня) |
