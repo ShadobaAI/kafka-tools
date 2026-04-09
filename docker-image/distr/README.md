@@ -10,7 +10,6 @@
 |------|----------|
 | `deb64_*.zip` | 1С:Предприятие — deb-пакеты для Linux x86_64 |
 | `1c_edt_distr_offline_*_linux_x86_64.tar.gz` | 1C EDT — офлайн-дистрибутив для Linux x86_64 |
-| `axiomjdk_jre_*_linux_amd64_full.deb` | AxiomJDK JRE — JRE для Linux amd64 (требуется для EDT) |
 | `OneScript-*-linux-x64.zip` | OneScript — интерпретатор языка 1С для Linux x64 |
 
 ## Переменные окружения
