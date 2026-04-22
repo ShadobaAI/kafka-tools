@@ -1,5 +1,6 @@
 import argparse
 import yaml
+import re
 from lxml import etree
 
 # ================== CONSTANTS ==================
@@ -99,7 +100,8 @@ def is_enum_schema(schema: dict) -> bool:
 def pascal_case(name: str) -> str:
     if not name:
         return name
-    return name[0].upper() + name[1:]
+    parts = re.split(r'[.\-_]', name)
+    return ''.join(part.capitalize() for part in parts if part)
 
 
 # ================== ELEMENT BUILDER ==================
