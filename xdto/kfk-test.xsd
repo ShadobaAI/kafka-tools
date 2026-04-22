@@ -1,0 +1,65 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:tns="http://v8.fsk.ru/kfk/test/1.0" targetNamespace="http://v8.fsk.ru/kfk/test/1.0" elementFormDefault="qualified" attributeFormDefault="unqualified">
+  <xs:simpleType name="UUID">
+    <xs:restriction base="xs:string">
+      <xs:pattern value="[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"/>
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:complexType name="TestCatalog">
+    <xs:sequence>
+      <xs:element name="ref" type="tns:UUID"/>
+      <xs:element name="name" type="xs:string"/>
+      <xs:element name="dateTime" type="xs:dateTime" nillable="true"/>
+      <xs:element name="number" type="xs:decimal" nillable="true"/>
+      <xs:element name="boolean" type="xs:boolean" nillable="true"/>
+      <xs:element name="enum" type="tns:TestCatalog.Enum" minOccurs="0" nillable="true"/>
+      <xs:element name="comment" type="xs:string" nillable="true"/>
+      <xs:element name="tabularSection" type="tns:TestCatalog.Tabularsection" minOccurs="0" nillable="true"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:simpleType name="TestCatalog.Enum">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="Значение1"/>
+      <xs:enumeration value="Значение2"/>
+      <xs:enumeration value="Значение3"/>
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:complexType name="TestCatalog.Tabularsection.Row">
+    <xs:sequence>
+      <xs:element name="dateTime" type="xs:dateTime" nillable="true"/>
+      <xs:element name="string" type="xs:string" nillable="true"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="TestCatalog.Tabularsection">
+    <xs:sequence>
+      <xs:element name="row" type="tns:TestCatalog.Tabularsection.Row" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="TestRegister">
+    <xs:sequence>
+      <xs:element name="period" type="xs:dateTime"/>
+      <xs:element name="testRef" type="tns:UUID" nillable="true"/>
+      <xs:element name="boolean" type="xs:boolean" nillable="true"/>
+      <xs:element name="number" type="xs:decimal" nillable="true"/>
+      <xs:element name="dateTime" type="xs:dateTime" nillable="true"/>
+      <xs:element name="uuid" type="tns:UUID" nillable="true"/>
+      <xs:element name="comment" type="xs:string" nillable="true"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="TestRegisterRs">
+    <xs:sequence>
+      <xs:element name="period" type="xs:dateTime"/>
+      <xs:element name="recorder" type="tns:UUID"/>
+      <xs:element name="id" type="tns:UUID"/>
+      <xs:element name="value" type="xs:decimal" nillable="true"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="TestAccumulationRegister">
+    <xs:sequence>
+      <xs:element name="period" type="xs:dateTime"/>
+      <xs:element name="recorder" type="tns:UUID"/>
+      <xs:element name="id" type="tns:UUID"/>
+      <xs:element name="value" type="xs:decimal" nillable="true"/>
+    </xs:sequence>
+  </xs:complexType>
+</xs:schema>

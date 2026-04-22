@@ -1,0 +1,173 @@
+asyncapi: 3.1.0
+info:
+  title: 1С. Адаптер Kafka - Тестер
+  version: 1.0.0
+  description: Пример обмена для 1С. Адаптер Kafka
+servers:
+  kafka-dev:
+    host: 'localhost:29091'
+    protocol: kafka
+    description: Dev Kafka cluster
+defaultContentType: application/json
+operations:
+  TestCatalog:
+    action: receive
+    channel:
+      $ref: '#/channels/TestCatalog'
+  TestRegister:
+    action: receive
+    channel:
+      $ref: '#/channels/TestRegister'
+  TestRegisterRS:
+    action: receive
+    channel:
+      $ref: '#/channels/TestRegisterRS'
+  TestAccumulationRegister:
+    action: receive
+    channel:
+      $ref: '#/channels/TestAccumulationRegister'
+channels:
+  TestCatalog:
+    address: 1c.test-catalog
+    description: Тестовый справочник
+    messages:
+      TestCatalog:
+        $ref: '#/components/messages/TestCatalog'
+  TestRegister:
+    address: 1c.test-register
+    description: Тестовый регистр сведений
+    messages:
+      TestRegister:
+        $ref: '#/components/messages/TestRegister'
+  TestRegisterRS:
+    address: 1c.test-register-rs
+    description: Тестовый регистр сведений подчиненный регистратору
+    messages:
+      TestRegisterRS:
+        $ref: '#/components/messages/TestRegisterRS'
+  TestAccumulationRegister:
+    address: 1c.test-accumulation-register
+    description: Тестовый регистр накопления
+    messages:
+      TestAccumulationRegister:
+        $ref: '#/components/messages/TestAccumulationRegister'
+components:
+  messages:
+    TestCatalog:
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/TestCatalog'
+    TestRegister:
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/TestRegister'
+    TestRegisterRS:
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/TestRegisterRS'
+    TestAccumulationRegister:
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/TestAccumulationRegister'
+  schemas:
+    TestCatalog:
+      type: object
+      additionalProperties: false
+      required:
+        - ref
+        - name
+      properties:
+        ref:
+          type: string
+          format: uuid
+        name:
+          type: string
+        dateTime:
+          type: string
+          format: date-time
+        number:
+          type: number
+        boolean:
+          type: boolean
+        enum:
+          type: string
+          enum:
+            - Значение1
+            - Значение2
+            - Значение3
+        comment:
+          type: string
+        tabularSection:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            properties:
+              dateTime:
+                type: string
+                format: date-time
+              string:
+                type: string
+    TestRegister:
+      type: object
+      additionalProperties: false
+      required:
+        - period
+      properties:
+        period:
+          type: string
+          format: date-time
+        testRef:
+          type: string
+          format: uuid
+        boolean:
+          type: boolean
+        number:
+          type: number
+        dateTime:
+          type: string
+          format: date-time
+        uuid:
+          type: string
+          minLength: 36
+          maxLength: 36
+        comment:
+          type: string
+    TestRegisterRS:
+      type: object
+      additionalProperties: false
+      required:
+        - period
+        - recorder
+        - id
+      properties:
+        period:
+          type: string
+          format: date-time
+        recorder:
+          type: string
+          format: uuid
+        id:
+          type: string
+          format: uuid
+        value:
+          type: number
+    TestAccumulationRegister:
+      type: object
+      additionalProperties: false
+      required:
+        - period
+        - recorder
+        - id
+      properties:
+        period:
+          type: string
+          format: date-time
+        recorder:
+          type: string
+          format: uuid
+        id:
+          type: string
+          format: uuid
+        value:
+          type: number
