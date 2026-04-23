@@ -122,6 +122,9 @@ components:
           format: uuid
         boolean:
           type: boolean
+        string:
+          type: string
+          maxLength: 50
         number:
           type: number
         dateTime:
