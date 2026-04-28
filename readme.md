@@ -253,10 +253,10 @@ python asyncapi2xsd.py <input.yaml> <output.xsd> -n <namespace> [--prefix <prefi
 # Без strip-правил — имя типа берётся напрямую из адреса канала
 python asyncapi2xsd.py spec.yaml out.xsd -n http://example.com/ns
 
-# С prefix/suffix — crm.someObject.changed → SomeObject
+# С prefix/suffix — 1c.test-accumulation-register → TestAccumulationRegister
 python asyncapi2xsd.py spec.yaml out.xsd \
   -n http://example.com/ns \
-  --prefix crm. \
+  --prefix 1c. \
   --suffix .changed
 ```
 

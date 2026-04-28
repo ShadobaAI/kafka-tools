@@ -23,7 +23,7 @@ ROW_SUFFIX = "Row"
 # ================== HELPERS ==================
 
 def extract_type_name_from_address(address: str, prefix: str, suffix: str) -> str:
-    """crm.typesNonTargetActivities.changed -> TypesNonTargetActivities"""
+    """1c.test-accumulation-register -> TestAccumulationRegister"""
     name = address
     if prefix and name.startswith(prefix):
         name = name[len(prefix):]
@@ -385,7 +385,7 @@ if __name__ == "__main__":
             "Examples:\n"
             "  python asyncapi2xsd_v5.py spec.yaml out.xsd -n http://example.com/ns\n"
             "  python asyncapi2xsd_v5.py spec.yaml out.xsd -n http://example.com/ns "
-            "--prefix crm. --suffix .changed"
+            "--prefix 1c. --suffix .changed"
         ),
     )
     parser.add_argument("input", help="Path to AsyncAPI YAML file")
