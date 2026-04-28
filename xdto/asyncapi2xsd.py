@@ -1,6 +1,8 @@
 import argparse
+import warnings
 import yaml
 import re
+warnings.filterwarnings("ignore", message=".*GIL.*", category=RuntimeWarning)
 from lxml import etree
 
 # ================== CONSTANTS ==================
@@ -101,7 +103,7 @@ def pascal_case(name: str) -> str:
     if not name:
         return name
     parts = re.split(r'[.\-_]', name)
-    return ''.join(part.capitalize() for part in parts if part)
+    return ''.join(part[0].upper() + part[1:] for part in parts if part)
 
 
 # ================== ELEMENT BUILDER ==================
