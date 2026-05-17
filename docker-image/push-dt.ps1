@@ -2,7 +2,8 @@ $FILE  = ".\template.dt"
 
 $CREDS  = "ghcr.io" | docker-credential-desktop get | ConvertFrom-Json
 $OWNER  = $CREDS.Username
-$IMAGE  = "ghcr.io/$OWNER/kfk-tmpl-dt:latest"
+$NAMESPACE = $OWNER.ToLowerInvariant()
+$IMAGE  = "ghcr.io/$NAMESPACE/kfk-tmpl-dt:latest"
 
 # Логин в GHCR
 $CREDS.Secret | oras login ghcr.io --username $OWNER --password-stdin

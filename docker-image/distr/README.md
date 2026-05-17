@@ -8,7 +8,7 @@
 
 | Файл | Описание |
 |------|----------|
-| `deb64_*.zip` | 1С:Предприятие — deb-пакеты для Linux x86_64 |
+| `deb64_*.zip` | 1С:Предприятие — Сервер 1С:Предприятия (64-bit) для DEB-based Linux-систем |
 | `1c_edt_distr_offline_*_linux_x86_64.tar.gz` | 1C EDT — офлайн-дистрибутив для Linux x86_64 |
 | `OneScript-*-linux-x64.zip` | OneScript — интерпретатор языка 1С для Linux x64 |
 

@@ -1,11 +1,11 @@
-$OWNER            = ("ghcr.io" | docker-credential-desktop get | ConvertFrom-Json).Username
+$OWNER            = (("ghcr.io" | docker-credential-desktop get | ConvertFrom-Json).Username).ToLowerInvariant()
 
-$PLATFORM_VERSION = "8.3.27.2074"
-$EDT_VERSION      = "2025.2.5"
-$OSCRIPT_VERSION  = "2.0.1"
-$PLATFORM_DEB_ZIP = "distr/deb64_8_3_27_2074.zip"
-$EDT_DISTR_TGZ    = "distr/1c_edt_distr_offline_2025.2.5_2_linux_x86_64.tar.gz"
-$OSCRIPT_ZIP      = "distr/OneScript-2.0.1-linux-x64.zip"
+$PLATFORM_VERSION = "8.3.27.2130"
+$EDT_VERSION      = "2025.2.6"
+$OSCRIPT_VERSION  = "2.0.2"
+$PLATFORM_DEB_ZIP = "distr/deb64_8_3_27_2130.zip"
+$EDT_DISTR_TGZ    = "distr/1c_edt_distr_offline_2025.2.6_4_linux_x86_64.tar.gz"
+$OSCRIPT_ZIP      = "distr/OneScript-2.0.2-linux-x64.zip"
 $IMAGE            = "ghcr.io/$OWNER/1c-build:latest"
 
 $BUILD_DATE = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
