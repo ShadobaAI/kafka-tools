@@ -156,7 +156,7 @@ $knownLocations = @(
     @{ Path = 'adapter\adapter'; Role = 'primary'; Purpose = 'Main Kafka adapter project'; TreeMode = 'source' },
     @{ Path = 'tools'; Role = 'primary'; Purpose = 'Shared tooling and AI metadata'; TreeMode = 'files' },
     @{ Path = 'adapter\base'; Role = 'support'; Purpose = 'Base 1C configuration'; TreeMode = 'source' },
-    @{ Path = 'adapter\tester'; Role = 'support'; Purpose = 'Tester extension and API examples'; TreeMode = 'source' },
+    @{ Path = 'adapter\examples'; Role = 'support'; Purpose = 'API examples'; TreeMode = 'source' },
     @{ Path = 'adapter\yaxunit'; Role = 'support'; Purpose = 'YAxUnit tests'; TreeMode = 'source' },
     @{ Path = 'conversion\KFK'; Role = 'support'; Purpose = 'Data Conversion 3.1 adaptation'; TreeMode = 'source' },
     @{ Path = ('conversion\{0}' -f $conversionKd); Role = 'support'; Purpose = 'Read-only base conversion reference'; TreeMode = 'source' }

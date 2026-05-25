@@ -12,7 +12,7 @@ Adapter documentation is first-class context. Before opening docs directly, use 
 Use support repositories only when needed for the current change:
 
 - `adapter\base` - base 1C configuration assumptions.
-- `adapter\tester` - API examples and manual repro context.
+- `adapter\examples` - API examples and manual repro context.
 - `adapter\yaxunit` - automated tests.
 - `conversion\KFK` - Data Conversion 3.1 integration.
 

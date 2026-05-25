@@ -9,7 +9,7 @@ Workspace root: `C:\EDT\projects\kafka`
 | `adapter\adapter` | primary | present | yes | Main Kafka adapter project |
 | `tools` | primary | present | yes | Shared tooling and AI metadata |
 | `adapter\base` | support | present | yes | Base 1C configuration |
-| `adapter\tester` | support | present | yes | Tester extension and API examples |
+| `adapter\examples` | support | present | yes | API examples |
 | `adapter\yaxunit` | support | present | yes | YAxUnit tests |
 | `conversion\KFK` | support | present | yes | Data Conversion 3.1 adaptation |
 | `base conversion reference under conversion` | support | present | no | Read-only base conversion reference |

@@ -106,24 +106,24 @@ All known repositories are listed. 1C repositories show root entries plus immedi
 - adapter\base\LICENSE
 - adapter\base\README.md
 
-## `adapter\tester`
+## `adapter\examples`
 
-- adapter\tester\.github\
-- adapter\tester\DT-INF\
-- adapter\tester\src\
-  - adapter\tester\src\AccumulationRegisters\
-  - adapter\tester\src\Catalogs\
-  - adapter\tester\src\CommonModules\
-  - adapter\tester\src\Configuration\
-  - adapter\tester\src\DataProcessors\
-  - adapter\tester\src\Documents\
-  - adapter\tester\src\Enums\
-  - adapter\tester\src\InformationRegisters\
-  - adapter\tester\src\Subsystems\
-  - adapter\tester\src\XDTOPackages\
-- adapter\tester\.project
-- adapter\tester\LICENSE
-- adapter\tester\README.md
+- adapter\examples\.github\
+- adapter\examples\DT-INF\
+- adapter\examples\src\
+  - adapter\examples\src\AccumulationRegisters\
+  - adapter\examples\src\Catalogs\
+  - adapter\examples\src\CommonModules\
+  - adapter\examples\src\Configuration\
+  - adapter\examples\src\DataProcessors\
+  - adapter\examples\src\Documents\
+  - adapter\examples\src\Enums\
+  - adapter\examples\src\InformationRegisters\
+  - adapter\examples\src\Subsystems\
+  - adapter\examples\src\XDTOPackages\
+- adapter\examples\.project
+- adapter\examples\LICENSE
+- adapter\examples\README.md
 
 ## `adapter\yaxunit`
 

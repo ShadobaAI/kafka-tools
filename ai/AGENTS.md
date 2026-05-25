@@ -16,6 +16,6 @@ Startup workflow:
 3. Use `tools\ai\generated\adapter-docs-index.md` before opening adapter docs.
 4. Inspect only targeted docs/source files.
 
-Secondary repositories (`adapter\base`, `adapter\tester`, `adapter\yaxunit`, `conversion\KFK`) are validation or support context. Open them only when the task explicitly needs them.
+Secondary repositories (`adapter\base`, `adapter\examples`, `adapter\yaxunit`, `conversion\KFK`) are validation or support context. Open them only when the task explicitly needs them.
 
 Ignore `builds`, `.settings`, `.metadata`, and generated output unless the task explicitly targets them. Prefer existing scripts, CI, build, and test commands.

@@ -21,7 +21,7 @@ Keep generated AI indexes in `tools\ai\generated`.
 Open only when the task needs them:
 
 - `adapter\base` - base 1C configuration, XDTO packages, web services.
-- `adapter\tester` - tester extension, fixtures, public API examples.
+- `adapter\examples` - examples extension, fixtures, public API examples.
 - `adapter\yaxunit` - YAxUnit tests and behavior validation.
 - `conversion\KFK` - Data Conversion 3.1 adapter integration.
 
