@@ -1,6 +1,6 @@
 asyncapi: 3.1.0
 info:
-  title: 1С. Адаптер Kafka - Тестер
+  title: 1С. Адаптер Kafka - Примеры использования
   version: 1.0.0
   description: Пример обмена для 1С. Адаптер Kafka
 servers:
