@@ -67,10 +67,10 @@
 | Переменная | Описание | По умолчанию |
 |------------|----------|:---:|
 | `$TOKEN` | GitHub PAT с правом `packages:write` | — |
-| `$FILE` | Путь к `.dt`-файлу | `.\template.dt` |
-| `$IMAGE` | Целевой образ в GHCR | `ghcr.io/<owner>/kfk-tmpl-dt:latest` |
+| `$FILE` | Путь к `.dt`-файлу | `.\kfk-tmpl-demo.dt` |
+| `$IMAGE` | Целевой образ в GHCR | `ghcr.io/<owner>/kfk-tmpl-demo:latest` |
 
-Получить артефакт: `oras pull ghcr.io/<owner>/kfk-tmpl-dt:latest`
+Получить артефакт: `oras pull ghcr.io/<owner>/kfk-tmpl-demo:latest`
 
 ---
 
