@@ -1,0 +1,81 @@
+name: Build 1C CI Images
+
+on:
+  workflow_dispatch:
+    inputs:
+      profile:
+        type: choice
+        required: true
+        options: [edtcli, ibcmd, client]
+      edt_version:
+        type: string
+        required: false
+      platform_version:
+        type: string
+        required: false
+      edt_platform_support:
+        type: string
+        required: false
+        description: Minimum 1C platform support version to keep in EDT.
+      push:
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+        if: inputs.push
+        run: echo "${{ github.token }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      - name: Install Python dependencies
+        run: python -m pip install pyyaml
+
+      - name: Build image
+        id: build
+        working-directory: tools/docker-image-v2
+        env:
+          GITHUB_REPOSITORY_OWNER: ${{ github.repository_owner }}
+        run: |
+          case "${{ inputs.profile }}" in
+            edtcli) version="${{ inputs.edt_version }}" ;;
+            ibcmd|client) version="${{ inputs.platform_version }}" ;;
+            *) echo "Unsupported profile: ${{ inputs.profile }}" >&2; exit 2 ;;
+          esac
+          if [ -z "$version" ]; then
+            echo "Version is required for ${{ inputs.profile }}" >&2
+            exit 2
+          fi
+          args=(
+            "${{ inputs.profile }}:${version}"
+          )
+          if [ "${{ inputs.profile }}" = "edtcli" ]; then
+            if [ -z "${{ inputs.edt_platform_support }}" ]; then
+              echo "edt_platform_support is required for edtcli" >&2
+              exit 2
+            fi
+            args+=(--edt-platform-support "${{ inputs.edt_platform_support }}")
+          fi
+          if [ "${{ inputs.push }}" = "true" ]; then
+            args+=(--push)
+          fi
+          python scripts/build_image.py "${args[@]}"
+
+          image="$(python scripts/build_image.py "${args[@]}" --print-image)"
+          echo "image=$image" >> "$GITHUB_OUTPUT"
+
+      - name: Delete old GHCR versions
+        if: inputs.push
+        working-directory: tools/docker-image-v2
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python scripts/cleanup_ghcr.py --image "${{ steps.build.outputs.image }}"
