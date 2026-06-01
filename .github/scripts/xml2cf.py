@@ -85,7 +85,7 @@ def main() -> None:
         "run",
         "--rm",
         "--mount",
-        mount_arg(xml_dir, "/xml", readonly=True),
+        mount_arg(xml_dir, "/xml"),
         "--mount",
         mount_arg(result_dir, "/out"),
         image,
