@@ -12,6 +12,8 @@ fi
 mkdir -p /opt/oscript
 unzip -q "$archive" -d /opt/oscript
 chmod +x /opt/oscript/bin/oscript /opt/oscript/bin/opm
+# OScript нужен в русской локали, иначе часть инструментов 1C выводит
+# сообщения и отчеты в неожиданной локализации.
 if grep -q '^[[:space:]]*#*[[:space:]]*systemLanguage[[:space:]]*=' /opt/oscript/bin/oscript.cfg; then
   sed -i 's/^[[:space:]]*#*[[:space:]]*systemLanguage[[:space:]]*=.*/systemLanguage = ru/' /opt/oscript/bin/oscript.cfg
 else

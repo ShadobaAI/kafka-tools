@@ -1,0 +1,23 @@
+name: EDT to XML
+description: Export a 1C EDT project to XML with the EDT CLI image.
+
+inputs:
+  source-dir:
+    description: Path to EDT project sources.
+    required: false
+    default: .
+  xml-dir:
+    description: Directory for exported XML files.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Convert EDT to XML
+      shell: bash
+      run: |
+        owner="${GITHUB_REPOSITORY_OWNER,,}"
+        export EDTCLI_IMAGE="ghcr.io/${owner}/edtcli:latest"
+        python3 "$GITHUB_ACTION_PATH/../../scripts/edt2xml.py" \
+          "${{ inputs.source-dir }}" \
+          "${{ inputs.xml-dir }}"

@@ -1,0 +1,124 @@
+name: Build 1C CI Images
+
+on:
+  workflow_dispatch:
+    inputs:
+      profile:
+        type: choice
+        required: true
+        options: [edtcli, ibcmd, client]
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # BuildKit нужен для named contexts: закрытые дистрибутивы 1C монтируются
+      # только на этапе установки и не копируются в финальные слои образа.
+      - uses: docker/setup-buildx-action@v3
+
+      # github.token достаточно для публикации в GHCR текущего owner при packages: write.
+      - name: Login to GHCR
+        run: echo "${{ github.token }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      # PyYAML читает .github/ci-images/images.yml в scripts/build_image.py.
+      - name: Install Python dependencies
+        run: python -m pip install pyyaml
+
+      - name: Download distributions
+        working-directory: .github/ci-images
+        env:
+          RELEASES_ONEC_USERNAME: ${{ secrets.RELEASES_ONEC_USERNAME }}
+          RELEASES_ONEC_PASSWORD: ${{ secrets.RELEASES_ONEC_PASSWORD }}
+          EDT: ${{ vars.EDT }}
+          PLATFORM: ${{ vars.PLATFORM }}
+        run: |
+          # PLATFORM используется во всех профилях: для ibcmd/client как версия
+          # платформы, для edtcli как минимальная версия platform support.
+          if [ -z "$PLATFORM" ]; then
+            echo "CI/CD variable PLATFORM is required" >&2
+            exit 2
+          fi
+
+          # Скачиваем только дистрибутив, нужный выбранному profile, чтобы
+          # build context не содержал лишние закрытые архивы.
+          case "${{ inputs.profile }}" in
+            edtcli)
+              if [ -z "$EDT" ]; then
+                echo "CI/CD variable EDT is required for edtcli" >&2
+                exit 2
+              fi
+              python scripts/download_distribution.py edt "$EDT" distr
+              ;;
+            ibcmd)
+              python scripts/download_distribution.py platform-server "$PLATFORM" distr
+              ;;
+            client)
+              python scripts/download_distribution.py platform-client "$PLATFORM" distr
+              ;;
+            *)
+              echo "Unsupported profile: ${{ inputs.profile }}" >&2
+              exit 2
+              ;;
+          esac
+
+          # OScript нужен только профилям с Vanessa Runner.
+          if [ "${{ inputs.profile }}" = "ibcmd" ] || [ "${{ inputs.profile }}" = "client" ]; then
+            python scripts/download_distribution.py oscript latest distr
+          fi
+
+      - name: Build image
+        id: build
+        working-directory: .github/ci-images
+        env:
+          GITHUB_REPOSITORY_OWNER: ${{ github.repository_owner }}
+          EDT: ${{ vars.EDT }}
+          PLATFORM: ${{ vars.PLATFORM }}
+        run: |
+          if [ -z "$PLATFORM" ]; then
+            echo "CI/CD variable PLATFORM is required" >&2
+            exit 2
+          fi
+
+          # Версия в target выбирается из EDT или PLATFORM, но имя образа
+          # остается стабильным: ghcr.io/<owner>/<profile>:latest.
+          case "${{ inputs.profile }}" in
+            edtcli) version="$EDT" ;;
+            ibcmd|client) version="$PLATFORM" ;;
+            *) echo "Unsupported profile: ${{ inputs.profile }}" >&2; exit 2 ;;
+          esac
+          if [ -z "$version" ]; then
+            echo "Version is required for ${{ inputs.profile }}" >&2
+            exit 2
+          fi
+          args=(
+            "${{ inputs.profile }}:${version}"
+          )
+          if [ "${{ inputs.profile }}" = "edtcli" ]; then
+            if [ -z "$EDT" ]; then
+              echo "CI/CD variable EDT is required for edtcli" >&2
+              exit 2
+            fi
+            args+=(--edt-platform-support "$PLATFORM")
+          fi
+          args+=(--push)
+          # Первый запуск собирает и публикует образ.
+          python scripts/build_image.py "${args[@]}"
+
+          # Второй запуск с --print-image только вычисляет имя опубликованного
+          # образа для cleanup, сборку повторно не запускает.
+          image="$(python scripts/build_image.py "${args[@]}" --print-image)"
+          echo "image=$image" >> "$GITHUB_OUTPUT"
+
+      - name: Delete old GHCR versions
+        working-directory: .github/ci-images
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        # Удаляем старые package versions без latest, чтобы GHCR не копил
+        # untagged слои после каждой пересборки latest.
+        run: python scripts/cleanup_ghcr.py --image "${{ steps.build.outputs.image }}"

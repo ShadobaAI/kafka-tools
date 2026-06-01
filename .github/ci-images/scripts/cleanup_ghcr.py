@@ -36,24 +36,32 @@ def request(method: str, url: str, token: str) -> tuple[int, object | None]:
 
 
 def parse_image(image: str) -> tuple[str, str, str]:
+    # Cleanup намеренно работает только с простым ghcr.io/<owner>/<package>:tag,
+    # чтобы не удалить версии не того пакета при нестандартном имени registry.
     if ":" not in image:
         raise SystemExit(f"Image must include a tag: {image}")
 
     repository, tag = image.rsplit(":", 1)
     parts = repository.split("/")
     if len(parts) != 3 or parts[0] != "ghcr.io":
-        raise SystemExit(f"Expected ghcr.io/<org>/<package>:latest, got: {image}")
+        raise SystemExit(f"Expected ghcr.io/<owner>/<package>:latest, got: {image}")
 
     return parts[1], parts[2], tag
 
 
-def list_versions(org: str, package: str, token: str) -> list[dict]:
+def package_versions_url(owner: str, package: str, owner_type: str) -> str:
     encoded_package = urllib.parse.quote(package, safe="")
+    scope = "users" if owner_type == "user" else "orgs"
+    return f"{API}/{scope}/{owner}/packages/container/{encoded_package}/versions"
+
+
+def list_versions(owner: str, package: str, owner_type: str, token: str) -> list[dict]:
     versions: list[dict] = []
     page = 1
 
     while True:
-        url = f"{API}/orgs/{org}/packages/container/{encoded_package}/versions?per_page=100&page={page}"
+        base_url = package_versions_url(owner, package, owner_type)
+        url = f"{base_url}?per_page=100&page={page}"
         _, data = request("GET", url, token)
         page_items = data or []
         if not isinstance(page_items, list):
@@ -65,20 +73,27 @@ def list_versions(org: str, package: str, token: str) -> list[dict]:
 
 
 def version_tags(version: dict) -> set[str]:
+    # Удаляем именно package versions без сохраняемых тегов; сам tag latest
+    # GitHub перевешивает на новый pushed image автоматически.
     metadata = version.get("metadata") or {}
     container = metadata.get("container") or {}
     return set(container.get("tags") or [])
 
 
-def delete_version(org: str, package: str, version_id: int, token: str) -> None:
-    encoded_package = urllib.parse.quote(package, safe="")
-    url = f"{API}/orgs/{org}/packages/container/{encoded_package}/versions/{version_id}"
+def delete_version(owner: str, package: str, owner_type: str, version_id: int, token: str) -> None:
+    url = f"{package_versions_url(owner, package, owner_type)}/{version_id}"
     request("DELETE", url, token)
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Delete old GHCR package versions after publishing a fresh image.")
-    parser.add_argument("--image", required=True, help="Pushed image, e.g. ghcr.io/org/edtcli:latest.")
+    parser.add_argument("--image", required=True, help="Pushed image, e.g. ghcr.io/owner/edtcli:latest.")
+    parser.add_argument(
+        "--owner-type",
+        choices=["user", "org"],
+        default="user",
+        help="GHCR package owner type. Default is user.",
+    )
     parser.add_argument("--keep-tag", action="append", default=[], help="Additional tag to preserve. Can be repeated.")
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--token", default=os.environ.get("GITHUB_TOKEN"))
@@ -87,15 +102,16 @@ def main() -> None:
     if not args.token:
         raise SystemExit("GITHUB_TOKEN is required.")
 
-    org, package, current_tag = parse_image(args.image)
+    owner, package, current_tag = parse_image(args.image)
     if current_tag != "latest":
         raise SystemExit("Cleanup is intentionally limited to latest-tag images.")
 
     keep_tags = {current_tag, *args.keep_tag}
 
-    versions = list_versions(org, package, args.token)
+    versions = list_versions(owner, package, args.owner_type, args.token)
     to_delete: list[tuple[int, set[str]]] = []
 
+    # Версии без тегов считаются старыми слоями после repush latest и удаляются.
     for version in versions:
         tags = version_tags(version)
         if tags & keep_tags:
@@ -105,9 +121,9 @@ def main() -> None:
     for version_id, tags in to_delete:
         label = ",".join(sorted(tags)) if tags else "<untagged>"
         action = "would delete" if args.dry_run else "delete"
-        print(f"{action} {org}/{package} version {version_id} tags={label}", flush=True)
+        print(f"{action} {owner}/{package} version {version_id} tags={label}", flush=True)
         if not args.dry_run:
-            delete_version(org, package, version_id, args.token)
+            delete_version(owner, package, args.owner_type, version_id, args.token)
             time.sleep(0.25)
 
     print(f"kept tags: {', '.join(sorted(keep_tags))}", flush=True)

@@ -6,7 +6,7 @@
 
 | Каталог | Назначение |
 |---------|------------|
-| `docker-image/` | Docker-образ для сборки 1С: Платформа + EDT + OScript + vrunner |
+| `docker-image/` | Раздельные Docker-образы для CI: `edtcli`, `ibcmd`, `client` |
 | `.github/scripts/` | Скрипты для сборки 1С-проектов в CI/CD |
 | `.github/workflows/` | GitHub Actions reusable workflows для сборки CF/CFE |
 | `kafka/` | Apache Kafka — двухузловой кластер KRaft + Kafka UI |
@@ -27,15 +27,15 @@
 - **OneScript** (oscript, opm)
 - **vanessa-runner**
 
-**Актуальные версии** (заданы в `docker-image/build.ps1`):
+**Актуальные версии** для CI задаются в GitHub Actions Variables: `EDT` и `PLATFORM`.
 
 | Компонент | Версия |
 |-----------|--------|
 | 1С:Платформа | `8.3.27.2074` |
 | EDT | `2025.2.5` |
-| OneScript | `2.0.1` |
+| OneScript | `latest` из `https://oscript.io/downloads/latest` |
 
-**Предварительно** — разместить дистрибутивы в `docker-image/distr/` (см. [docker-image/distr/README.md](docker-image/distr/README.md)):
+**Предварительно** — разместить дистрибутивы в `docker-image/distr/` (см. [docker-image/README.md](docker-image/README.md)):
 
 | Файл | Описание |
 |------|----------|
@@ -46,49 +46,16 @@
 Сборка и публикация в GHCR:
 
 ```powershell
-.\docker-image\build.ps1
+python .\docker-image\scripts\build_image.py edtcli:2025.2.6 --edt-platform-support 8.3.27
+python .\docker-image\scripts\build_image.py ibcmd:8.3.27
 ```
 
-После успешной сборки образ автоматически пушится в `ghcr.io/<owner>/1c-build:latest`.
+При публикации образы пушатся в `ghcr.io/<owner>/edtcli:latest` и `ghcr.io/<owner>/ibcmd:latest`.
 `$OWNER` определяется автоматически из учётных данных Docker Desktop (ghcr.io).
-
-### docker-image/push-dt.ps1 — публикация шаблона базы (.dt)
-
-Публикует файл `.dt` как OCI-артефакт в GHCR через [ORAS](https://oras.land/).
-
-Перед запуском задать `$TOKEN` в начале скрипта (GitHub PAT с правом `packages:write`), затем:
-
-```powershell
-.\docker-image\push-dt.ps1
-```
-
-`$OWNER` и `$IMAGE` определяются автоматически из учётных данных Docker Desktop (ghcr.io).
-
-| Переменная | Описание | По умолчанию |
-|------------|----------|:---:|
-| `$TOKEN` | GitHub PAT с правом `packages:write` | — |
-| `$FILE` | Путь к `.dt`-файлу | `.\kfk-tmpl-demo.dt` |
-| `$IMAGE` | Целевой образ в GHCR | `ghcr.io/<owner>/kfk-tmpl-demo:latest` |
-
-Получить артефакт: `oras pull ghcr.io/<owner>/kfk-tmpl-demo:latest`
-
----
 
 ## .github
 
-### .github/scripts/build.py — сборка CF / CFE
-
-Собирает `.cf` или `.cfe` из EDT-проекта: EDT → XML → артефакт.
-`BUILD_TYPE` определяется автоматически по `.project` (`V8ExtensionNature` → `cfe`, `V8ConfigurationNature` → `cf`).
-
-| Переменная | Описание | По умолчанию |
-|------------|----------|:---:|
-| `VERSION` | Версия в формате X.X.X.X | — |
-| `BUILD_TYPE` | `cf` или `cfe` (авто, если не задан) | — |
-| `SRC_DIR` | Исходники EDT-проекта | `/src` |
-| `OUTPUT_DIR` | Каталог результата | `/output` |
-
-Заглушка версии в исходниках — `9.9.9.9` (подставляется скриптом `set_version.py` до запуска сборки).
+### .github/scripts
 
 Вспомогательные скрипты в `.github/scripts/`:
 
@@ -97,15 +64,17 @@
 | `detect_project.py` | Валидирует версию, определяет тип проекта и имя конфигурации |
 | `set_version.py` | Заменяет `9.9.9.9` на реальную версию в указанных файлах |
 | `patch_mdo.py` | Вырезает атрибуты расширения при сборке CFE-проекта как CF |
-| `package.py` | Упаковывает артефакты в ZIP и формирует итоговые имена файлов |
+| `convert_artifacts.py` | Упаковывает EDT/XML-каталоги в ZIP |
+| `edt2xml.py` | Запускает образ `edtcli` и конвертирует EDT-проект в XML |
+| `xml2cf.py` | Запускает образ `ibcmd` и собирает `.cf` или `.cfe` из XML |
 | `ci_utils.py` | Общие утилиты для CI-скриптов (`EDT_PROJECT_ENTRIES`, `MDO_PATH`, `write_github_output`) |
 
-### .github/workflows/build.yml — reusable workflow: CF/CFE
+### .github/workflows/release-1c-artifacts.yml — reusable workflow: 1C release artifacts
 
 Вызываемый workflow (`workflow_call`) для сборки `.cf` / `.cfe` по тегу релиза (формат `X.X.X.X`).
 Поддерживает сборку CF из проекта расширения (cfe → cf): если `.project` содержит `V8ExtensionNature`, а `build_type: cf` — атрибуты расширения вырезаются автоматически.
 
-Образ берётся из GHCR (`ghcr.io/shadobaai/1c-build:latest`). Загружает в GitHub Release три артефакта:
+Образы берутся из GHCR (`ghcr.io/shadobaai/edtcli:latest` и `ghcr.io/shadobaai/ibcmd:latest`). Загружает в GitHub Release три артефакта:
 - `{name}-{version}.{cf|cfe}` — скомпилированный файл конфигурации / расширения
 - `{name}-{version}-edt.zip` — исходники в формате EDT
 - `{name}-{version}-XML.zip` — промежуточные XML-файлы
@@ -114,7 +83,6 @@
 
 | Входной параметр | Обязательный | Описание |
 |-----------------|:---:|----------|
-| `dockerhub_image` | да | Имя образа в GHCR (без префикса `ghcr.io/<owner>/`) |
 | `build_type` | нет | `cf` или `cfe`; авто, если не задан |
 | `name_suffix` | нет | Суффикс имени файлов: `{name}-{suffix}-{version}-edt.zip` и т.д. |
 | `version_files` | нет | Доп. файлы для замены версии (через пробел, относительно корня) |

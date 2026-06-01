@@ -13,6 +13,8 @@ archive="$(find "$source_dir" -maxdepth 1 -type f \( -name 'deb64_*.zip' -o -nam
 installer="$(find "$source_dir" -maxdepth 1 -type f -name 'setup-full-*-x86_64.run' | sort -V | tail -1)"
 
 install_deb_packages() {
+  # В deb-архивах 1C имена пакетов отличаются по версии, поэтому ставим их
+  # масками из распакованного каталога и оставляем только нужный профиль.
   case "$kind" in
     server)
       dpkg -i 1c-enterprise*-common_*.deb 1c-enterprise*-server_*.deb
@@ -28,6 +30,7 @@ install_deb_packages() {
 }
 
 if [ -n "$archive" ]; then
+  # Предпочитаем deb-архивы: они меньше setup-full и предсказуемее для CI.
   case "$archive" in
     *.zip)
       unzip -q "$archive" -d "$work"
@@ -46,6 +49,7 @@ else
   exit 1
 fi
 
+# /opt/1cv8/current нужен downstream-скриптам, чтобы не знать точный путь версии.
 current_dir="$(find /opt -type f \( -name ibcmd -o -name 1cv8 -o -name ragent \) -exec dirname {} \; | sort -V | tail -1)"
 test -n "$current_dir"
 mkdir -p /opt/1cv8

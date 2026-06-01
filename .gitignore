@@ -1,7 +1,4 @@
-docker-image/distr/*.gz
-docker-image/distr/*.deb
-docker-image/distr/*.zip
-docker-image-v2/distr/*.zip
-docker-image-v2/distr/*.tar.gz
-bin/
+*.gz
+*.deb
+*.zip
 *.dt

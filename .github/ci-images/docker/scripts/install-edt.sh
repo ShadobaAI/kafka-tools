@@ -17,6 +17,7 @@ tar -xzf "$archive" -C "$work"
 
 installer="$(find "$work" -maxdepth 1 -type f -name '1ce-installer-cli' | head -1)"
 if [ -z "$installer" ]; then
+  # В некоторых offline EDT архивах CLI-инсталлятор лежит внутри .e1c.car.
   car="$(find "$work" -maxdepth 1 -type f -name '1c-enterprise-installer-*-linux-x86_64.e1c.car' | head -1)"
   if [ -n "$car" ]; then
     unzip -q "$car" -d "$work/installer"
@@ -47,6 +48,8 @@ if ! "$installer" --javahome "${JAVA_HOME:-/usr/lib/jvm/java-17-openjdk-amd64}" 
   echo "EDT installer returned a non-zero exit code after installing files; continuing." >&2
 fi
 
+# Финальный EDT CLI должен использовать системный Java 17, а не случайно
+# установленный bundled JDK из дистрибутива.
 if find /opt/1C/1CE -type d -name 'axiom-jdk*' -print -quit | grep -q .; then
   echo "Embedded EDT axiom-jdk was installed unexpectedly." >&2
   exit 1
@@ -60,6 +63,8 @@ if [ -n "$edtcli_dir" ]; then
 fi
 
 if [ -n "$edtcli_dir" ]; then
+  # Удаляем support старее указанной платформы, чтобы образ не разрастался
+  # из-за набора совместимости для старых версий 1C.
   support_workspace="$work/platform-support-workspace"
   mkdir -p "$support_workspace"
   "$edtcli_dir/1cedtcli" -data "$support_workspace" -timeout 600 -command version >/dev/null

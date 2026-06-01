@@ -20,6 +20,8 @@ except ImportError:  # pragma: no cover
 ROOT = Path(__file__).resolve().parents[1]
 IMAGES_YML = ROOT / "images.yml"
 DEFAULT_REGISTRY = "ghcr.io/<org>"
+# Локальные дистрибутивы лежат вне Docker build context и подаются в BuildKit
+# отдельными named contexts, чтобы архивы не попадали в финальные слои образа.
 LOCAL_DISTR = ROOT / "distr"
 BUILD_CONTEXT_ROOT = ROOT / ".build-context"
 PROFILES = ("edtcli", "ibcmd", "client")
@@ -87,6 +89,7 @@ def git_remote_owner() -> str | None:
 
 
 def resolve_registry(default_registry: str = DEFAULT_REGISTRY) -> str:
+    # В CI owner берется из GitHub context; локально пробуем вывести его из origin.
     explicit = os.environ.get("IMAGE_REGISTRY")
     if explicit:
         return explicit.rstrip("/").lower()
@@ -128,6 +131,8 @@ def local_distribution_patterns(profile: str, version: str) -> list[str]:
 
 
 def prepare_distr_context(profile: str, edt_version: str | None, platform_version: str | None) -> Path:
+    # В named context кладем ровно один нужный архив, иначе Docker может
+    # случайно выбрать старый дистрибутив из общей папки.
     version = edt_version if profile == "edtcli" else platform_version
     if not version:
         raise ValueError(f"Version is required for {profile}")
@@ -175,6 +180,7 @@ def ensure_oscript_archive() -> Path:
 
 
 def prepare_oscript_context() -> Path:
+    # OneScript нужен только platform-профилям; контекст общий для ibcmd/client.
     source = ensure_oscript_archive()
     target_dir = BUILD_CONTEXT_ROOT / "oscript"
     if target_dir.exists():
@@ -185,6 +191,8 @@ def prepare_oscript_context() -> Path:
 
 
 def build(args: argparse.Namespace) -> str:
+    # buildx вызывается напрямую, потому что Dockerfile использует named contexts
+    # для закрытых дистрибутивов 1C и отдельный target на каждый профиль.
     manifest = load_manifest()
     profile = args.profile
 

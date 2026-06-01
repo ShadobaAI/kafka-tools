@@ -1,0 +1,22 @@
+name: XML to CF/CFE
+description: Build a .cf or .cfe file from 1C XML files with the ibcmd image.
+
+inputs:
+  xml-dir:
+    description: Directory with exported XML files.
+    required: true
+  output-file:
+    description: Result .cf or .cfe file.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Build CF/CFE
+      shell: bash
+      run: |
+        owner="${GITHUB_REPOSITORY_OWNER,,}"
+        export IBCMD_IMAGE="ghcr.io/${owner}/ibcmd:latest"
+        python3 "$GITHUB_ACTION_PATH/../../scripts/xml2cf.py" \
+          "${{ inputs.xml-dir }}" \
+          "${{ inputs.output-file }}"

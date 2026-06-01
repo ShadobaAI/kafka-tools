@@ -1,5 +1,7 @@
 ARG BASE_IMAGE=debian:bookworm-slim
 
+# Multi-stage схема держит закрытые дистрибутивы 1C только в installer stages.
+# В runtime stages копируются уже установленные каталоги, без исходных архивов.
 FROM ${BASE_IMAGE} AS runtime-base
 
 ENV DEBIAN_FRONTEND=noninteractive
@@ -57,6 +59,7 @@ RUN apt-get update \
 FROM edt-installer-base AS edt-installer
 ARG EDT_PLATFORM_SUPPORT
 
+# Дистрибутив EDT приходит через BuildKit named context distr.
 RUN --mount=type=bind,from=distr,source=.,target=/distr,readonly \
     bash /usr/local/sbin/onec-image/install-edt.sh /distr "${EDT_PLATFORM_SUPPORT}"
 
@@ -72,6 +75,7 @@ RUN find /opt/1C/1CE \( \
 FROM platform-installer-base AS server-platform-installer
 ARG PLATFORM_COMPONENTS=server,server_admin,ws,liberica_jre,ru
 
+# Server/client installers используют один скрипт, но разный набор компонентов.
 RUN --mount=type=bind,from=distr,source=.,target=/distr,readonly \
     bash /usr/local/sbin/onec-image/install-platform.sh /distr server "${PLATFORM_COMPONENTS}"
 
@@ -132,6 +136,8 @@ COPY --from=oscript-installer /opt/oscript /opt/oscript
 ENV OSCRIPTBIN=/opt/oscript/bin
 ENV PATH="/opt/1cv8/current:${OSCRIPTBIN}:${PATH}"
 
+# Vanessa Runner ставится на этапе сборки, чтобы CI jobs не зависели от opm
+# при каждом запуске контейнера.
 RUN opm install vanessa-runner \
   && sed -i 's/#Использовать JSON/#Использовать json/g' /opt/oscript/lib/vanessa-runner/src/Модули/ГенерацияОтчетов.os \
   && rm -rf /root/.local/share/ovm /tmp/* /var/tmp/*
@@ -197,6 +203,8 @@ COPY --from=oscript-installer /opt/oscript /opt/oscript
 ENV OSCRIPTBIN=/opt/oscript/bin
 ENV PATH="/opt/1cv8/current:${OSCRIPTBIN}:${PATH}"
 
+# Дублируем установку Vanessa Runner в client target, потому что он не наследует
+# слои ibcmd и собирается как отдельный финальный образ.
 RUN opm install vanessa-runner \
   && sed -i 's/#Использовать JSON/#Использовать json/g' /opt/oscript/lib/vanessa-runner/src/Модули/ГенерацияОтчетов.os \
   && rm -rf /root/.local/share/ovm /tmp/* /var/tmp/*
@@ -215,6 +223,8 @@ RUN groupadd -r grp1cv8 --gid=999 \
 
 ENV ONEC_LICENSE_DIR=/var/1C/licenses
 
+# Лицензии и профиль клиента должны жить во внешних volume, чтобы не запекать
+# персональные developer license files в образ.
 VOLUME ["/var/1C/licenses", "/home/usr1cv8/.1cv8"]
 WORKDIR /work
 CMD ["bash"]

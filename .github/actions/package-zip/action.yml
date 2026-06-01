@@ -1,0 +1,26 @@
+name: Package Zip
+description: Package a directory into a zip archive.
+
+inputs:
+  source-dir:
+    description: Directory to package.
+    required: true
+  output-file:
+    description: Result zip archive.
+    required: true
+
+outputs:
+  zip-file:
+    description: Created zip archive.
+    value: ${{ steps.package.outputs.zip_file }}
+
+runs:
+  using: composite
+  steps:
+    - name: Package zip
+      id: package
+      shell: bash
+      run: |
+        python3 "$GITHUB_ACTION_PATH/../../scripts/package_zip.py" \
+          --source-dir "${{ inputs.source-dir }}" \
+          --output-file "${{ inputs.output-file }}"

@@ -1,0 +1,21 @@
+defaults:
+  # <org> заменяется на GITHUB_REPOSITORY_OWNER в CI или owner из git origin локально.
+  registry: ghcr.io/<org>
+  # revision меняем вручную, когда нужно принудительно отличить пересборку того же version.
+  revision: r1
+  # 1C Linux-дистрибутивы ниже ожидаются только под x86_64.
+  platform: linux/amd64
+
+versions:
+  edt: []
+  platform: []
+
+profiles:
+  edtcli:
+    image: "{registry}/edtcli:latest"
+
+  ibcmd:
+    image: "{registry}/ibcmd:latest"
+
+  client:
+    image: "{registry}/client:latest"

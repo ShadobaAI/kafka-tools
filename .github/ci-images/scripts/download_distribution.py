@@ -5,6 +5,7 @@ import argparse
 import email.message
 import html
 import http.cookiejar
+import json
 import os
 import re
 import shutil
@@ -19,6 +20,9 @@ from typing import BinaryIO
 
 
 RELEASES_BASE = "https://releases.1c.ru"
+OSCRIPT_BASE = "https://oscript.io"
+# Исторически локальный кэш проверяется в /distr. В CI рабочий каталог может
+# отличаться, поэтому не смешиваем этот путь с destination для новых загрузок.
 LOCAL_DISTR = Path("/distr")
 CHUNK_SIZE = 1024 * 1024
 REQUEST_TIMEOUT = 600
@@ -77,6 +81,8 @@ class ReleasesClient:
         return final_url, decode_page(payload, charset)
 
     def get_authenticated_text(self, url: str) -> tuple[str, str]:
+        # releases.1c.ru может сначала вернуть страницу login. После успешного
+        # входа повторно читаем исходную страницу дистрибутива.
         final_url, text = self.get_text(url)
         if needs_login(final_url, text):
             final_url, text = self.login(final_url, text)
@@ -112,7 +118,7 @@ class ReleasesClient:
         except urllib.error.HTTPError as error:
             if error.code in {401, 403}:
                 raise RuntimeError(
-                    "releases.1c.ru authentication failed. Check ONEC_USERNAME/ONEC_PASSWORD "
+                    "releases.1c.ru authentication failed. Check RELEASES_ONEC_USERNAME/RELEASES_ONEC_PASSWORD "
                     "and make sure the password was quoted correctly in the shell."
                 ) from error
             raise
@@ -172,6 +178,8 @@ def local_candidates(kind: str, version: str) -> list[Path]:
     patterns: list[str]
     if kind == "edt":
         patterns = [f"1c_edt_distr_offline_{version}_*_linux_x86_64.tar.gz"]
+    elif kind == "oscript":
+        patterns = ["OneScript-*-linux-x64.zip"] if version == "latest" else [f"OneScript-{version}-linux-x64.zip"]
     else:
         patterns = [f"setup-full-{version}-x86_64.run", f"setup-full-{version}.*-x86_64.run"]
         if kind == "platform":
@@ -239,6 +247,32 @@ def release_nick(kind: str, version: str) -> str:
     return platform_nick(version)
 
 
+def download_oscript(version_token: str, destination: Path) -> None:
+    archive_url = f"{OSCRIPT_BASE}/api/archive/{urllib.parse.quote(version_token)}"
+    request = urllib.request.Request(
+        archive_url,
+        headers={
+            "User-Agent": "onec-ci-image-downloader/1.0",
+            "Accept": "application/json",
+        },
+    )
+    with urllib.request.urlopen(request, timeout=REQUEST_TIMEOUT) as response:
+        files = json.loads(response.read().decode("utf-8"))
+
+    for item in files:
+        filename = item.get("filename", "")
+        if item.get("id") == "scd-lin" and item.get("arch") == "x64" and filename.endswith("-linux-x64.zip"):
+            url = item.get("link")
+            if not url:
+                break
+            client = ReleasesClient("", "")
+            download_url(client, urllib.parse.urljoin(OSCRIPT_BASE, url), destination, filename)
+            return
+
+    names = ", ".join(item.get("filename", "") for item in files if item.get("filename"))
+    raise RuntimeError(f"OneScript linux x64 distribution was not found in {archive_url}. Available files: {names}")
+
+
 def version_files_url(nick: str, version: str) -> str:
     query = urllib.parse.urlencode({"nick": nick, "ver": version})
     return f"{RELEASES_BASE}/version_files?{query}"
@@ -253,6 +287,8 @@ def version_key(version: str) -> tuple[int, ...]:
 
 
 def resolve_exact_version(client: ReleasesClient, nick: str, requested: str) -> str:
+    # Для platform допускаем короткую версию вида 8.3.27 и разворачиваем ее
+    # в последний доступный полный релиз 8.3.27.x на releases.1c.ru.
     if len(requested.split(".")) >= 4:
         return requested
 
@@ -286,6 +322,8 @@ def resolve_exact_version(client: ReleasesClient, nick: str, requested: str) -> 
 
 
 def distribution_score(kind: str, label: str) -> int:
+    # Страницы 1C локализованы и меняют формулировки, поэтому выбираем
+    # дистрибутив по набору устойчивых русских/английских признаков.
     normalized = label.lower()
     if "windows" in normalized or "rpm" in normalized or "macos" in normalized or "os x" in normalized:
         return -1
@@ -388,6 +426,7 @@ def stream_response(response: BinaryIO, target: Path) -> None:
 
 
 def download_url(client: ReleasesClient, url: str, destination: Path, fallback: str) -> Path:
+    # Пишем через .part, чтобы оборванная загрузка не выглядела готовым архивом.
     destination.mkdir(parents=True, exist_ok=True)
     last_error: Exception | None = None
     for attempt in range(1, 4):
@@ -406,10 +445,12 @@ def download_url(client: ReleasesClient, url: str, destination: Path, fallback: 
 
 
 def download_from_releases(kind: str, requested_version: str, destination: Path) -> None:
-    username = read_secret("onec_user", "onec_username")
-    password = read_secret("onec_password")
+    # Это учетная запись только для releases.1c.ru. Developer credentials для
+    # license activation не должны попадать в build и передаются уже в runtime.
+    username = read_secret("releases_onec_username", "releases_onec_user", "onec_user", "onec_username")
+    password = read_secret("releases_onec_password", "onec_password")
     if not username or not password:
-        raise RuntimeError("ONEC_USERNAME/ONEC_USER and ONEC_PASSWORD secrets are required")
+        raise RuntimeError("RELEASES_ONEC_USERNAME and RELEASES_ONEC_PASSWORD secrets are required")
 
     client = ReleasesClient(username, password)
     nick = release_nick(kind, requested_version)
@@ -433,7 +474,7 @@ def normalize_kind(kind: str) -> str:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Download 1C distributions.")
-    parser.add_argument("kind", choices=["edt", "platform", "platform-server", "platform-client"])
+    parser.add_argument("kind", choices=["edt", "platform", "platform-server", "platform-client", "oscript"])
     parser.add_argument("version")
     parser.add_argument("destination", type=Path)
     return parser.parse_args()
@@ -442,8 +483,13 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
     kind = normalize_kind(args.kind)
-    local_kind = "edt" if kind == "edt" else "platform"
+    # Перед сетевой загрузкой пробуем локальный кэш: это ускоряет локальные
+    # сборки и позволяет запускать build без повторной авторизации на 1C.
+    local_kind = kind if kind in {"edt", "oscript"} else "platform"
     if copy_local(local_kind, args.version, args.destination):
+        return
+    if kind == "oscript":
+        download_oscript(args.version, args.destination)
         return
     if kind == "edt":
         download_from_releases(kind, args.version, args.destination)
