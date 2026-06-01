@@ -20,3 +20,5 @@ runs:
         python3 "$GITHUB_ACTION_PATH/../../scripts/xml2cf.py" \
           "${{ inputs.xml-dir }}" \
           "${{ inputs.output-file }}"
+        sudo chown "$USER:$USER" "${{ inputs.output-file }}"
+        chmod u+rw,go+r "${{ inputs.output-file }}"
