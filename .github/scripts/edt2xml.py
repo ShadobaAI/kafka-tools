@@ -80,6 +80,12 @@ def run(command: list[str]) -> None:
         sys.exit(result.returncode)
 
 
+def remove_config_dump_info(output_dir: Path) -> None:
+    path = output_dir / "ConfigDumpInfo.xml"
+    if path.exists():
+        path.unlink()
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Convert an EDT project to XML with the local EDT CLI Docker image.",
@@ -124,6 +130,8 @@ def main() -> None:
         "1cedtcli -data /tmp/edt-ws -vmargs -Xmx2g "
         "-command export --project /tmp/project --configuration-files /xml",
     ])
+
+    remove_config_dump_info(output_dir)
 
     configuration_xml = output_dir / "Configuration.xml"
     if not configuration_xml.is_file():
