@@ -115,17 +115,11 @@ def local_distribution_patterns(profile: str, version: str) -> list[str]:
         return [f"1c_edt_distr_offline_{version}_*_linux_x86_64.tar.gz"]
     if profile == "ibcmd":
         return [
-            f"deb64_{version_underscores}_*.zip",
-            f"deb64_{version_underscores}_*.tar.gz",
-            f"setup-full-{version}-x86_64.run",
-            f"setup-full-{version}.*-x86_64.run",
+            f"deb64_{version_underscores}*.zip",
         ]
     if profile == "client":
         return [
-            f"client_{version_underscores}_*.deb64.zip",
-            f"client_{version_underscores}_*.deb64.tar.gz",
-            f"client_{version_underscores}.deb64.zip",
-            f"client_{version_underscores}.deb64.tar.gz",
+            f"server64_{version_underscores}*.zip",
         ]
     raise ValueError(f"Unsupported profile: {profile}")
 

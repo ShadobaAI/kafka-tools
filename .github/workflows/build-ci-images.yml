@@ -59,7 +59,7 @@ jobs:
               python scripts/download_distribution.py platform-server "$PLATFORM" distr
               ;;
             client)
-              python scripts/download_distribution.py platform-client "$PLATFORM" distr
+              python scripts/download_distribution.py platform "$PLATFORM" distr
               ;;
             *)
               echo "Unsupported profile: ${{ inputs.profile }}" >&2

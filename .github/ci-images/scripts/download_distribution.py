@@ -56,6 +56,22 @@ class AnchorParser(HTMLParser):
         self._parts = []
 
 
+class InputParser(HTMLParser):
+    # Атрибуты HTML не имеют гарантированного порядка, поэтому поле login form
+    # читаем парсером, а не регулярным выражением по сырой строке.
+    def __init__(self, name: str) -> None:
+        super().__init__(convert_charrefs=True)
+        self.name = name
+        self.value: str | None = None
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        if tag.lower() != "input":
+            return
+        attr = dict(attrs)
+        if attr.get("name") == self.name and self.value is None:
+            self.value = attr.get("value") or ""
+
+
 class ReleasesClient:
     def __init__(self, username: str, password: str) -> None:
         self.username = username
@@ -142,15 +158,23 @@ def needs_login(url: str, text: str) -> bool:
 
 
 def same_release_page(left: str, right: str) -> bool:
-    return urllib.parse.urlparse(left).path == urllib.parse.urlparse(right).path
+    # Для releases.1c.ru параметры query определяют конкретный файл/версию.
+    # Одного path недостаточно: /version_file с другим query уже другая страница.
+    left_parsed = urllib.parse.urlparse(left)
+    right_parsed = urllib.parse.urlparse(right)
+    return (
+        left_parsed.path == right_parsed.path
+        and urllib.parse.parse_qsl(left_parsed.query, keep_blank_values=True)
+        == urllib.parse.parse_qsl(right_parsed.query, keep_blank_values=True)
+    )
 
 
 def required_input_value(text: str, name: str) -> str:
-    pattern = rf'<input\b[^>]*\bname=["\']{re.escape(name)}["\'][^>]*\bvalue=["\']([^"\']+)["\']'
-    match = re.search(pattern, text, flags=re.IGNORECASE)
-    if not match:
+    parser = InputParser(name)
+    parser.feed(text)
+    if parser.value is None:
         raise RuntimeError(f"login form field {name!r} was not found")
-    return html.unescape(match.group(1))
+    return parser.value
 
 
 def parse_anchors(text: str) -> list[tuple[str, str]]:
@@ -173,7 +197,7 @@ def read_secret(*names: str) -> str | None:
     return None
 
 
-def local_candidates(kind: str, version: str) -> list[Path]:
+def local_candidates(kind: str, version: str, *roots: Path) -> list[Path]:
     version_underscores = version.replace(".", "_")
     patterns: list[str]
     if kind == "edt":
@@ -181,38 +205,30 @@ def local_candidates(kind: str, version: str) -> list[Path]:
     elif kind == "oscript":
         patterns = ["OneScript-*-linux-x64.zip"] if version == "latest" else [f"OneScript-{version}-linux-x64.zip"]
     else:
-        patterns = [f"setup-full-{version}-x86_64.run", f"setup-full-{version}.*-x86_64.run"]
         if kind == "platform":
-            patterns.extend(
-                [
-                    f"server64_{version_underscores}.zip",
-                    f"server64_{version_underscores}.tar.gz",
-                    f"server64_{version_underscores}_*.zip",
-                    f"server64_{version_underscores}_*.tar.gz",
-                ]
-            )
+            # Короткая версия 8.3.27 в локальном кэше соответствует любому
+            # полному релизу 8.3.27.x, например server64_8_3_27_2214.zip.
+            if len(version.split(".")) >= 4:
+                patterns = [f"server64_{version_underscores}.zip"]
+            else:
+                patterns = [f"server64_{version_underscores}_*.zip"]
         elif kind == "platform-server":
-            patterns.extend(
-                [
-                    f"deb64_{version_underscores}_*.zip",
-                    f"deb64_{version_underscores}_*.tar.gz",
-                    f"server_{version_underscores}_*.deb64.zip",
-                    f"server_{version_underscores}_*.deb64.tar.gz",
-                ]
-            )
+            # Для server-дистрибутива схема такая же: deb64_8_3_27_2214.zip
+            # должен подходить под запрос короткой версии 8.3.27.
+            if len(version.split(".")) >= 4:
+                patterns = [f"deb64_{version_underscores}.zip"]
+            else:
+                patterns = [f"deb64_{version_underscores}_*.zip"]
         else:
-            patterns.extend(
-                [
-                    f"client_{version_underscores}_*.deb64.zip",
-                    f"client_{version_underscores}_*.deb64.tar.gz",
-                ]
-            )
+            raise ValueError(f"Unsupported distribution kind: {kind}")
     result: list[Path] = []
-    if LOCAL_DISTR.exists():
+    for root in roots or (LOCAL_DISTR,):
+        if not root.exists():
+            continue
         for pattern in patterns:
             result.extend(
                 candidate
-                for candidate in sorted(LOCAL_DISTR.glob(pattern))
+                for candidate in sorted(root.glob(pattern))
                 if kind == "edt" or not is_unsupported_platform_arch(candidate.name)
             )
     return result
@@ -223,13 +239,16 @@ def is_unsupported_platform_arch(value: str) -> bool:
 
 
 def copy_local(kind: str, version: str, destination: Path) -> bool:
-    candidates = local_candidates(kind, version)
+    # Повторный запуск должен видеть уже скачанный файл в destination,
+    # а /distr остается внешним read-only кэшем для CI/локальных сборок.
+    destination.mkdir(parents=True, exist_ok=True)
+    candidates = local_candidates(kind, version, destination, LOCAL_DISTR)
     if not candidates:
         return False
-    destination.mkdir(parents=True, exist_ok=True)
     source = candidates[-1]
     target = destination / source.name
-    shutil.copy2(source, target)
+    if source.resolve() != target.resolve():
+        shutil.copy2(source, target)
     print(f"Using local distribution cache: {source.name}", flush=True)
     return True
 
@@ -247,8 +266,17 @@ def release_nick(kind: str, version: str) -> str:
     return platform_nick(version)
 
 
+def oscript_archive_token(version: str) -> str:
+    # API oscript.io использует token архива с подчеркиваниями: 2.0.2 -> 2_0_2.
+    # latest оставляем как есть, потому что это отдельный стабильный endpoint.
+    if version == "latest":
+        return version
+    return version.replace(".", "_")
+
+
 def download_oscript(version_token: str, destination: Path) -> None:
-    archive_url = f"{OSCRIPT_BASE}/api/archive/{urllib.parse.quote(version_token)}"
+    archive_token = oscript_archive_token(version_token)
+    archive_url = f"{OSCRIPT_BASE}/api/archive/{urllib.parse.quote(archive_token)}"
     request = urllib.request.Request(
         archive_url,
         headers={
@@ -264,7 +292,7 @@ def download_oscript(version_token: str, destination: Path) -> None:
         if item.get("id") == "scd-lin" and item.get("arch") == "x64" and filename.endswith("-linux-x64.zip"):
             url = item.get("link")
             if not url:
-                break
+                continue
             client = ReleasesClient("", "")
             download_url(client, urllib.parse.urljoin(OSCRIPT_BASE, url), destination, filename)
             return
@@ -278,8 +306,55 @@ def version_files_url(nick: str, version: str) -> str:
     return f"{RELEASES_BASE}/version_files?{query}"
 
 
+def version_file_url(nick: str, version: str, filename: str) -> str:
+    version_path = version.replace(".", "_")
+    query = urllib.parse.urlencode(
+        {
+            "nick": nick,
+            "ver": version,
+            "path": f"Platform\\{version_path}\\{filename}",
+        }
+    )
+    return f"{RELEASES_BASE}/version_file?{query}"
+
+
+def distribution_filename(kind: str, version: str) -> str:
+    version_path = version.replace(".", "_")
+    if kind == "platform":
+        return f"server64_{version_path}.zip"
+    if kind == "platform-server":
+        return f"deb64_{version_path}.zip"
+    raise ValueError(f"Unsupported distribution kind: {kind}")
+
+
+def distribution_url(kind: str, nick: str, version: str, filename: str) -> str:
+    return version_file_url(nick, version, filename)
+
+
+def find_edt_distribution_page(version_url: str, page_text: str, version: str) -> tuple[str, str]:
+    pattern = re.compile(
+        rf"1c_edt_distr_offline_{re.escape(version)}_\d+_linux_x86_64\.tar\.gz",
+        flags=re.IGNORECASE,
+    )
+    available: set[str] = set()
+    for href, label in parse_anchors(page_text):
+        text = urllib.parse.unquote(f"{label} {href}")
+        available.update(
+            match.group(0)
+            for match in re.finditer(r"1c_edt_distr[^\s\"'<>]*linux_x86_64\.tar\.gz", text, flags=re.IGNORECASE)
+        )
+        match = pattern.search(text)
+        if match:
+            filename = match.group(0)
+            return urllib.parse.urljoin(version_url, href), filename
+    if available:
+        names = ", ".join(sorted(available))
+        raise RuntimeError(f"EDT offline Linux x86_64 distribution for {version} was not found. Available: {names}")
+    raise RuntimeError(f"EDT offline Linux x86_64 distribution for {version} was not found")
+
+
 def project_url(nick: str) -> str:
-    return f"{RELEASES_BASE}/project/{urllib.parse.quote(nick)}"
+    return f"{RELEASES_BASE}/project/{urllib.parse.quote(nick)}?allUpdates=true"
 
 
 def version_key(version: str) -> tuple[int, ...]:
@@ -319,76 +394,6 @@ def resolve_exact_version(client: ReleasesClient, nick: str, requested: str) -> 
     if exact != requested:
         print(f"Resolved platform version {requested} -> {exact}", flush=True)
     return exact
-
-
-def distribution_score(kind: str, label: str) -> int:
-    # Страницы 1C локализованы и меняют формулировки, поэтому выбираем
-    # дистрибутив по набору устойчивых русских/английских признаков.
-    normalized = label.lower()
-    if "windows" in normalized or "rpm" in normalized or "macos" in normalized or "os x" in normalized:
-        return -1
-    if kind.startswith("platform") and is_unsupported_platform_arch(normalized):
-        return -1
-
-    if kind == "edt":
-        patterns = [
-            r"оффлайн.*1c:edt.*linux.*64",
-            r"offline.*1c:edt.*linux.*64",
-            r"1c:edt.*linux.*без интернета",
-            r"1c:edt.*linux.*64",
-            r"edt.*linux.*64",
-        ]
-    elif kind == "platform":
-        patterns = [
-            r"технологическая платформа.*1с:предприятия.*\(64-bit\).*linux",
-            r"технологическая платформа.*1c:enterprise.*\(64-bit\).*linux",
-            r"технологическая платформа.*64-bit.*linux",
-            r"server64.*linux",
-            r"server64",
-        ]
-    elif kind == "platform-server":
-        patterns = [
-            r"сервер.*1с:предприятия.*64-bit.*deb-based linux",
-            r"сервер.*1c:enterprise.*64-bit.*deb-based linux",
-            r"server.*x86[_-]?64.*linux",
-            r"server.*64-bit.*deb-based linux",
-            r"server.*64.*linux",
-            r"сервер.*64.*linux",
-        ]
-    else:
-        patterns = [
-            r"клиент.*1с:предприятия.*64-bit.*deb-based linux",
-            r"клиент.*1c:enterprise.*64-bit.*deb-based linux",
-            r"client.*x86[_-]?64.*linux",
-            r"client.*64-bit.*deb-based linux",
-            r"client.*64.*linux",
-            r"тонкий клиент.*64.*linux",
-        ]
-
-    for index, pattern in enumerate(patterns):
-        if re.search(pattern, normalized, flags=re.IGNORECASE):
-            return len(patterns) - index
-    return -1
-
-
-def find_distribution_page(kind: str, version_url: str, page_text: str) -> str:
-    candidates: list[tuple[int, str, str]] = []
-    for href, label in parse_anchors(page_text):
-        score = distribution_score(kind, f"{label} {href}")
-        if score >= 0:
-            candidates.append((score, href, label))
-
-    if not candidates:
-        labels = [label for _href, label in parse_anchors(page_text) if label][:40]
-        print("Available distributions:", file=sys.stderr)
-        for label in labels:
-            print(f"  - {label}", file=sys.stderr)
-        raise RuntimeError(f"Linux distribution for {kind} was not found")
-
-    score, href, label = sorted(candidates, key=lambda item: item[0])[-1]
-    url = urllib.parse.urljoin(version_url, href)
-    print(f"Selected distribution: {label}", flush=True)
-    return url
 
 
 def find_download_url(distribution_url: str, page_text: str) -> str:
@@ -455,26 +460,22 @@ def download_from_releases(kind: str, requested_version: str, destination: Path)
     client = ReleasesClient(username, password)
     nick = release_nick(kind, requested_version)
     version = resolve_exact_version(client, nick, requested_version) if kind.startswith("platform") else requested_version
-    files_url = version_files_url(nick, version)
-    final_url, page_text = client.get_authenticated_text(files_url)
-    distribution_url = find_distribution_page(kind, final_url, page_text)
-    final_distribution_url, distribution_text = client.get_authenticated_text(distribution_url)
+    if kind == "edt":
+        files_url = version_files_url(nick, version)
+        final_url, page_text = client.get_authenticated_text(files_url)
+        distribution_url_value, filename = find_edt_distribution_page(final_url, page_text, version)
+    else:
+        filename = distribution_filename(kind, version)
+        distribution_url_value = distribution_url(kind, nick, version, filename)
+    print(f"Selected distribution: {filename}", flush=True)
+    final_distribution_url, distribution_text = client.get_authenticated_text(distribution_url_value)
     file_url = find_download_url(final_distribution_url, distribution_text)
-    fallback = (
-        f"1c_edt_distr_offline_{version}_linux_x86_64.tar.gz"
-        if kind == "edt"
-        else f"setup-full-{version}-x86_64.run"
-    )
-    download_url(client, file_url, destination, fallback)
-
-
-def normalize_kind(kind: str) -> str:
-    return kind
+    download_url(client, file_url, destination, filename)
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Download 1C distributions.")
-    parser.add_argument("kind", choices=["edt", "platform", "platform-server", "platform-client", "oscript"])
+    parser.add_argument("kind", choices=["edt", "platform", "platform-server", "oscript"])
     parser.add_argument("version")
     parser.add_argument("destination", type=Path)
     return parser.parse_args()
@@ -482,11 +483,10 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
-    kind = normalize_kind(args.kind)
+    kind = args.kind
     # Перед сетевой загрузкой пробуем локальный кэш: это ускоряет локальные
     # сборки и позволяет запускать build без повторной авторизации на 1C.
-    local_kind = kind if kind in {"edt", "oscript"} else "platform"
-    if copy_local(local_kind, args.version, args.destination):
+    if copy_local(kind, args.version, args.destination):
         return
     if kind == "oscript":
         download_oscript(args.version, args.destination)

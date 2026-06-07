@@ -80,7 +80,7 @@ RUN --mount=type=bind,from=distr,source=.,target=/distr,readonly \
     bash /usr/local/sbin/onec-image/install-platform.sh /distr server "${PLATFORM_COMPONENTS}"
 
 FROM platform-installer-base AS client-platform-installer
-ARG PLATFORM_COMPONENTS=client_full,ru
+ARG PLATFORM_COMPONENTS=client_full,client_thin_fib,ru
 
 RUN --mount=type=bind,from=distr,source=.,target=/distr,readonly \
     bash /usr/local/sbin/onec-image/install-platform.sh /distr client "${PLATFORM_COMPONENTS}"
@@ -168,6 +168,7 @@ RUN apt-get update \
       ca-certificates \
       dbus-x11 \
       fontconfig \
+      gosu \
       libasound2 \
       libatk1.0-0 \
       libcups2 \
@@ -188,6 +189,7 @@ RUN apt-get update \
       libxtst6 \
       locales \
       net-tools \
+      xauth \
       xvfb \
   && localedef -i ru_RU -c -f UTF-8 -A /usr/share/locale/locale.alias ru_RU.UTF-8 \
   && rm -rf /var/lib/apt/lists/*
@@ -199,6 +201,7 @@ ENV LC_ALL=ru_RU.UTF-8
 
 COPY --from=client-platform-installer /opt/1cv8 /opt/1cv8
 COPY --from=oscript-installer /opt/oscript /opt/oscript
+COPY --chmod=755 docker/scripts/client-entrypoint.sh /usr/local/bin/client-entrypoint.sh
 
 ENV OSCRIPTBIN=/opt/oscript/bin
 ENV PATH="/opt/1cv8/current:${OSCRIPTBIN}:${PATH}"
@@ -211,8 +214,8 @@ RUN opm install vanessa-runner \
 
 RUN groupadd -r grp1cv8 --gid=999 \
   && useradd -r -g grp1cv8 --uid=999 --home-dir=/home/usr1cv8 --shell=/bin/bash usr1cv8 \
-  && mkdir -p /home/usr1cv8/.1cv8 /var/1C/licenses \
-  && chown -R usr1cv8:grp1cv8 /home/usr1cv8 /var/1C/licenses \
+  && mkdir -p /home/usr1cv8/.1cv8 /var/1C/licenses /work \
+  && chown -R usr1cv8:grp1cv8 /home/usr1cv8 /var/1C/licenses /work \
   && find /opt/1cv8 \( \
         -type d -iname doc -o \
         -type d -iname docs -o \
@@ -227,5 +230,6 @@ ENV ONEC_LICENSE_DIR=/var/1C/licenses
 # персональные developer license files в образ.
 VOLUME ["/var/1C/licenses", "/home/usr1cv8/.1cv8"]
 WORKDIR /work
+ENTRYPOINT ["/usr/local/bin/client-entrypoint.sh"]
 CMD ["bash"]
 

@@ -8,50 +8,64 @@ components="${3:?usage: install-platform.sh <source-dir> <server|client> <run-co
 work=/tmp/platform-install
 rm -rf "$work"
 mkdir -p "$work"
+trap 'rm -rf "$work"' EXIT
 
-archive="$(find "$source_dir" -maxdepth 1 -type f \( -name 'deb64_*.zip' -o -name 'deb64_*.tar.gz' -o -name '*.deb64.zip' -o -name '*.deb64.tar.gz' \) | sort -V | tail -1)"
-installer="$(find "$source_dir" -maxdepth 1 -type f -name 'setup-full-*-x86_64.run' | sort -V | tail -1)"
-
-install_deb_packages() {
-  # В deb-архивах 1C имена пакетов отличаются по версии, поэтому ставим их
-  # масками из распакованного каталога и оставляем только нужный профиль.
-  case "$kind" in
-    server)
-      dpkg -i 1c-enterprise*-common_*.deb 1c-enterprise*-server_*.deb
-      ;;
-    client)
-      dpkg -i 1c-enterprise*-common_*.deb 1c-enterprise*-client_*.deb
-      ;;
-    *)
-      echo "Unsupported platform kind: $kind" >&2
-      exit 2
-      ;;
-  esac
+latest_file() {
+  find "$source_dir" -maxdepth 1 -type f -name "$1" | sort -V | tail -1
 }
 
-if [ -n "$archive" ]; then
-  # Предпочитаем deb-архивы: они меньше setup-full и предсказуемее для CI.
-  case "$archive" in
-    *.zip)
-      unzip -q "$archive" -d "$work"
-      ;;
-    *.tar.gz)
-      tar -xzf "$archive" -C "$work"
-      ;;
-  esac
+install_server() {
+  local archive
+  archive="$(latest_file 'deb64_*.zip')"
+
+  if [ -z "$archive" ]; then
+    echo "Linux deb64 archive was not found in $source_dir." >&2
+    exit 1
+  fi
+
+  unzip -q "$archive" -d "$work"
   cd "$work"
-  install_deb_packages
-elif [ -n "$installer" ]; then
+  dpkg -i 1c-enterprise*-{common,server}_*.deb
+}
+
+install_client() {
+  local archive
+  local installer
+  archive="$(latest_file 'server64_*.zip')"
+
+  if [ -z "$archive" ]; then
+    echo "Linux server64 archive was not found in $source_dir." >&2
+    exit 1
+  fi
+
+  unzip -q "$archive" -d "$work"
+  cd "$work"
+
+  installer="$(find . -maxdepth 1 -type f -name 'setup-full-*-x86_64.run' | sort -V | tail -1)"
+  if [ -z "$installer" ]; then
+    echo "Linux setup-full was not found in $archive." >&2
+    exit 1
+  fi
+
   chmod +x "$installer"
   "$installer" --mode unattended --enable-components "$components"
-else
-  echo "Linux setup-full or deb64 archive was not found in $source_dir." >&2
-  exit 1
-fi
+}
 
-# /opt/1cv8/current нужен downstream-скриптам, чтобы не знать точный путь версии.
+case "$kind" in
+  server)
+    install_server
+    ;;
+  client)
+    install_client
+    ;;
+  *)
+    echo "Unsupported platform kind: $kind" >&2
+    exit 2
+    ;;
+esac
+
+# /opt/1cv8/current lets downstream scripts avoid version-specific paths.
 current_dir="$(find /opt -type f \( -name ibcmd -o -name 1cv8 -o -name ragent \) -exec dirname {} \; | sort -V | tail -1)"
 test -n "$current_dir"
 mkdir -p /opt/1cv8
 ln -s "$current_dir" /opt/1cv8/current
-rm -rf "$work"
