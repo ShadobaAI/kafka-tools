@@ -162,7 +162,9 @@ LABEL org.opencontainers.image.title="1C CI client" \
       ru.shadobaai.onec.platform-version="${PLATFORM_VERSION}" \
       ru.shadobaai.onec.revision="${REVISION}"
 
-RUN apt-get update \
+RUN sed -i 's/^Components: main$/Components: main contrib/' /etc/apt/sources.list.d/debian.sources \
+  && echo "ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula select true" | debconf-set-selections \
+  && apt-get update \
   && apt-get install -y --no-install-recommends \
       ca-certificates \
       dbus-x11 \
@@ -188,10 +190,12 @@ RUN apt-get update \
       locales \
       net-tools \
       openbox \
+      ttf-mscorefonts-installer \
       xauth \
       xdotool \
       xvfb \
   && localedef -i ru_RU -c -f UTF-8 -A /usr/share/locale/locale.alias ru_RU.UTF-8 \
+  && fc-cache -fv \
   && rm -rf /var/lib/apt/lists/*
 
 ENV LANG=ru_RU.UTF-8
