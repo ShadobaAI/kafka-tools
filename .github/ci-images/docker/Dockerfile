@@ -188,10 +188,8 @@ RUN sed -i 's/^Components: main$/Components: main contrib/' /etc/apt/sources.lis
       libxrender1 \
       libxtst6 \
       locales \
-      net-tools \
       openbox \
       ttf-mscorefonts-installer \
-      xauth \
       xdotool \
       xvfb \
   && localedef -i ru_RU -c -f UTF-8 -A /usr/share/locale/locale.alias ru_RU.UTF-8 \
