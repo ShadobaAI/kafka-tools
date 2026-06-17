@@ -21,6 +21,7 @@ from typing import BinaryIO
 
 RELEASES_BASE = "https://releases.1c.ru"
 OSCRIPT_BASE = "https://oscript.io"
+COVERAGE41C_BASE = "https://github.com/1c-syntax/Coverage41C"
 # Исторически локальный кэш проверяется в /distr. В CI рабочий каталог может
 # отличаться, поэтому не смешиваем этот путь с destination для новых загрузок.
 LOCAL_DISTR = Path("/distr")
@@ -204,6 +205,8 @@ def local_candidates(kind: str, version: str, *roots: Path) -> list[Path]:
         patterns = [f"1c_edt_distr_offline_{version}_*_linux_x86_64.tar.gz"]
     elif kind == "oscript":
         patterns = ["OneScript-*-linux-x64.zip"] if version == "latest" else [f"OneScript-{version}-linux-x64.zip"]
+    elif kind == "coverage41c":
+        patterns = ["Coverage41C-*.zip"] if version == "latest" else [f"Coverage41C-{version}.zip"]
     else:
         if kind == "platform":
             # Короткая версия 8.3.27 в локальном кэше соответствует любому
@@ -299,6 +302,36 @@ def download_oscript(version_token: str, destination: Path) -> None:
 
     names = ", ".join(item.get("filename", "") for item in files if item.get("filename"))
     raise RuntimeError(f"OneScript linux x64 distribution was not found in {archive_url}. Available files: {names}")
+
+
+def download_coverage41c(version: str, destination: Path) -> None:
+    if version == "latest":
+        api_url = "https://api.github.com/repos/1c-syntax/Coverage41C/releases/latest"
+        request = urllib.request.Request(
+            api_url,
+            headers={
+                "User-Agent": "onec-ci-image-downloader/1.0",
+                "Accept": "application/vnd.github+json",
+            },
+        )
+        with urllib.request.urlopen(request, timeout=REQUEST_TIMEOUT) as response:
+            release = json.loads(response.read().decode("utf-8"))
+
+        for asset in release.get("assets", []):
+            filename = asset.get("name", "")
+            url = asset.get("browser_download_url", "")
+            if filename.startswith("Coverage41C-") and filename.endswith(".zip") and url:
+                client = ReleasesClient("", "")
+                download_url(client, url, destination, filename)
+                return
+
+        names = ", ".join(asset.get("name", "") for asset in release.get("assets", []) if asset.get("name"))
+        raise RuntimeError(f"Coverage41C zip asset was not found in latest release. Available files: {names}")
+
+    filename = f"Coverage41C-{version}.zip"
+    url = f"{COVERAGE41C_BASE}/releases/download/v{urllib.parse.quote(version)}/{filename}"
+    client = ReleasesClient("", "")
+    download_url(client, url, destination, filename)
 
 
 def version_files_url(nick: str, version: str) -> str:
@@ -475,7 +508,7 @@ def download_from_releases(kind: str, requested_version: str, destination: Path)
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Download 1C distributions.")
-    parser.add_argument("kind", choices=["edt", "platform", "platform-server", "oscript"])
+    parser.add_argument("kind", choices=["edt", "platform", "platform-server", "oscript", "coverage41c"])
     parser.add_argument("version")
     parser.add_argument("destination", type=Path)
     return parser.parse_args()
@@ -490,6 +523,9 @@ def main() -> None:
         return
     if kind == "oscript":
         download_oscript(args.version, args.destination)
+        return
+    if kind == "coverage41c":
+        download_coverage41c(args.version, args.destination)
         return
     if kind == "edt":
         download_from_releases(kind, args.version, args.destination)

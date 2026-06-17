@@ -72,6 +72,19 @@ RUN find /opt/1C/1CE \( \
       \) -prune -exec rm -rf {} + \
   && rm -rf /tmp/* /var/tmp/*
 
+FROM edt-installer-base AS coverage-edt-debug
+
+# Для Coverage41C нужны только EDT debug jar, поэтому полный EDT не попадает в финальный client-образ.
+RUN --mount=type=bind,from=coverageedt,source=.,target=/distr,readonly \
+    bash /usr/local/sbin/onec-image/install-edt.sh /distr "" \
+  && mkdir -p /opt/coverage41c-edt \
+  && find /opt/1C/1CE -type f \( \
+        -name 'com._1c.g5.v8.dt.debug.core_*.jar' -o \
+        -name 'com._1c.g5.v8.dt.debug.model_*.jar' \
+      \) -exec cp {} /opt/coverage41c-edt/ \; \
+  && test -n "$(find /opt/coverage41c-edt -type f -name '*.jar' -print -quit)" \
+  && rm -rf /tmp/* /var/tmp/*
+
 FROM platform-installer-base AS server-platform-installer
 ARG PLATFORM_COMPONENTS=server
 
@@ -99,6 +112,19 @@ RUN --mount=type=bind,from=oscript,source=.,target=/oscript-distr,readonly \
       unzip \
   && bash /usr/local/sbin/onec-image/install-oscript.sh /oscript-distr \
   && rm -rf /var/lib/apt/lists/* /tmp/*
+
+FROM runtime-base AS coverage41c-installer
+
+RUN --mount=type=bind,from=coverage41c,source=.,target=/coverage41c-distr,readonly \
+    apt-get update \
+  && apt-get install -y --no-install-recommends unzip \
+  && archive="$(find /coverage41c-distr -maxdepth 1 -type f -name 'Coverage41C-*.zip' | head -1)" \
+  && test -n "$archive" \
+  && unzip -q "$archive" -d /opt \
+  && mv /opt/Coverage41C-* /opt/Coverage41C \
+  && sed -i '1s|/usr/bin/env sh|/usr/bin/env bash|' /opt/Coverage41C/bin/Coverage41C \
+  && chmod +x /opt/Coverage41C/bin/Coverage41C \
+  && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 FROM edt-runtime-base AS edtcli
 ARG EDT_VERSION
@@ -189,6 +215,7 @@ RUN sed -i 's/^Components: main$/Components: main contrib/' /etc/apt/sources.lis
       libxtst6 \
       locales \
       openbox \
+      openjdk-17-jre-headless \
       ttf-mscorefonts-installer \
       xdotool \
       xvfb \
@@ -203,9 +230,16 @@ ENV LC_ALL=ru_RU.UTF-8
 
 COPY --from=client-platform-installer /opt/1cv8 /opt/1cv8
 COPY --from=oscript-installer /opt/oscript /opt/oscript
+COPY --from=coverage-edt-debug /opt/coverage41c-edt /opt/coverage41c-edt
+COPY --from=coverage41c-installer /opt/Coverage41C /opt/Coverage41C
 
 ENV OSCRIPTBIN=/opt/oscript/bin
-ENV PATH="/opt/1cv8/current:${OSCRIPTBIN}:${PATH}"
+ENV EDT_LOCATION=/opt/coverage41c-edt
+ENV JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+ENV PATH="/opt/1cv8/current:${OSCRIPTBIN}:${JAVA_HOME}/bin:${PATH}"
+
+RUN ln -sfn /opt/Coverage41C/bin/Coverage41C /usr/local/bin/Coverage41C \
+  && EDT_LOCATION=/opt/coverage41c-edt Coverage41C --version
 
 # Дублируем установку Vanessa Runner в client target, потому что он не наследует
 # слои ibcmd и собирается как отдельный финальный образ.

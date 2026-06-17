@@ -37,6 +37,7 @@ jobs:
           RELEASES_ONEC_PASSWORD: ${{ secrets.RELEASES_ONEC_PASSWORD }}
           EDT: ${{ vars.EDT }}
           PLATFORM: ${{ vars.PLATFORM }}
+          COVERAGE41C: ${{ vars.COVERAGE41C }}
         run: |
           # PLATFORM используется во всех профилях: для ibcmd/client как версия
           # платформы, для edtcli как минимальная версия platform support.
@@ -59,7 +60,13 @@ jobs:
               python scripts/download_distribution.py platform-server "$PLATFORM" distr
               ;;
             client)
+              if [ -z "$EDT" ]; then
+                echo "CI/CD variable EDT is required for client coverage support" >&2
+                exit 2
+              fi
               python scripts/download_distribution.py platform "$PLATFORM" distr
+              python scripts/download_distribution.py edt "$EDT" distr
+              python scripts/download_distribution.py coverage41c "${COVERAGE41C:-2.7.3}" distr
               ;;
             *)
               echo "Unsupported profile: ${{ inputs.profile }}" >&2

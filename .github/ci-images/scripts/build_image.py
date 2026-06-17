@@ -162,6 +162,42 @@ def link_or_copy(source: Path, target: Path) -> None:
         shutil.copy2(source, target)
 
 
+def prepare_single_file_context(name: str, patterns: list[str], not_found_message: str) -> Path:
+    # В named context кладем только нужный архив, чтобы Docker build не видел всю папку дистрибутивов.
+    matches: list[Path] = []
+    for pattern in patterns:
+        matches.extend(path for path in LOCAL_DISTR.glob(pattern) if path.is_file())
+
+    if not matches:
+        raise SystemExit(not_found_message)
+
+    source = sorted(matches, key=lambda path: path.name)[-1]
+    target_dir = BUILD_CONTEXT_ROOT / "distr" / name
+    if target_dir.exists():
+        shutil.rmtree(target_dir)
+    target_dir.mkdir(parents=True, exist_ok=True)
+    link_or_copy(source, target_dir / source.name)
+    return target_dir
+
+
+def prepare_coverage41c_context() -> Path:
+    return prepare_single_file_context(
+        "coverage41c",
+        ["Coverage41C-*.zip"],
+        f"Coverage41C distribution was not found in {LOCAL_DISTR}. "
+        "Put Coverage41C-<version>.zip there before building client.",
+    )
+
+
+def prepare_coverage_edt_context() -> Path:
+    return prepare_single_file_context(
+        "coverage-edt",
+        ["1c_edt_distr_offline_*_linux_x86_64.tar.gz"],
+        f"EDT offline distribution was not found in {LOCAL_DISTR}. "
+        "Coverage41C needs EDT debug libraries for client image.",
+    )
+
+
 def ensure_oscript_archive() -> Path:
     existing = sorted(LOCAL_DISTR.glob("OneScript-*-linux-x64.zip"), key=lambda path: path.name)
     if existing:
@@ -214,6 +250,16 @@ def build(args: argparse.Namespace) -> str:
         else None
     )
     oscript_context = prepare_oscript_context().relative_to(ROOT).as_posix() if profile in OSCRIPT_PROFILES else None
+    coverage41c_context = (
+        prepare_coverage41c_context().relative_to(ROOT).as_posix()
+        if profile == "client"
+        else None
+    )
+    coverage_edt_context = (
+        prepare_coverage_edt_context().relative_to(ROOT).as_posix()
+        if profile == "client"
+        else None
+    )
 
     command = [
         "docker",
@@ -229,6 +275,10 @@ def build(args: argparse.Namespace) -> str:
         command.extend(["--build-context", f"distr={distr_context}"])
     if oscript_context:
         command.extend(["--build-context", f"oscript={oscript_context}"])
+    if coverage41c_context:
+        command.extend(["--build-context", f"coverage41c={coverage41c_context}"])
+    if coverage_edt_context:
+        command.extend(["--build-context", f"coverageedt={coverage_edt_context}"])
 
     command.extend([
         "--target",
