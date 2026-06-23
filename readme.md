@@ -201,12 +201,16 @@ MS SQL Server 2022 с кириллической сортировкой (`Cyrill
 
 Конвертирует схемы из [AsyncAPI YAML](https://studio.asyncapi.com/) в XSD для импорта в XDTO-пакет 1С.
 
-**Зависимости:** `pip install pyyaml lxml`
+Требуется Python 3.10 или новее. Установка зависимостей:
+
+```powershell
+python -m pip install pyyaml lxml
+```
 
 ### Использование
 
-```
-python asyncapi2xsd.py <input.yaml> <output.xsd> -n <namespace> [--prefix <prefix>] [--suffix <suffix>]
+```powershell
+python .\xdto\asyncapi2xsd.py <input.yaml> <output.xsd> -n <namespace> [--prefix <prefix>] [--suffix <suffix>]
 ```
 
 | Аргумент | Обязательный | Описание |
@@ -217,16 +221,46 @@ python asyncapi2xsd.py <input.yaml> <output.xsd> -n <namespace> [--prefix <prefi
 | `--prefix` | нет | Префикс адреса канала, отрезаемый при формировании имени типа |
 | `--suffix` | нет | Суффикс адреса канала, отрезаемый при формировании имени типа |
 
-```bash
-# Без strip-правил — имя типа берётся напрямую из адреса канала
-python asyncapi2xsd.py spec.yaml out.xsd -n http://example.com/ns
+Готовый пример спецификации: [`xdto/asyncapi_example.yaml`](xdto/asyncapi_example.yaml). Соответствующий результат: [`xdto/asyncapi_example.xsd`](xdto/asyncapi_example.xsd).
 
-# С prefix/suffix — 1c.test-accumulation-register → TestAccumulationRegister
-python asyncapi2xsd.py spec.yaml out.xsd \
-  -n http://example.com/ns \
-  --prefix 1c. \
+```powershell
+python .\xdto\asyncapi2xsd.py `
+  .\xdto\asyncapi_example.yaml `
+  .\xdto\asyncapi_example.generated.xsd `
+  --namespace http://example.com/xdto `
+  --prefix 1c. `
   --suffix .changed
 ```
+
+Параметры `--prefix` и `--suffix` применяются к адресам каналов. Например, из адреса `1c.test-document.changed` будет сформировано имя типа `TestDocument`. Если канал для схемы не найден, используется имя схемы из `components.schemas`.
+
+### Поддерживаемые схемы
+
+| AsyncAPI / JSON Schema | XSD |
+|------------------------|-----|
+| `string` | `xs:string` |
+| `string` + `uuid` | `tns:UUID` с проверкой формата |
+| `string` + `date`, `date-time`, `time` | `xs:date`, `xs:dateTime`, `xs:time` |
+| `integer` | `xs:integer` |
+| `integer` + `int32`, `int64` | `xs:int`, `xs:long` |
+| `number` | `xs:decimal` |
+| `number` + `float`, `double` | `xs:float`, `xs:double` |
+| `boolean` | `xs:boolean` |
+| `object` | именованный `xs:complexType` |
+| `array` | повторяющийся элемент с границами из `minItems` и `maxItems` |
+| `enum` | `xs:simpleType` с ограничениями `xs:enumeration` |
+
+Генератор поддерживает:
+
+- вложенные объекты и массивы примитивов, объектов, перечислений и ссылочных типов;
+- массивы верхнего уровня;
+- локальные ссылки вида `#/components/schemas/<имя>`, включая циклические зависимости;
+- строковые ограничения `minLength`, `maxLength`, `pattern`;
+- числовые ограничения `minimum`, `maximum`, `exclusiveMinimum`, `exclusiveMaximum`;
+- `multipleOf`, если значение точно представимо через `fractionDigits`: `0.1`, `0.01` и аналогичные десятичные шаги; для целых чисел поддерживается `1`;
+- обязательность свойств через `required`; необязательные скалярные свойства формируются с `nillable="true"`.
+
+Внешние `$ref`, логические схемы (`oneOf`, `anyOf`, `allOf`) и `boolean enum` не поддерживаются. При неизвестной ссылке или несовместимом ограничении генератор завершает работу с ошибкой, содержащей путь к проблемному свойству.
 
 ---
 

@@ -1,0 +1,406 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:tns="http://v8.fsk.ru/example/kfk/1.0" targetNamespace="http://v8.fsk.ru/example/kfk/1.0" elementFormDefault="qualified" attributeFormDefault="unqualified">
+  <xs:simpleType name="UUID">
+    <xs:restriction base="xs:string">
+      <xs:pattern value="[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"/>
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:simpleType name="CurrencyCode">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="RUB"/>
+      <xs:enumeration value="USD"/>
+      <xs:enumeration value="EUR"/>
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:simpleType name="ItemKind">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="Group"/>
+      <xs:enumeration value="Item"/>
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:simpleType name="LineStatus">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="New"/>
+      <xs:enumeration value="Changed"/>
+      <xs:enumeration value="Deleted"/>
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:simpleType name="OperationKind">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="Create"/>
+      <xs:enumeration value="Update"/>
+      <xs:enumeration value="Delete"/>
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:simpleType name="QualityKind">
+    <xs:restriction base="xs:integer">
+      <xs:enumeration value="0"/>
+      <xs:enumeration value="1"/>
+      <xs:enumeration value="2"/>
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:simpleType name="Contact.Type">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="Email"/>
+      <xs:enumeration value="Phone"/>
+      <xs:enumeration value="Telegram"/>
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:simpleType name="TestDocument.Dimensions.Unit">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="mm"/>
+      <xs:enumeration value="cm"/>
+      <xs:enumeration value="m"/>
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:simpleType name="TestDocument.Priority">
+    <xs:restriction base="xs:integer">
+      <xs:enumeration value="1"/>
+      <xs:enumeration value="2"/>
+      <xs:enumeration value="3"/>
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:simpleType name="TestDocument.Status">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="Draft"/>
+      <xs:enumeration value="Posted"/>
+      <xs:enumeration value="Deleted"/>
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:complexType name="AuditLog">
+    <xs:sequence>
+      <xs:element name="eventId" type="tns:UUID"/>
+      <xs:element name="occurredAt" type="xs:dateTime"/>
+      <xs:element name="entity" type="tns:EntityRef"/>
+      <xs:element name="operation" type="tns:OperationKind"/>
+      <xs:element name="oldValue" type="xs:string" nillable="true"/>
+      <xs:element name="newValue" type="xs:string" nillable="true"/>
+      <xs:element name="actor" type="tns:Person" nillable="true"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="CatalogItemRef">
+    <xs:sequence>
+      <xs:element name="refId" type="tns:UUID"/>
+      <xs:element name="refName" nillable="true">
+        <xs:simpleType>
+          <xs:restriction base="xs:string">
+            <xs:maxLength value="100"/>
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:element>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="CatalogItems">
+    <xs:sequence>
+      <xs:element name="itemId" type="tns:UUID"/>
+      <xs:element name="name">
+        <xs:simpleType>
+          <xs:restriction base="xs:string">
+            <xs:minLength value="1"/>
+            <xs:maxLength value="100"/>
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:element>
+      <xs:element name="kind" type="tns:ItemKind"/>
+      <xs:element name="parent" type="tns:CatalogItemRef" nillable="true"/>
+      <xs:element name="aliases" minOccurs="0" maxOccurs="10">
+        <xs:simpleType>
+          <xs:restriction base="xs:string">
+            <xs:maxLength value="100"/>
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:element>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="Contact">
+    <xs:sequence>
+      <xs:element name="type" type="tns:Contact.Type"/>
+      <xs:element name="value">
+        <xs:simpleType>
+          <xs:restriction base="xs:string">
+            <xs:maxLength value="254"/>
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:element>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="ContactList">
+    <xs:sequence>
+      <xs:element name="row" type="tns:Contact" minOccurs="0" maxOccurs="5"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="DictionaryCodes">
+    <xs:sequence>
+      <xs:element name="row" type="tns:CurrencyCode" minOccurs="1" maxOccurs="20"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="EntityRef">
+    <xs:sequence>
+      <xs:element name="type">
+        <xs:simpleType>
+          <xs:restriction base="xs:string">
+            <xs:minLength value="1"/>
+            <xs:maxLength value="100"/>
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:element>
+      <xs:element name="id" type="tns:UUID"/>
+      <xs:element name="name" nillable="true">
+        <xs:simpleType>
+          <xs:restriction base="xs:string">
+            <xs:maxLength value="150"/>
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:element>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="MetricValues">
+    <xs:sequence>
+      <xs:element name="row" type="tns:MetricValues.Row" minOccurs="1" maxOccurs="50"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="MetricValues.Row">
+    <xs:sequence>
+      <xs:element name="code">
+        <xs:simpleType>
+          <xs:restriction base="xs:string">
+            <xs:minLength value="1"/>
+            <xs:maxLength value="50"/>
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:element>
+      <xs:element name="value">
+        <xs:simpleType>
+          <xs:restriction base="xs:decimal">
+            <xs:fractionDigits value="2"/>
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:element>
+      <xs:element name="quality" type="tns:QualityKind" nillable="true"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="Person">
+    <xs:sequence>
+      <xs:element name="personId" type="tns:UUID"/>
+      <xs:element name="name">
+        <xs:simpleType>
+          <xs:restriction base="xs:string">
+            <xs:maxLength value="150"/>
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:element>
+      <xs:element name="email" nillable="true">
+        <xs:simpleType>
+          <xs:restriction base="xs:string">
+            <xs:maxLength value="254"/>
+            <xs:pattern value="^[^@]+@[^@]+$"/>
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:element>
+      <xs:element name="manager" type="tns:Person" nillable="true"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="StringListPayload">
+    <xs:sequence>
+      <xs:element name="row" minOccurs="0" maxOccurs="10">
+        <xs:simpleType>
+          <xs:restriction base="xs:string">
+            <xs:pattern value="^[A-Z_]+$"/>
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:element>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="TestDocument">
+    <xs:sequence>
+      <xs:element name="id" type="tns:UUID"/>
+      <xs:element name="externalId" nillable="true">
+        <xs:simpleType>
+          <xs:restriction base="xs:string">
+            <xs:minLength value="36"/>
+            <xs:maxLength value="36"/>
+            <xs:pattern value="^[0-9a-fA-F-]{36}$"/>
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:element>
+      <xs:element name="number">
+        <xs:simpleType>
+          <xs:restriction base="xs:string">
+            <xs:minLength value="1"/>
+            <xs:maxLength value="20"/>
+            <xs:pattern value="^[A-Z0-9-]+$"/>
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:element>
+      <xs:element name="date" type="xs:date"/>
+      <xs:element name="createdAt" type="xs:dateTime" nillable="true"/>
+      <xs:element name="eventTime" type="xs:time" nillable="true"/>
+      <xs:element name="amount">
+        <xs:simpleType>
+          <xs:restriction base="xs:decimal">
+            <xs:minInclusive value="0"/>
+            <xs:maxInclusive value="999999999.99"/>
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:element>
+      <xs:element name="roundedAmount">
+        <xs:simpleType>
+          <xs:restriction base="xs:decimal">
+            <xs:minInclusive value="0"/>
+            <xs:maxExclusive value="1000000"/>
+            <xs:fractionDigits value="2"/>
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:element>
+      <xs:element name="ratio" nillable="true">
+        <xs:simpleType>
+          <xs:restriction base="xs:float">
+            <xs:minExclusive value="0"/>
+            <xs:maxInclusive value="1"/>
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:element>
+      <xs:element name="score" nillable="true">
+        <xs:simpleType>
+          <xs:restriction base="xs:double">
+            <xs:minInclusive value="0"/>
+            <xs:maxInclusive value="100"/>
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:element>
+      <xs:element name="quantity" nillable="true">
+        <xs:simpleType>
+          <xs:restriction base="xs:int">
+            <xs:minInclusive value="0"/>
+            <xs:maxInclusive value="1000000"/>
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:element>
+      <xs:element name="longCounter" nillable="true">
+        <xs:simpleType>
+          <xs:restriction base="xs:long">
+            <xs:minInclusive value="0"/>
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:element>
+      <xs:element name="active" type="xs:boolean"/>
+      <xs:element name="status" type="tns:TestDocument.Status"/>
+      <xs:element name="priority" type="tns:TestDocument.Priority"/>
+      <xs:element name="currency" type="tns:CurrencyCode"/>
+      <xs:element name="owner" type="tns:Person"/>
+      <xs:element name="contacts" type="tns:ContactList" nillable="true"/>
+      <xs:element name="tags" minOccurs="0" maxOccurs="unbounded">
+        <xs:simpleType>
+          <xs:restriction base="xs:string">
+            <xs:maxLength value="50"/>
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:element>
+      <xs:element name="fixedTags" minOccurs="1" maxOccurs="3">
+        <xs:simpleType>
+          <xs:restriction base="xs:string">
+            <xs:minLength value="2"/>
+            <xs:maxLength value="30"/>
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:element>
+      <xs:element name="values" minOccurs="0" maxOccurs="5">
+        <xs:simpleType>
+          <xs:restriction base="xs:decimal">
+            <xs:minInclusive value="0"/>
+            <xs:fractionDigits value="3"/>
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:element>
+      <xs:element name="statusHistory" type="tns:LineStatus" minOccurs="1" maxOccurs="10"/>
+      <xs:element name="dimensions" type="tns:TestDocument.Dimensions" nillable="true"/>
+      <xs:element name="lines" type="tns:TestDocument.Lines"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="TestDocument.Dimensions">
+    <xs:sequence>
+      <xs:element name="width">
+        <xs:simpleType>
+          <xs:restriction base="xs:decimal">
+            <xs:minInclusive value="0"/>
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:element>
+      <xs:element name="height">
+        <xs:simpleType>
+          <xs:restriction base="xs:decimal">
+            <xs:minInclusive value="0"/>
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:element>
+      <xs:element name="depth" nillable="true">
+        <xs:simpleType>
+          <xs:restriction base="xs:decimal">
+            <xs:minInclusive value="0"/>
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:element>
+      <xs:element name="unit" type="tns:TestDocument.Dimensions.Unit" nillable="true"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="TestDocument.Lines">
+    <xs:sequence>
+      <xs:element name="row" type="tns:TestDocument.Lines.Row" minOccurs="1" maxOccurs="100"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="TestDocument.Lines.Row">
+    <xs:sequence>
+      <xs:element name="lineNo">
+        <xs:simpleType>
+          <xs:restriction base="xs:integer">
+            <xs:minInclusive value="1"/>
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:element>
+      <xs:element name="productId" type="tns:UUID"/>
+      <xs:element name="description" nillable="true">
+        <xs:simpleType>
+          <xs:restriction base="xs:string">
+            <xs:maxLength value="200"/>
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:element>
+      <xs:element name="qty">
+        <xs:simpleType>
+          <xs:restriction base="xs:decimal">
+            <xs:minInclusive value="0"/>
+            <xs:fractionDigits value="3"/>
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:element>
+      <xs:element name="price">
+        <xs:simpleType>
+          <xs:restriction base="xs:decimal">
+            <xs:minInclusive value="0"/>
+            <xs:fractionDigits value="2"/>
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:element>
+      <xs:element name="lineStatus" type="tns:LineStatus" nillable="true"/>
+      <xs:element name="attributes" type="tns:TestDocument.Lines.Row.Attributes" nillable="true"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="TestDocument.Lines.Row.Attributes">
+    <xs:sequence>
+      <xs:element name="color" nillable="true">
+        <xs:simpleType>
+          <xs:restriction base="xs:string">
+            <xs:maxLength value="30"/>
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:element>
+      <xs:element name="size" nillable="true">
+        <xs:simpleType>
+          <xs:restriction base="xs:string">
+            <xs:maxLength value="30"/>
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:element>
+    </xs:sequence>
+  </xs:complexType>
+</xs:schema>
