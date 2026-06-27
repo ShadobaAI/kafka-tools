@@ -5,6 +5,15 @@ source_dir="${1:?usage: install-edt.sh <source-dir> [keep-platform-versions]}"
 keep_platform_versions="${2:-}"
 archive="$(find "$source_dir" -maxdepth 1 -type f -name '1c_edt_distr_offline_*_linux_x86_64.tar.gz' | head -1)"
 
+if [ -n "$keep_platform_versions" ]; then
+  # EDT platform support имеет версию major.minor.patch, без номера сборки платформы.
+  keep_platform_versions="$(printf '%s\n' "$keep_platform_versions" | sed -n 's/^\([0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\)\(\.[0-9][0-9]*\)*$/\1/p')"
+  if [ -z "$keep_platform_versions" ]; then
+    echo "EDT platform support version must be in major.minor.patch[.build] format." >&2
+    exit 1
+  fi
+fi
+
 if [ -z "$archive" ]; then
   echo "EDT offline archive was not found in $source_dir." >&2
   exit 1
