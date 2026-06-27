@@ -31,8 +31,8 @@
 
 | Компонент | Версия |
 |-----------|--------|
-| 1С:Платформа | `8.3.27.2074` |
-| EDT | `2025.2.5` |
+| 1С:Платформа | `8.5.1` |
+| EDT | `2025.2.6` |
 | OneScript | `latest` из `https://oscript.io/downloads/latest` |
 
 **Предварительно** — разместить дистрибутивы в `docker-image/distr/` (см. [docker-image/README.md](docker-image/README.md)):
