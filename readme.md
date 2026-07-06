@@ -213,6 +213,24 @@ docker compose up -d --build
 
 Авторизация в локальном окружении отключена параметром `SONAR_FORCEAUTHENTICATION=false`. Настройки анализа проекта задаются в `sonar-project.properties` анализируемого репозитория.
 
+После первого запуска можно разово выдать группе `Anyone` глобальные права `Create Projects` и, при необходимости, `Execute Analysis` через Web API:
+
+```powershell
+$sonarUrl = 'http://localhost:9000'
+$auth = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes('admin:admin'))
+$headers = @{ Authorization = "Basic $auth" }
+
+Invoke-RestMethod -Method Post -Headers $headers `
+  -Uri "$sonarUrl/api/permissions/add_group" `
+  -Body @{ groupName = 'Anyone'; permission = 'provisioning' }
+
+Invoke-RestMethod -Method Post -Headers $headers `
+  -Uri "$sonarUrl/api/permissions/add_group" `
+  -Body @{ groupName = 'Anyone'; permission = 'scan' }
+```
+
+`provisioning` соответствует праву `Create Projects`, `scan` соответствует `Execute Analysis`. Второй вызов можно пропустить, если анонимный запуск анализа не нужен.
+
 ---
 
 ## xdto/asyncapi2xsd.py
