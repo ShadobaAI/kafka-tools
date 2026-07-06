@@ -35,7 +35,23 @@ services:
       - sonarqube_logs:/opt/sonarqube/logs
     restart: unless-stopped
 
+  github-runner:
+    image: myoung34/github-runner:ubuntu-jammy
+    container_name: github-runner-sonar
+    restart: unless-stopped
+    environment:
+      REPO_URL: https://github.com/ShadobaAI/kafka-adapter
+      RUNNER_NAME: docker-sonar
+      RUNNER_LABELS: self-hosted,linux,x64,sonar-docker
+      RUNNER_WORKDIR: /_work
+      RUNNER_TOKEN: ${RUNNER_TOKEN}
+      DOCKER_HOST: unix:///var/run/docker.sock
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - runner-work:/_work
+
 volumes:
   sonarqube_postgres_data:
   sonarqube_data:
   sonarqube_logs:
+  runner-work:
