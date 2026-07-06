@@ -14,6 +14,7 @@
 | `elk/` | ELK-стек — Elasticsearch + Logstash + Kibana |
 | `opensearch/` | Альтернатива ELK — OpenSearch + Dashboards + Fluent Bit |
 | `mssql/` | MS SQL Server 2022 — скрипт запуска и утилитарные SQL-скрипты |
+| `sonarqube/` | SonarQube Community Build с PostgreSQL, BSL-плагином и русской локализацией |
 | `xdto/` | `asyncapi2xsd.py` — генератор XSD из AsyncAPI-спецификации |
 
 ---
@@ -194,6 +195,23 @@ MS SQL Server 2022 с кириллической сортировкой (`Cyrill
 Дополнительно в каталоге `mssql/`:
 - `Очистка кэша.sql` — сброс кешей плана запросов и буферного пула;
 - `Статистика индексов.sql` — анализ фрагментации индексов.
+
+---
+
+## sonarqube
+
+Локальный SonarQube Community Build для статического анализа BSL-кода. Окружение включает PostgreSQL, `sonar-bsl-plugin-community` и русский language pack для интерфейса.
+
+```powershell
+docker compose up -d --build
+```
+
+| Сервис | Адрес |
+|--------|-------|
+| SonarQube | http://localhost:9000 |
+| PostgreSQL | внутренний сервис `db:5432` |
+
+Авторизация в локальном окружении отключена параметром `SONAR_FORCEAUTHENTICATION=false`. Настройки анализа проекта задаются в `sonar-project.properties` анализируемого репозитория.
 
 ---
 
