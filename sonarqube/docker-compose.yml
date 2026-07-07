@@ -37,7 +37,7 @@ services:
 
   github-runner:
     image: myoung34/github-runner:ubuntu-jammy
-    container_name: github-runner-sonar
+    container_name: 1c.github-runner
     restart: unless-stopped
     environment:
       REPO_URL: https://github.com/ShadobaAI/kafka-adapter
