@@ -27,7 +27,6 @@ services:
       SONAR_JDBC_URL: jdbc:postgresql://db:5432/${SONARQUBE_DB_NAME:-sonarqube}
       SONAR_JDBC_USERNAME: ${SONARQUBE_DB_USER:-sonarqube}
       SONAR_JDBC_PASSWORD: ${SONARQUBE_DB_PASSWORD:-sonarqube}
-      SONAR_FORCEAUTHENTICATION: "false"
     ports:
       - "${SONARQUBE_PORT:-9000}:9000"
     volumes:
@@ -40,11 +39,13 @@ services:
     container_name: 1c.github-runner
     restart: unless-stopped
     environment:
+      RUNNER_SCOPE: repo
       REPO_URL: https://github.com/ShadobaAI/kafka-adapter
       RUNNER_NAME: docker-sonar
       RUNNER_LABELS: self-hosted,linux,x64,sonar-docker
       RUNNER_WORKDIR: /_work
-      RUNNER_TOKEN: ${RUNNER_TOKEN}
+      ACCESS_TOKEN: ${GITHUB_ACCESS_TOKEN}
+      UNSET_CONFIG_VARS: "true"
       DOCKER_HOST: unix:///var/run/docker.sock
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock

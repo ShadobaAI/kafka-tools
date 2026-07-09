@@ -203,15 +203,100 @@ MS SQL Server 2022 с кириллической сортировкой (`Cyrill
 Локальный SonarQube Community Build для статического анализа BSL-кода. Окружение включает PostgreSQL, `sonar-bsl-plugin-community` и русский language pack для интерфейса.
 
 ```powershell
+cd sonarqube
 docker compose up -d --build
 ```
 
 | Сервис | Адрес |
 |--------|-------|
 | SonarQube | http://localhost:9000 |
+| GitHub Actions runner | `1c.github-runner`, labels: `self-hosted,linux,x64,sonar-docker` |
 | PostgreSQL | внутренний сервис `db:5432` |
 
-Авторизация в локальном окружении отключена параметром `SONAR_FORCEAUTHENTICATION=false`. Настройки анализа проекта задаются в `sonar-project.properties` анализируемого репозитория.
+Настройки анализа проекта задаются в `sonar-project.properties` анализируемого репозитория.
+
+### GitHub Actions runner
+
+Перед запуском заполнить `sonarqube/.env`:
+
+```env
+GITHUB_ACCESS_TOKEN=github_pat_...
+```
+
+Используется Personal Access Token GitHub, а не registration token со страницы `Settings -> Actions -> Runners -> New self-hosted runner`. Registration token истекает примерно через час и после перезапуска Docker может приводить к ошибке `404 Not Found` на `actions/runner-registration`.
+
+Для repo-runner к `https://github.com/ShadobaAI/kafka-adapter` PAT должен принадлежать пользователю с admin-доступом к репозиторию. Для classic PAT достаточно scope `repo` для приватного репозитория. Для fine-grained PAT выбрать репозиторий `ShadobaAI/kafka-adapter` и выдать repository permission `Administration: Read and write`.
+
+Проверить, что `.env` заполнен и Compose видит токен:
+
+```powershell
+($line = Get-Content .env | Where-Object { $_ -like 'GITHUB_ACCESS_TOKEN=*' })
+($line -replace '^GITHUB_ACCESS_TOKEN=', '').Trim().Length
+docker compose config | Select-String 'ACCESS_TOKEN:'
+```
+
+Последняя команда покажет значение токена в открытом виде, не публиковать её вывод.
+
+Проверить PAT напрямую через GitHub API:
+
+```powershell
+$env:GITHUB_ACCESS_TOKEN = '<github_pat_or_ghp>'
+$headers = @{
+  Accept = 'application/vnd.github+json'
+  Authorization = "Bearer $env:GITHUB_ACCESS_TOKEN"
+  'X-GitHub-Api-Version' = '2022-11-28'
+}
+
+Invoke-RestMethod -Method Post `
+  -Headers $headers `
+  -Uri 'https://api.github.com/repos/ShadobaAI/kafka-adapter/actions/runners/registration-token' |
+  Select-Object expires_at
+```
+
+Если этот запрос не возвращает `expires_at`, runner в контейнере тоже не зарегистрируется.
+
+Пересоздать только runner:
+
+```powershell
+cd sonarqube
+docker compose up -d --force-recreate github-runner
+docker compose logs -f github-runner
+```
+
+### Ошибка доступа к Docker Hub
+
+Если сборка падает на `FROM sonarqube:community` с ошибкой вида `lookup registry-1.docker.io: no such host`, проблема не в `Dockerfile`, а в DNS/прокси Docker Desktop на машине с Docker.
+
+Проверить доступ с Docker-хоста:
+
+```powershell
+nslookup registry-1.docker.io
+Test-NetConnection registry-1.docker.io -Port 443
+docker pull sonarqube:community
+```
+
+Если используется корпоративный прокси, указать его в Docker Desktop: `Settings -> Resources -> Proxies`, затем перезапустить Docker Desktop. Если проблема только в DNS, задать DNS в `Settings -> Docker Engine`, например:
+
+```json
+{
+  "dns": ["8.8.8.8", "1.1.1.1"]
+}
+```
+
+Если Docker-хост без доступа к Docker Hub, перенести базовый образ с другой машины:
+
+```powershell
+docker pull sonarqube:community
+docker save sonarqube:community -o sonarqube-community.tar
+```
+
+На Docker-хосте:
+
+```powershell
+docker load -i sonarqube-community.tar
+cd sonarqube
+docker compose up -d --build
+```
 
 После первого запуска можно разово выдать группе `Anyone` глобальные права `Create Projects` и, при необходимости, `Execute Analysis` через Web API:
 
