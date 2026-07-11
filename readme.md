@@ -215,6 +215,28 @@ docker compose up -d --build
 
 Настройки анализа проекта задаются в `sonar-project.properties` анализируемого репозитория.
 
+### Резервное копирование SonarQube
+
+Скрипт `sonarqube/backup-sonarqube.sh` сохраняет полный дамп PostgreSQL в `sonarqube/backups/`. В дамп входят проекты, история анализов, настройки, пользователи и токены SonarQube. Контейнер `db` должен быть запущен.
+
+```bash
+cd sonarqube
+bash backup-sonarqube.sh
+```
+
+Для восстановления используйте ту же версию SonarQube и плагинов. Команды ниже удаляют текущую БД:
+
+```bash
+cd sonarqube
+docker compose stop sonarqube
+docker compose up -d db
+docker compose exec -T db sh -c 'dropdb -U "$POSTGRES_USER" "$POSTGRES_DB" && createdb -U "$POSTGRES_USER" "$POSTGRES_DB"'
+docker compose exec -T db sh -c 'pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" --no-owner --no-privileges' < backups/sonarqube_YYYYMMDD_HHMMSS/sonarqube.dump
+docker compose up -d sonarqube
+```
+
+Тома `sonarqube_data` и `sonarqube_logs` восстанавливать не нужно: это кэш, индексы и журналы, они создаются заново.
+
 ### GitHub Actions runner
 
 Перед запуском заполнить `sonarqube/.env`:
