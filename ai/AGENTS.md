@@ -36,34 +36,37 @@ The workspace and its repositories are large. Never recursively scan an entire r
 
 ## 1C MCP Routing
 
-| Scope | Editing and current state | Additional navigation |
-|---|---|---|
-| `adapter/adapter` | `kfk_edt` | `code-metadata-mcp`, `graph-metadata-mcp` |
-| `adapter/base` | `kfk_edt` | `kfk_edt` only |
-| `adapter/examples` | `kfk_edt` | `kfk_edt` only |
-| `conversion/KFK` | `conv_edt` | `conv_edt` only |
-| `tests/unit/unit` | `kfk-unit-edt` | `kfk-unit-edt` only |
+| Scope | Assigned EDT MCP |
+|---|---|
+| `adapter/adapter` | `kfk-edt` |
+| `adapter/base` | `kfk-edt` |
+| `adapter/examples` | `kfk-edt` |
+| `conversion/KFK` | `conv-edt` |
+| `tests/unit/unit` | `kfk-unit-edt` |
 
-- Use `code-metadata-mcp` and `graph-metadata-mcp` only to navigate and analyze impact in `adapter/adapter`. Current information and all edits come from `kfk_edt`.
-- Use the assigned EDT MCP for every 1C change under `src/**`.
+- Use the assigned `*-edt` MCP as the primary service for 1C source navigation and editing, metadata inspection and refactoring, EDT diagnostics, query validation, forms, tests, and 1C platform documentation.
+- Use the assigned EDT MCP for every 1C change under `src/**`; current information and all edits must come from it.
 - If the assigned EDT MCP is unavailable, report an error and stop the 1C edit.
 - Never patch `.bsl`, `.mdo`, `.form`, `.rights`, XDTO, or any other 1C file under `src/**` directly as text.
 - Do not use destructive EDT operations for analysis.
 - Use available MCP services when they apply; do not route a project through another project's MCP.
+- When EDT-MCP progressive tool disclosure is enabled, use `list_toolsets`, enable only the required toolsets with `enable_toolset`, and then refresh the MCP tool list before continuing.
+- Use `get_tool_guide` when an EDT-MCP tool's parameters or preconditions are unclear.
 
 ## 1C Development and Validation
 
-- Use `SyntaxCheckServer` to validate changed BSL code.
-- Use `HelpSearchServer` for 1C syntax and platform API guidance.
-- Use `v8std` as the baseline standard for code, methods, identifiers, procedures, functions, variables, and metadata objects.
+- Use the assigned EDT MCP for 1C syntax, semantic, query, and project diagnostics.
+- Use the assigned EDT MCP, including `get_platform_documentation` and contextual content assist, for 1C syntax and platform API guidance.
+- Use `v8std` as the primary source for 1C development standards, diagnostics, and related guidance. Do not rely only on model knowledge when an applicable standard can be found through `v8std`.
+- When explaining a standards violation, cite the applicable `v8std` standard or diagnostic.
+- Do not change code solely to satisfy a standard when the change may alter application behavior. Describe the conflict and its risk instead of applying an automatic fix.
 - Within valid `v8std` alternatives, preserve the established project source style.
 
 After a 1C change:
 
-1. Run focused diagnostics through the assigned EDT MCP.
-2. Validate changed BSL with `SyntaxCheckServer`.
-3. Run focused `v8std` checks.
-4. Run relevant YAxUnit or UI tests when they cover the change and the required environment is available.
+1. Run focused syntax, semantic, and project diagnostics through the assigned EDT MCP.
+2. Run focused `v8std` checks and record the applicable standards or diagnostics.
+3. Run relevant YAxUnit or UI tests when they cover the change and the required environment is available.
 
 EDT diagnostics can contain false positives. If a diagnostic remains after one focused correction iteration, stop and ask the user how to handle it. Do not repeatedly modify code to silence it.
 
