@@ -15,6 +15,20 @@ default_tools_approval_mode = "approve"
 
 
 # -----------------------------------------------------------------------------
+# SonarQube
+# -----------------------------------------------------------------------------
+
+[mcp_servers.sonarqube]
+url = "http://ia11:9001/mcp"
+bearer_token_env_var = "SONAR_TOKEN"
+enabled = true
+required = false
+startup_timeout_sec = 10
+description = "SonarQube MCP server on ia11 over Streamable HTTP"
+default_tools_approval_mode = "writes"
+
+
+# -----------------------------------------------------------------------------
 # Primary 1C MCP servers: EDT workspaces
 # -----------------------------------------------------------------------------
 

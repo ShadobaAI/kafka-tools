@@ -34,6 +34,21 @@ services:
       - sonarqube_logs:/opt/sonarqube/logs
     restart: unless-stopped
 
+  sonarqube-mcp:
+    image: sonarsource/sonarqube-mcp:latest
+    container_name: sonarqube-mcp
+    depends_on:
+      - sonarqube
+    environment:
+      SONARQUBE_URL: http://sonarqube:9000
+      SONARQUBE_TOKEN: ${SONAR_TOKEN}
+      SONARQUBE_TRANSPORT: http
+      SONARQUBE_HTTP_HOST: 0.0.0.0
+      SONARQUBE_HTTP_PORT: 9001
+    ports:
+      - "${SONARQUBE_MCP_PORT:-9001}:9001"
+    restart: unless-stopped
+
   github-runner:
     image: myoung34/github-runner:ubuntu-jammy
     container_name: github-runner

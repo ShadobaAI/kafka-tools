@@ -31,6 +31,12 @@
 
 Codex не загружает `.codex` из соседнего репозитория автоматически. Пользовательскую конфигурацию необходимо устанавливать отдельно; локальные настройки репозиториев могут дополнять или переопределять её через `<repo>/.codex/config.toml`.
 
+SonarQube MCP подключается по Streamable HTTP через `http://ia11:9001/mcp`. В Compose адрес SonarQube фиксирован как `http://sonarqube:9000` — это контейнерный эквивалент `http://localhost:9000` на Docker-хосте. Сервер MCP получает `SONAR_TOKEN` из `sonarqube/.env`. Эта же переменная должна присутствовать в окружении процесса Codex: Codex передаёт её как `Authorization: Bearer` и не загружает dotenv-файлы автоматически.
+
+```powershell
+docker compose --project-directory .\sonarqube up -d sonarqube-mcp
+```
+
 Не добавляйте в `ai/` `auth.json`, токены, пароли, локальные `.env`, данные сессий и другие персональные файлы Codex.
 
 ---
