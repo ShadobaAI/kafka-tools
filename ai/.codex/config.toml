@@ -20,12 +20,14 @@ default_tools_approval_mode = "approve"
 
 [mcp_servers.sonarqube]
 url = "http://ia11:9001/mcp"
-bearer_token_env_var = "SONAR_TOKEN"
 enabled = true
 required = false
 startup_timeout_sec = 10
 description = "SonarQube MCP server on ia11 over Streamable HTTP"
 default_tools_approval_mode = "writes"
+
+[mcp_servers.sonarqube.http_headers]
+Authorization = "Bearer ВСТАВЬ_ТОКЕН_СЮДА"
 
 
 # -----------------------------------------------------------------------------
