@@ -36,7 +36,7 @@ The workspace and its repositories are large. Never recursively scan an entire r
 
 ## 1C MCP Routing
 
-| Scope | Assigned EDT MCP |
+| Scope | EDT-MCP server name |
 |---|---|
 | `adapter/adapter` | `kfk-edt` |
 | `adapter/base` | `kfk-edt` |
@@ -44,9 +44,10 @@ The workspace and its repositories are large. Never recursively scan an entire r
 | `conversion/KFK` | `conv-edt` |
 | `tests/unit/unit` | `kfk-unit-edt` |
 
-- Use the assigned `*-edt` MCP as the primary service for 1C source navigation and editing, metadata inspection and refactoring, EDT diagnostics, query validation, forms, tests, and 1C platform documentation.
-- Use the assigned EDT MCP for every 1C change under `src/**`; current information and all edits must come from it.
-- If the assigned EDT MCP is unavailable, report an error and stop the 1C edit.
+- Three independent EDT-MCP instances are running for different purposes. Their MCP server names are `kfk-edt`, `conv-edt`, and `kfk-unit-edt`; use the instance assigned to the repository scope in the table.
+- Use the assigned EDT-MCP instance as the primary service for 1C source navigation and editing, metadata inspection and refactoring, EDT diagnostics, query validation, forms, tests, and 1C platform documentation.
+- Use the assigned EDT-MCP instance for every 1C change under `src/**`; current information and all edits must come from it.
+- If the assigned EDT-MCP instance is unavailable, report an error and stop the 1C edit.
 - Never patch `.bsl`, `.mdo`, `.form`, `.rights`, XDTO, or any other 1C file under `src/**` directly as text.
 - Do not use destructive EDT operations for analysis.
 - Use available MCP services when they apply; do not route a project through another project's MCP.
@@ -55,8 +56,8 @@ The workspace and its repositories are large. Never recursively scan an entire r
 
 ## 1C Development and Validation
 
-- Use the assigned EDT MCP for 1C syntax, semantic, query, and project diagnostics.
-- Use the assigned EDT MCP, including `get_platform_documentation` and contextual content assist, for 1C syntax and platform API guidance.
+- Use the assigned EDT-MCP instance for 1C syntax, semantic, query, and project diagnostics.
+- Use the assigned EDT-MCP instance, including `get_platform_documentation` and contextual content assist, for 1C syntax and platform API guidance.
 - Use `v8std` as the primary source for 1C development standards, diagnostics, and related guidance. Do not rely only on model knowledge when an applicable standard can be found through `v8std`.
 - When explaining a standards violation, cite the applicable `v8std` standard or diagnostic.
 - Do not change code solely to satisfy a standard when the change may alter application behavior. Describe the conflict and its risk instead of applying an automatic fix.
@@ -64,7 +65,7 @@ The workspace and its repositories are large. Never recursively scan an entire r
 
 After a 1C change:
 
-1. Run focused syntax, semantic, and project diagnostics through the assigned EDT MCP.
+1. Run focused syntax, semantic, and project diagnostics through the assigned EDT-MCP instance.
 2. Run focused `v8std` checks and record the applicable standards or diagnostics.
 3. Run relevant YAxUnit or UI tests when they cover the change and the required environment is available.
 
