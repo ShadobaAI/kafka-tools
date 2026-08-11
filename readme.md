@@ -31,7 +31,15 @@
 | `ai/.codex/skills/edt-mcp/` | Codex skill для безопасной разработки, навигации, диагностики и тестирования 1С через назначенный EDT-MCP |
 | `ai/.codex/skills/v8std-mcp/` | Codex skill для проектирования и доказательной проверки решений 1С по стандартам, паттернам и диагностикам v8std |
 
-Codex не загружает `.codex` из соседнего репозитория автоматически. Пользовательскую конфигурацию необходимо устанавливать отдельно; локальные настройки репозиториев могут дополнять или переопределять её через `<repo>/.codex/config.toml`.
+Codex не загружает `.codex` из соседнего репозитория автоматически. Общие MCP и skills устанавливаются в пользовательский каталог `%USERPROFILE%\.codex`. Репозиторий `tools` хранит их версионируемый источник; repository-local MCP хранятся только в `.codex/config.toml` владеющего репозитория. Исключение среди skills — `bsl-ls-mcp`: он принадлежит только `adapter/adapter/.codex/skills/bsl-ls-mcp`.
+
+Локальное распределение MCP:
+
+| Репозиторий | MCP |
+|---|---|
+| `adapter/adapter` | `kfk-edt`, `sonarqube`, `bsl-ls` |
+| `tests/unit/unit` | `kfk-unit-edt` |
+| `conversion/KFK` | `conv-edt` |
 
 SonarQube MCP подключается по Streamable HTTP через `http://ia11:9001/mcp`. В Compose адрес SonarQube фиксирован как `http://sonarqube:9000` — это контейнерный эквивалент `http://localhost:9000` на Docker-хосте. Сервер MCP получает `SONAR_TOKEN` из `sonarqube/.env`. Эта же переменная должна присутствовать в окружении процесса Codex: Codex передаёт её как `Authorization: Bearer` и не загружает dotenv-файлы автоматически.
 

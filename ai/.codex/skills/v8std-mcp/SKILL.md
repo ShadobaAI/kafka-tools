@@ -32,7 +32,7 @@ v8std does not replace project research. Preserve local architecture and style a
 
 ## Review code and diagnostics
 
-1. For files or projects, obtain real diagnostics from EDT, v8-code-style, BSLLS, or another analyzer first. Use v8std to interpret them, not simulate them.
+1. For files or projects, obtain real diagnostics from EDT, v8-code-style, `$bsl-ls-mcp`, or another analyzer first. Use v8std to interpret them, not simulate them.
 2. Send only short, self-contained fragments to `v8std_explain_snippet`; split larger code by behavior or suspected issue.
 3. Preserve diagnostic family and code exactly, then resolve them with `v8std_explain_diagnostics`.
 4. Open every diagnostic or standard page used in the conclusion with `v8std_get_page`.

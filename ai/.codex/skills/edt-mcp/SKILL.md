@@ -55,11 +55,12 @@ After each logical change:
 1. Re-read the changed method, module, or metadata object.
 2. Run `revalidate_objects` for exact FQNs. Do not use `clean_project` routinely; it performs a full disk → model refresh and revalidation.
 3. Read scoped project/object diagnostics and compare them with the baseline. Separate new from pre-existing findings.
-4. Re-check used platform APIs with `get_platform_documentation`; re-run `validate_query` for changed queries.
-5. Resolve EDT/v8-code-style codes through `$v8std-mcp`, open linked pages, and verify applicability.
-6. Make one focused correction for a confirmed issue. If a likely false positive remains, show evidence and follow repository escalation rules instead of repeatedly rewriting code.
-7. Run the smallest relevant documented YAxUnit/UI test, then broader checks only when impact warrants it. Never invent launch configurations, suites, or commands.
-8. Inspect the target repository diff for unrelated changes.
+4. Run `$bsl-ls-mcp` `analyze_file` for every changed BSL file using the exact repository root and its `.bsl-language-server.json`; compare with its baseline.
+5. Re-check used platform APIs with `get_platform_documentation`; re-run `validate_query` for changed queries.
+6. Resolve relevant EDT/v8-code-style and BSL LS codes through `$v8std-mcp`, open linked pages, and verify applicability.
+7. Make one focused correction for a confirmed issue. If a likely false positive remains, show evidence and follow repository escalation rules instead of repeatedly rewriting code.
+8. Run the smallest relevant documented YAxUnit/UI test, then broader checks only when impact warrants it. Never invent launch configurations, suites, or commands.
+9. Inspect the target repository diff for unrelated changes.
 
 Zero diagnostics does not prove correct behavior; also verify requirements, data flow, and relevant tests when available.
 
@@ -73,4 +74,4 @@ Zero diagnostics does not prove correct behavior; also verify requirements, data
 
 ## Report evidence
 
-Report the EDT project and logical objects changed; the design decision and project fit; platform documentation/API checks; EDT diagnostics; v8std page or diagnostic IDs; query checks; tests; new, pre-existing, or inapplicable findings; and anything unverified with its reason. Never claim behavior or compliance that was not actually checked.
+Report the EDT project and logical objects changed; the design decision and project fit; platform documentation/API checks; EDT and BSL LS diagnostics; v8std page or diagnostic IDs; query checks; tests; new, pre-existing, or inapplicable findings; and anything unverified with its reason. Never claim behavior or compliance that was not actually checked.

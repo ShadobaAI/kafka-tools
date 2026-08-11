@@ -36,15 +36,17 @@ The workspace and its repositories are large. Never recursively scan an entire r
 
 ## 1C MCP Routing
 
-| Scope | EDT-MCP server name |
-|---|---|
-| `adapter/adapter` | `kfk-edt` |
-| `adapter/base` | `kfk-edt` |
-| `adapter/examples` | `kfk-edt` |
-| `conversion/KFK` | `conv-edt` |
-| `tests/unit/unit` | `kfk-unit-edt` |
+| Scope | EDT-MCP server name | Configuration owner |
+|---|---|---|
+| `adapter/adapter` | `kfk-edt` | `adapter/adapter/.codex/config.toml` |
+| `adapter/base` | `kfk-edt` | `adapter/adapter/.codex/config.toml` |
+| `adapter/examples` | `kfk-edt` | `adapter/adapter/.codex/config.toml` |
+| `conversion/KFK` | `conv-edt` | `conversion/KFK/.codex/config.toml` |
+| `tests/unit/unit` | `kfk-unit-edt` | `tests/unit/unit/.codex/config.toml` |
 
 - Three independent EDT-MCP instances are running for different purposes. Their MCP server names are `kfk-edt`, `conv-edt`, and `kfk-unit-edt`; use the instance assigned to the repository scope in the table.
+- Keep repository-specific MCP servers in the owning repository `.codex/config.toml`. Keep shared MCP servers and skills in the user Codex configuration.
+- `bsl-ls` and the `bsl-ls-mcp` skill are adapter-specific and must exist only under `adapter/adapter/.codex`.
 - Use the assigned EDT-MCP instance as the primary service for 1C source navigation and editing, metadata inspection and refactoring, EDT diagnostics, query validation, forms, tests, and 1C platform documentation.
 - Use the assigned EDT-MCP instance for every 1C change under `src/**`; current information and all edits must come from it.
 - If the assigned EDT-MCP instance is unavailable, report an error and stop the 1C edit.
@@ -58,18 +60,24 @@ The workspace and its repositories are large. Never recursively scan an entire r
 
 - Use the assigned EDT-MCP instance for 1C syntax, semantic, query, and project diagnostics.
 - Use the assigned EDT-MCP instance, including `get_platform_documentation` and contextual content assist, for 1C syntax and platform API guidance.
+- For `adapter/adapter`, use BSL Language Server MCP as the fast static-analysis layer for focused checks of changed BSL files. It complements EDT diagnostics; it does not replace EDT model, metadata, query, or platform checks.
+- Before using BSL LS MCP for a repository, identify its exact repository MCP root and read the root `.bsl-language-server.json` when present. `configurationRoot` locates 1C sources inside that workspace; it is not an alternative MCP root. Do not register a broad parent workspace: MCP roots and any LSP workspace folders share one analysis context. Respect diagnostic configuration, filters, ignored authors, inline suppressions, language, and target-platform settings; do not override them merely to expose or silence findings.
+- Prefer `analyze_file` for each changed BSL file and compare pre-change and post-change diagnostics when practical. Preserve diagnostic IDs, types, and severities; account for the MCP tools' zero-based positions and classify coverage limitations explicitly.
 - Use `v8std` as the primary source for 1C development standards, diagnostics, and related guidance. Do not rely only on model knowledge when an applicable standard can be found through `v8std`.
+- Resolve relevant BSL LS diagnostic IDs through `v8std`, read the full diagnostic and linked standard pages, and verify applicability before changing code.
 - When explaining a standards violation, cite the applicable `v8std` standard or diagnostic.
 - Do not change code solely to satisfy a standard when the change may alter application behavior. Describe the conflict and its risk instead of applying an automatic fix.
 - Within valid `v8std` alternatives, preserve the established project source style.
+- SonarQube analysis and code export are user-operated. Do not start them or upload/export code for them unless the user explicitly requests it.
 
 After a 1C change:
 
 1. Run focused syntax, semantic, and project diagnostics through the assigned EDT-MCP instance.
-2. Run focused `v8std` checks and record the applicable standards or diagnostics.
-3. Run relevant YAxUnit or UI tests when they cover the change and the required environment is available.
+2. For changes in `adapter/adapter`, run BSL LS MCP `analyze_file` for every changed BSL file, using the repository workspace root and its `.bsl-language-server.json`; compare against the baseline and record new, resolved, pre-existing, inapplicable, policy-suppressed, and coverage-limited diagnostics.
+3. Run focused `v8std` checks and record the applicable standards or diagnostics.
+4. Run relevant YAxUnit or UI tests when they cover the change and the required environment is available.
 
-EDT diagnostics can contain false positives. If a diagnostic remains after one focused correction iteration, stop and ask the user how to handle it. Do not repeatedly modify code to silence it.
+EDT and BSL LS diagnostics can contain false positives. If a diagnostic remains after one focused correction iteration, stop and ask the user how to handle it. Do not repeatedly modify code, weaken analyzer configuration, or add suppressions merely to silence it.
 
 ## Editing Non-1C Files
 
