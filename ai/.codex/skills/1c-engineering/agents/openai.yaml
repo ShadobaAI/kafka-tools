@@ -1,0 +1,4 @@
+interface:
+  display_name: "1C Engineering"
+  short_description: "Focused 1C implementation, fixes, and review"
+  default_prompt: "Use $1c-engineering to complete this 1C task with minimal sufficient context, applicable project rules and standards, focused verification, and no unnecessary analysis loops."
