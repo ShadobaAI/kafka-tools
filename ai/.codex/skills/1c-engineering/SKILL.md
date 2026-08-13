@@ -56,6 +56,21 @@ The result must solve the requested task and remain suitable for production main
 
 Do not preserve a bad construction merely to keep the diff small. Do not refactor unrelated code merely because a cleaner design is possible.
 
+### Expression line wrapping
+
+- Keep an expression on one line when the complete line does not exceed the
+  project-configured maximum length. Use 120 characters when the project does
+  not define another limit.
+- Do not wrap an assignment, constructor call, method call, or condition merely
+  for visual formatting when the complete expression fits within the limit.
+- When an expression exceeds the limit, keep as much of it as possible on the
+  first line and wrap only at a valid syntactic boundary immediately before the
+  argument, operand, or condition part that no longer fits.
+- Do not use one-argument-per-line formatting unless required by the line-length
+  limit or by a concrete readability problem.
+- Before completing BSL changes, inspect all added and modified lines for both
+  avoidable wrapping and line-length violations.
+
 ### New or changed entities
 
 New identifiers and entities must be justified by the solution and comply with applicable project rules and 1C development standards. This includes metadata objects and material properties, form elements and attributes, procedures, functions, parameters, variables, exported APIs, and other named constructs where standards apply.
