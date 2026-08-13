@@ -112,6 +112,24 @@ For a material diagnostic in the changed scope:
 
 Do not modify correct code merely to obtain zero diagnostics.
 
+### Context-dependent diagnostics
+
+For diagnostics whose applicability depends on semantic context, evaluate the reported construction before changing code. A finding does not require a code change when the construction is already clear, intentional, maintainable, and appropriate in its local context, and the proposed correction would only add indirection, duplication, ceremony, or another equivalent representation of the same information.
+
+Before correcting a context-dependent finding:
+
+- identify the actual maintainability, correctness, security, performance, or standards problem represented by the finding;
+- verify that the proposed change addresses that problem rather than only removing the diagnostic;
+- prefer the existing construction when an alternative adds no material semantic information or engineering value;
+- introduce additional identifiers, wrappers, abstractions, comments, or structural changes only when they materially improve the implementation;
+- if applicability remains ambiguous after one focused review, keep the existing code and report the finding as context-dependent rather than forcing a speculative correction.
+
+#### MagicNumber
+
+For `MagicNumber`, do not treat every reported numeric literal as requiring a named variable or constant. Keep the literal when its meaning is sufficiently clear from the surrounding API, constructor, method, parameter position, expression, or domain context and naming it would merely restate that context.
+
+Introduce a named value only when the name materially explains non-obvious semantics, centralizes application policy or configuration, enforces consistency across reuse, or makes an otherwise implicit convention explicit. Do not create a local variable or constant solely to silence `MagicNumber`.
+
 Do not disable rules, weaken analyzer configuration, add suppressions or exclusions, introduce dummy variables or wrappers, or avoid a required metadata/form change merely to make a diagnostic disappear.
 
 Treat unrelated and pre-existing findings as out of scope unless they materially block the requested task.
