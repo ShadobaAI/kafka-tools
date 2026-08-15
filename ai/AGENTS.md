@@ -16,27 +16,25 @@ This workspace is a fixed collection of independent Git repositories under `KAFK
 | `kafka-tools` | `tools` |
 | `kfk-tasks` | `tasks` |
 
-Before analysis or changes, identify every affected repository and read its local `AGENTS.md`. Instruction precedence is: current user instructions, local repository `AGENTS.md`, then this file.
+Before work, identify every affected repository and read its local `AGENTS.md` when present; otherwise use the relevant repository README. Instruction precedence is: current user instructions, local repository instructions, then this file.
 
 ## Bounded Navigation
 
-The workspace and its repositories are large. Never recursively scan an entire repository or the whole workspace.
+- Start from a user-supplied or known path, relevant local documentation, or a bounded MCP query.
+- Request only the objects, methods, sections, files, or line ranges needed for the next decision.
+- When the location is unknown, search within the smallest plausible repository or project scope and widen only when evidence requires it.
+- Do not recursively scan an entire repository or workspace, load a large complete module when a fragment is sufficient, or run multiple discovery methods for the same question.
 
-- Start from the repository README, a known path, local documentation, a bounded MCP query, or a path supplied by the user.
-- Request only required objects, methods, sections, files, or line ranges and set narrow result limits.
-- Do not load a complete large module or file when a smaller fragment is sufficient.
-- If the relevant location is unknown, ask the user for a directory or file instead of discovering it through a broad scan.
+## Repository Boundaries
 
-## Repository Scope
-
-- Change multiple repositories only when the user explicitly defines multi-repository scope or an approved SDD lists every affected repository.
-- Otherwise, limit changes to the current repository and report required dependent work separately.
+- Change multiple repositories only when the user explicitly defines that scope or an approved SDD lists every affected repository.
+- Otherwise, keep changes in the target repository and report dependent work separately.
 - Preserve unrelated user changes.
-- Do not use destructive Git or filesystem operations without explicit authorization.
+- Keep repository-owned MCP configuration in its owning repository; do not route a project through another project's MCP.
 
-## 1C MCP Routing
+## 1C Routing and Source Integrity
 
-| Scope | EDT-MCP server name | Configuration owner |
+| Scope | EDT-MCP server | Configuration owner |
 |---|---|---|
 | `adapter/adapter` | `kfk-edt` | `adapter/adapter/.codex/config.toml` |
 | `adapter/base` | `kfk-edt` | `adapter/adapter/.codex/config.toml` |
@@ -44,77 +42,34 @@ The workspace and its repositories are large. Never recursively scan an entire r
 | `conversion/KFK` | `conv-edt` | `conversion/KFK/.codex/config.toml` |
 | `tests/unit/unit` | `kfk-unit-edt` | `tests/unit/unit/.codex/config.toml` |
 
-- Three independent EDT-MCP instances are running for different purposes. Their MCP server names are `kfk-edt`, `conv-edt`, and `kfk-unit-edt`; use the instance assigned to the repository scope in the table.
-- Keep repository-specific MCP servers in the owning repository `.codex/config.toml`. Keep shared MCP servers and skills in the user Codex configuration.
-- `bsl-ls` and the `bsl-ls-mcp` skill are adapter-specific and must exist only under `adapter/adapter/.codex`.
-- Use the assigned EDT-MCP instance as the primary service for 1C source navigation and editing, metadata inspection and refactoring, EDT diagnostics, query validation, forms, tests, and 1C platform documentation.
-- Use the assigned EDT-MCP instance for every 1C change under `src/**`; current information and all edits must come from it.
-- If the assigned EDT-MCP instance is unavailable, report an error and stop the 1C edit.
-- Never patch `.bsl`, `.mdo`, `.form`, `.rights`, XDTO, or any other 1C file under `src/**` directly as text.
-- Do not use destructive EDT operations for analysis.
-- Use available MCP services when they apply; do not route a project through another project's MCP.
-- When EDT-MCP progressive tool disclosure is enabled, use `list_toolsets`, enable only the required toolsets with `enable_toolset`, and then refresh the MCP tool list before continuing.
-- Use `get_tool_guide` when an EDT-MCP tool's parameters or preconditions are unclear.
+- Use the assigned EDT-MCP as the source of truth for the current EDT project state, 1C source and metadata, platform-aware navigation, mutations, and EDT diagnostics.
+- Perform every change to 1C artifacts under `src/**` through the assigned EDT-MCP. Never text-patch `.bsl`, `.mdo`, `.form`, `.rights`, XDTO, or other 1C model files.
+- If the assigned server or project is unavailable, report the failure and stop the 1C edit; never substitute another workspace.
+- After a 1C change, run focused EDT diagnostics for the affected objects. Run additional analyzers or tests only when required by the local repository instructions or the task.
+- Activate EDT, v8std, and BSL LS skills independently according to the concrete need; a generic 1C task does not require all of them.
 
-## 1C Development and Validation
+## Non-1C Files
 
-- Use the assigned EDT-MCP instance for 1C syntax, semantic, query, and project diagnostics.
-- Use the assigned EDT-MCP instance, including `get_platform_documentation` and contextual content assist, for 1C syntax and platform API guidance.
-- For `adapter/adapter`, use BSL Language Server MCP as the fast static-analysis layer for focused checks of changed BSL files. It complements EDT diagnostics; it does not replace EDT model, metadata, query, or platform checks.
-- Before using BSL LS MCP for a repository, identify its exact repository MCP root and read the root `.bsl-language-server.json` when present. `configurationRoot` locates 1C sources inside that workspace; it is not an alternative MCP root. Do not register a broad parent workspace: MCP roots and any LSP workspace folders share one analysis context. Respect diagnostic configuration, filters, ignored authors, inline suppressions, language, and target-platform settings; do not override them merely to expose or silence findings.
-- Prefer `analyze_file` for each changed BSL file and compare pre-change and post-change diagnostics when practical. Preserve diagnostic IDs, types, and severities; account for the MCP tools' zero-based positions and classify coverage limitations explicitly.
-- Use `v8std` as the primary source for 1C development standards, diagnostics, and related guidance. Do not rely only on model knowledge when an applicable standard can be found through `v8std`.
-- Resolve relevant BSL LS diagnostic IDs through `v8std`, read the full diagnostic and linked standard pages, and verify applicability before changing code.
-- When explaining a standards violation, cite the applicable `v8std` standard or diagnostic.
-- Do not change code solely to satisfy a standard when the change may alter application behavior. Describe the conflict and its risk instead of applying an automatic fix.
-- Within valid `v8std` alternatives, preserve the established project source style.
-- SonarQube analysis and code export are user-operated. Do not start them or upload/export code for them unless the user explicitly requests it.
-
-After a 1C change:
-
-1. Run focused syntax, semantic, and project diagnostics through the assigned EDT-MCP instance.
-2. For changes in `adapter/adapter`, run BSL LS MCP `analyze_file` for every changed BSL file, using the repository workspace root and its `.bsl-language-server.json`; compare against the baseline and record new, resolved, pre-existing, inapplicable, policy-suppressed, and coverage-limited diagnostics.
-3. Run focused `v8std` checks and record the applicable standards or diagnostics.
-4. Run relevant YAxUnit or UI tests when they cover the change and the required environment is available.
-
-EDT and BSL LS diagnostics can contain false positives. If a diagnostic remains after one focused correction iteration, stop and ask the user how to handle it. Do not repeatedly modify code, weaken analyzer configuration, or add suppressions merely to silence it.
-
-## Editing Non-1C Files
-
-- Edit non-1C files directly only within task scope.
-- Preserve UTF-8, existing style, naming, interfaces, line endings, and operational defaults.
+- Edit non-1C files directly only within task scope; preserve UTF-8, existing style, naming, interfaces, line endings, and operational defaults.
 - Do not manually edit generated release artifacts, generated reports, `*.cf`, `*.cfe`, archives, runtime data, or generated project output.
-- Do not invent build or test commands. Use commands documented by README, CI, or existing scripts.
+- Do not invent build or test commands. Use commands documented by the affected repository.
 
-## SDD and ADR Workflow
+## SDD and ADR
 
-Write all SDD documents in Russian. Preserve technical identifiers, commands, and paths.
+Write SDD documents in Russian while preserving technical identifiers, commands, and paths.
 
-An approved SDD is required before implementing:
+An approved SDD is required before implementing a non-trivial behavior change, public API change, data-schema change, or multi-repository change. A draft does not authorize implementation. Store SDDs under `tasks/sdd`; if it is missing, report a workspace-layout error. Routine local bug fixes, focused tests, documentation-only changes, and tooling corrections do not require an SDD unless they change one of those contracts.
 
-- a non-trivial behavior change;
-- a public API change;
-- a data-schema change;
-- a multi-repository change.
-
-An agent may create a `draft` SDD but must not implement it before explicit user approval. No additional confirmation is required for an already approved SDD. Use `tasks/sdd`; if it is missing, report a workspace-layout error instead of inventing another canonical location.
-
-Routine local bug fixes, focused tests, documentation-only changes, and tooling corrections need no SDD unless they change a listed contract. Create an ADR only for a durable architecture decision or component-boundary change; store it under `tasks/adr`.
+Create an ADR only for a durable architecture or component-boundary decision and store it under `tasks/adr`.
 
 ## Documentation and Completion
 
-- Update the owning repository README or documentation with changes to public interfaces, configuration, deployment, constraints, commands, or user-visible behavior.
-- Do not update product documentation for internal refactoring with no behavior change.
-- Record actual implementation results, executed checks, unresolved verification, and deviations in the approved SDD.
-- Update an ADR only when its accepted decision changes.
-- Report every check executed, its result, and every relevant check that could not run with the reason.
+- Update owning documentation when a public interface, configuration, deployment rule, constraint, command, or user-visible behavior changes; do not update product documentation for internal refactoring.
+- Record implementation results, checks, unresolved verification, and deviations in an approved SDD when one governs the change.
+- Report checks actually run and relevant checks that could not run. Do not claim unperformed verification.
 
-## Network, Secrets, and Destructive Operations
+## Safety
 
-The download limit applies to every artifact fetched from the global internet, including direct files, package-manager dependencies, release artifacts, base images, and container layers.
-
-- If an artifact is larger than 100 MB or its size cannot be established before download, do not start it.
-- Ask the user to provide the artifact locally or explicitly authorize the download.
-- Locally cached files, dependencies, and images may be used.
 - Do not read, expose, or commit secrets, tokens, credentials, passwords, `.env` contents, or personal configuration.
-- Destructive operations affecting files, volumes, databases, caches, services, remote state, or generated history require explicit user authorization.
+- Do not use destructive Git, filesystem, EDT, database, volume, cache, service, remote-state, or history operations without explicit authorization.
+- Do not start an internet download larger than 100 MB, or one whose size cannot be established, without explicit authorization. Locally cached artifacts may be used.

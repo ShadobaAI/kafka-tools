@@ -1,7 +1,7 @@
 interface:
   display_name: "v8std MCP"
-  short_description: "Evidence-based 1C standards and diagnostics"
-  default_prompt: "Use $v8std-mcp to apply relevant 1C standards, verify diagnostic findings, and cite the exact authoritative pages."
+  short_description: "Targeted 1C standards and diagnostic lookup"
+  default_prompt: "Use $v8std-mcp to retrieve only the 1C rule or diagnostic evidence needed for this question."
 
 dependencies:
   tools:

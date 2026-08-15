@@ -1,4 +1,4 @@
 interface:
   display_name: "EDT MCP"
-  short_description: "Safe 1C development and verification via EDT-MCP"
-  default_prompt: "Use $edt-mcp to implement this 1C change through the correct EDT workspace and verify it against platform documentation, project conventions, diagnostics, and tests."
+  short_description: "Targeted 1C project work through EDT-MCP"
+  default_prompt: "Use $edt-mcp for the minimal project-aware EDT read, change, or focused validation required by this task."
