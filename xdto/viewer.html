@@ -22,13 +22,28 @@
   .aav-titlebar h1 { margin: 0; font-size: 20px; line-height: 1.25; }
   .aav-toolbar { position: sticky; top: 0; z-index: 20; display: flex; flex-wrap: wrap; align-items: end; gap: 10px; padding: 12px 16px; background: rgba(255,255,255,.97); border: 1px solid var(--aav-border); border-top: 0; box-shadow: 0 2px 4px rgba(9,30,66,.08); }
   .aav-field { display: grid; gap: 4px; min-width: 220px; flex: 1 1 280px; }
-  .aav-field-compact { min-width: 140px; flex: 0 1 170px; }
+  .aav-topic-field { min-width: 300px; flex: 1.5 1 420px; }
   .aav-field label { color: var(--aav-muted); font-size: 12px; font-weight: 600; }
-  .aav-field select, .aav-field input { width: 100%; min-height: 36px; padding: 7px 10px; color: var(--aav-text); background: white; border: 1px solid #8590a2; border-radius: 4px; font: inherit; }
-  .aav-field input:focus, .aav-field select:focus, .aav-button:focus-visible, .aav-link:focus-visible, summary:focus-visible { outline: 2px solid var(--aav-blue); outline-offset: 2px; }
+  .aav-field select, .aav-field input { width: 100%; min-height: 40px; padding: 8px 11px; color: var(--aav-text); background: white; border: 1px solid #8590a2; border-radius: 4px; font: inherit; }
+  .aav-field input:focus, .aav-field select:focus, .aav-button:focus-visible, .aav-status-filter-button:focus-visible, .aav-link:focus-visible, summary:focus-visible { outline: 2px solid var(--aav-blue); outline-offset: 2px; }
   .aav-actions { display: flex; flex-wrap: wrap; gap: 8px; }
-  .aav-button { min-height: 36px; padding: 7px 12px; color: #0c66e4; background: #f1f2f4; border: 0; border-radius: 4px; cursor: pointer; font: inherit; font-weight: 600; }
+  .aav-button { min-height: 40px; padding: 9px 16px; color: #0c66e4; background: #f1f2f4; border: 0; border-radius: 5px; cursor: pointer; font: inherit; font-weight: 650; }
   .aav-button:hover { background: #dcdfe4; }
+  .aav-status-filter { min-height: 40px; display: inline-flex; align-items: stretch; border: 1px solid var(--aav-border); border-radius: 5px; overflow: hidden; }
+  .aav-status-filter-button { padding: 8px 11px; color: var(--aav-text); background: #f1f2f4; border: 0; border-right: 1px solid var(--aav-border); cursor: pointer; font: inherit; font-weight: 650; }
+  .aav-status-filter-button:hover { background: #dcdfe4; }
+  .aav-status-filter[data-active="true"] { border-color: var(--aav-blue); box-shadow: 0 0 0 1px var(--aav-blue); }
+  .aav-status-filter[data-active="true"] .aav-status-filter-button { color: white; background: var(--aav-blue); }
+  .aav-status-filter[data-active="true"] .aav-status-filter-button:hover { background: #0055cc; }
+  .aav-status-filter-value { position: relative; display: inline-flex; align-items: center; gap: 6px; min-width: 78px; padding: 7px 9px; color: var(--aav-muted); background: white; cursor: pointer; font-size: 12px; font-weight: 650; }
+  .aav-status-filter[data-active="false"] .aav-status-filter-value { opacity: .62; }
+  .aav-status-filter-checkbox { position: absolute; width: 1px; height: 1px; margin: -1px; opacity: 0; }
+  .aav-status-filter-switch { position: relative; flex: 0 0 auto; width: 34px; height: 20px; background: #b7c0cd; border-radius: 999px; transition: background .15s ease; }
+  .aav-status-filter-switch::after { content: ''; position: absolute; top: 3px; left: 3px; width: 14px; height: 14px; background: white; border-radius: 50%; box-shadow: 0 1px 2px rgba(9,30,66,.3); transition: transform .15s ease; }
+  .aav-status-filter-checkbox:checked + .aav-status-filter-switch { background: #22a06b; }
+  .aav-status-filter[data-active="true"] .aav-status-filter-checkbox:not(:checked) + .aav-status-filter-switch { background: #f15b50; }
+  .aav-status-filter-checkbox:checked + .aav-status-filter-switch::after { transform: translateX(14px); }
+  .aav-status-filter-checkbox:focus-visible + .aav-status-filter-switch { outline: 2px solid var(--aav-blue); outline-offset: 2px; }
   .aav-button-primary { color: white; background: var(--aav-blue); }
   .aav-button-primary:hover { background: #0055cc; }
   .aav-button:disabled { cursor: not-allowed; opacity: .55; }
@@ -61,8 +76,12 @@
   .aav-field-label { min-width: 0; }
   .aav-field-code { font-weight: 500; }
   .aav-field-title { display: block; margin-top: 2px; color: var(--aav-muted); font-size: 11px; line-height: 1.3; }
-  .aav-field-row.aav-required .aav-field-code { font-weight: 750; }
-  .aav-field-row.aav-deprecated .aav-field-code { text-decoration: line-through; }
+  .aav-fields-table tbody .aav-field-row.aav-required > td { background: #fffbea; font-weight: 650; }
+  .aav-fields-table tbody .aav-field-row.aav-deprecated > td { color: #6b778c; background: #fff4f3; text-decoration: line-through; }
+  .aav-fields-table tbody .aav-field-row.aav-required.aav-deprecated > td { background: linear-gradient(90deg, #fffbea, #fff4f3); }
+  .aav-fields-table tbody .aav-field-row.aav-required:hover > td { background: #fff0b3; }
+  .aav-fields-table tbody .aav-field-row.aav-deprecated:hover > td { background: #ffeceb; }
+  .aav-fields-table tbody .aav-field-row.aav-required.aav-deprecated:hover > td { background: linear-gradient(90deg, #fff0b3, #ffeceb); }
   .aav-disclosure, .aav-disclosure-spacer { flex: 0 0 20px; width: 20px; height: 20px; margin: -1px 2px 0 0; padding: 0; }
   .aav-disclosure { color: var(--aav-blue); background: transparent; border: 0; border-radius: 3px; cursor: pointer; }
   .aav-disclosure::before { content: '▸'; }
@@ -451,7 +470,11 @@
   }
 
   function topicDisplay(topic) {
-    return topic.shortName + (topic.title ? ' (' + topic.title + ')' : '');
+    const payloadTitle = topic.messages && topic.messages.length && topic.messages[0].schema
+      ? topic.messages[0].schema.title
+      : '';
+    const title = payloadTitle || topic.title;
+    return topic.shortName + (title ? ' (' + title + ')' : '');
   }
 
   function normalizeExtensions(schema) {
@@ -557,7 +580,6 @@
         displayName: '',
         messages: [], errors: []
       };
-      topic.displayName = topicDisplay(topic);
       const messages = channel.messages;
       if (!messages || typeof messages !== 'object') topic.errors.push('Channel не содержит messages.');
       else Object.keys(messages).forEach(function (messageKey) {
@@ -580,6 +602,7 @@
           });
         } catch (error) { topic.errors.push('Schema ' + schemaName + ': ' + error.message); }
       });
+      topic.displayName = topicDisplay(topic);
       topics.push(topic);
     });
     topics.sort(function (a, b) { return a.displayName.localeCompare(b.displayName, undefined, { sensitivity: 'base' }); });
@@ -697,7 +720,7 @@
         link.href = topicHref(known.address); link.target = '_blank'; link.rel = 'noopener noreferrer'; link.title = known.address;
         row.appendChild(link);
       } else {
-        const text = element('span', '', shortTopicName(address)); text.title = String(address); row.appendChild(text);
+        const text = element('span', '', shortTopicName(address) + ' (not channel)'); text.title = String(address); row.appendChild(text);
       }
     });
     return row;
@@ -875,7 +898,7 @@
         link.href = topicHref(known.address); link.target = '_blank'; link.rel = 'noopener noreferrer'; link.title = known.address;
         list.appendChild(link);
       } else {
-        const text = element('span', '', shortTopicName(address)); text.title = String(address); list.appendChild(text);
+        const text = element('span', '', shortTopicName(address) + ' (not channel)'); text.title = String(address); list.appendChild(text);
       }
     });
     cell.appendChild(list); return cell;
@@ -1027,7 +1050,7 @@
           const link = element('a', 'aav-link', topicDisplay(known));
           link.href = topicHref(known.address); link.target = '_blank'; link.rel = 'noopener noreferrer'; link.title = known.address; topics.appendChild(link);
         } else {
-          const text = element('span', '', shortTopicName(address)); text.title = String(address); topics.appendChild(text);
+          const text = element('span', '', shortTopicName(address) + ' (not channel)'); text.title = String(address); topics.appendChild(text);
         }
       });
       cell.appendChild(topics); hasContent = true;
@@ -1158,7 +1181,11 @@
 
   function selectTopic(address, updateUrl) {
     state.topic = state.document.topicIndex.get(address) || null;
-    state.elements.topicSelect.value = state.topic ? state.topic.address : '';
+    if (state.elements.topicInput) {
+      state.elements.topicInput.value = state.topic
+        ? state.elements.topicInputLabels.get(state.topic.address) || state.topic.displayName
+        : '';
+    }
     if (state.topic && updateUrl) writeUrlState(state.topic.address);
     renderTopic();
   }
@@ -1171,45 +1198,125 @@
     const exportButton = element('button', 'aav-button aav-button-primary', 'Экспорт CSV'); exportButton.type = 'button';
     titlebar.appendChild(exportButton);
     const toolbar = element('div', 'aav-toolbar');
-    const topicField = element('div', 'aav-field');
-    const topicLabel = element('label', '', 'Топик *'); topicLabel.htmlFor = 'aav-topic-select';
-    const topicSelect = element('select'); topicSelect.id = 'aav-topic-select'; topicSelect.required = true;
-    const placeholder = element('option', '', 'Выберите топик'); placeholder.value = ''; placeholder.disabled = true; topicSelect.appendChild(placeholder);
-    documentModel.topics.forEach(function (topic) { const option = element('option', '', topic.displayName); option.value = topic.address; topicSelect.appendChild(option); });
-    append(topicField, topicLabel, topicSelect);
+    const topicField = element('div', 'aav-field aav-topic-field');
+    const topicLabel = element('label', '', 'Топик *'); topicLabel.htmlFor = 'aav-topic-input';
+    const topicInput = element('input'); topicInput.id = 'aav-topic-input'; topicInput.type = 'search'; topicInput.required = true;
+    topicInput.placeholder = 'Выберите или найдите топик…'; topicInput.setAttribute('list', 'aav-topic-options');
+    topicInput.setAttribute('autocomplete', 'off'); topicInput.setAttribute('aria-label', 'Выбор и поиск топика');
+    const topicOptions = element('datalist'); topicOptions.id = 'aav-topic-options';
+    const displayNameCounts = new Map();
+    documentModel.topics.forEach(function (topic) {
+      displayNameCounts.set(topic.displayName, (displayNameCounts.get(topic.displayName) || 0) + 1);
+    });
+    const topicInputLabels = new Map();
+    documentModel.topics.forEach(function (topic) {
+      const inputLabel = displayNameCounts.get(topic.displayName) > 1
+        ? topic.displayName + ' — ' + topic.address
+        : topic.displayName;
+      topicInputLabels.set(topic.address, inputLabel);
+      const option = element('option'); option.value = inputLabel; option.label = topic.address; topicOptions.appendChild(option);
+    });
+    function topicFromInput(value) {
+      const normalized = String(value || '').trim().toLocaleLowerCase();
+      if (!normalized) return null;
+      return documentModel.topics.find(function (topic) {
+        return topic.address.toLocaleLowerCase() === normalized
+          || topicInputLabels.get(topic.address).toLocaleLowerCase() === normalized;
+      }) || null;
+    }
+    append(topicField, topicLabel, topicInput, topicOptions);
     const searchField = element('div', 'aav-field');
     const searchLabel = element('label', '', 'Поиск'); searchLabel.htmlFor = 'aav-search';
     const search = element('input'); search.id = 'aav-search'; search.type = 'search'; search.placeholder = 'property, title, description, type, format, enum, topic…';
     append(searchField, searchLabel, search);
-    function createBooleanFilter(id, labelText) {
-      const field = element('div', 'aav-field aav-field-compact');
-      const label = element('label', '', labelText); label.htmlFor = id;
-      const select = element('select'); select.id = id;
-      [['all', 'Все'], ['yes', 'Да'], ['no', 'Нет']].forEach(function (entry) {
-        const option = element('option', '', entry[1]); option.value = entry[0]; select.appendChild(option);
+    function createStatusFilter(labelText, stateKey) {
+      const control = element('div', 'aav-status-filter');
+      const button = element('button', 'aav-status-filter-button', labelText); button.type = 'button';
+      const value = element('label', 'aav-status-filter-value');
+      const checkbox = element('input', 'aav-status-filter-checkbox'); checkbox.type = 'checkbox';
+      checkbox.checked = state[stateKey] !== 'no';
+      checkbox.setAttribute('role', 'switch');
+      checkbox.setAttribute('aria-label', labelText + ': значение отбора');
+      const switchTrack = element('span', 'aav-status-filter-switch');
+      const valueText = element('span', 'aav-status-filter-value-text');
+      let active = state[stateKey] !== 'all';
+      function update() {
+        const selectedValue = checkbox.checked ? 'yes' : 'no';
+        state[stateKey] = active ? selectedValue : 'all';
+        control.dataset.active = String(active);
+        control.dataset.filterValue = state[stateKey];
+        button.setAttribute('aria-pressed', String(active));
+        button.setAttribute('aria-label', labelText + ': отбор ' + (active ? 'включён' : 'отключён'));
+        valueText.textContent = checkbox.checked ? 'Да' : 'Нет';
+      }
+      button.addEventListener('click', function () {
+        active = !active;
+        update();
+        renderTopic();
       });
-      append(field, label, select); return { field: field, select: select };
+      checkbox.addEventListener('change', function () {
+        update();
+        if (active) renderTopic();
+      });
+      append(value, checkbox, switchTrack, valueText);
+      append(control, button, value);
+      update();
+      return { control: control, button: button, checkbox: checkbox, update: update };
     }
-    const requiredControl = createBooleanFilter('aav-required-filter', 'Required');
-    const deprecatedControl = createBooleanFilter('aav-deprecated-filter', 'Deprecated');
+    const requiredControl = createStatusFilter('Required', 'requiredFilter');
+    const deprecatedControl = createStatusFilter('Deprecated', 'deprecatedFilter');
     const actions = element('div', 'aav-actions');
     const expand = element('button', 'aav-button', 'Развернуть все'); expand.type = 'button';
     const collapse = element('button', 'aav-button', 'Свернуть все'); collapse.type = 'button';
-    append(actions, expand, collapse); append(toolbar, topicField, searchField, requiredControl.field, deprecatedControl.field, actions);
+    append(actions, expand, collapse); append(toolbar, topicField, searchField, requiredControl.control, deprecatedControl.control, actions);
     const content = element('div', 'aav-content'); append(root, titlebar, toolbar, content);
     state.elements = {
-      topicSelect: topicSelect, search: search, requiredFilter: requiredControl.select,
-      deprecatedFilter: deprecatedControl.select, content: content, exportButton: exportButton
+      topicInput: topicInput, topicInputLabels: topicInputLabels,
+      search: search, requiredFilter: requiredControl.control,
+      deprecatedFilter: deprecatedControl.control, content: content, exportButton: exportButton
     };
 
-    topicSelect.addEventListener('change', function () { selectTopic(topicSelect.value, true); });
+    function clearCurrentTopicForSelection() {
+      if (!state.topic || topicInput.value !== topicInputLabels.get(state.topic.address)) return false;
+      topicInput.value = '';
+      return true;
+    }
+    function showTopicPicker() {
+      if (typeof topicInput.showPicker !== 'function') return;
+      try { topicInput.showPicker(); } catch (error) { /* Browser may restrict programmatic picker. */ }
+    }
+    topicInput.addEventListener('focus', function () {
+      clearCurrentTopicForSelection();
+      showTopicPicker();
+    });
+    topicInput.addEventListener('click', function () {
+      if (clearCurrentTopicForSelection()) showTopicPicker();
+    });
+    topicInput.addEventListener('input', function () {
+      const topic = topicFromInput(topicInput.value);
+      if (topic) selectTopic(topic.address, true);
+    });
+    topicInput.addEventListener('change', function () {
+      const topic = topicFromInput(topicInput.value);
+      if (topic) selectTopic(topic.address, true);
+      else topicInput.value = state.topic ? topicInputLabels.get(state.topic.address) : '';
+    });
+    topicInput.addEventListener('keydown', function (event) {
+      if (event.key === 'ArrowDown' && state.topic
+        && topicInput.value === topicInputLabels.get(state.topic.address)) {
+        topicInput.value = '';
+        return;
+      }
+      if (event.key === 'Escape') {
+        topicInput.value = state.topic ? topicInputLabels.get(state.topic.address) : '';
+        topicInput.blur();
+      }
+    });
     let debounceTimer = 0;
     search.addEventListener('input', function () {
       window.clearTimeout(debounceTimer);
       debounceTimer = window.setTimeout(function () { state.query = search.value.trim().toLocaleLowerCase(); renderTopic(); }, SEARCH_DEBOUNCE_MS);
     });
-    requiredControl.select.addEventListener('change', function () { state.requiredFilter = requiredControl.select.value; renderTopic(); });
-    deprecatedControl.select.addEventListener('change', function () { state.deprecatedFilter = deprecatedControl.select.value; renderTopic(); });
     expand.addEventListener('click', function () { setAllExpansion(content, true); });
     collapse.addEventListener('click', function () { setAllExpansion(content, false); });
     exportButton.addEventListener('click', downloadCsv);
