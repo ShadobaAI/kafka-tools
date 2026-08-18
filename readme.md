@@ -16,7 +16,7 @@
 | `opensearch/` | Альтернатива ELK — OpenSearch + Dashboards + Fluent Bit |
 | `mssql/` | MS SQL Server 2022 — скрипт запуска и утилитарные SQL-скрипты |
 | `sonarqube/` | SonarQube Community Build с PostgreSQL, BSL-плагином и русской локализацией |
-| `xdto/` | `asyncapi2xsd.py` — генератор XSD из AsyncAPI-спецификации |
+| `xdto/` | `asyncapi2xsd.py` — генератор XSD; `viewer.html` — визуализатор AsyncAPI для Confluence |
 
 ---
 
@@ -369,6 +369,31 @@ Invoke-RestMethod -Method Post -Headers $headers `
 ```
 
 `provisioning` соответствует праву `Create Projects`, `scan` соответствует `Execute Analysis`. Второй вызов можно пропустить, если анонимный запуск анализа не нужен.
+
+---
+
+## xdto/viewer.html
+
+Самодостаточный HTML-визуализатор AsyncAPI-спецификации для HTML macro Confluence. Загружает attachment `asyncapi.yaml` с текущей страницы без фиксации версии attachment и не зависит от внешнего CDN или backend-приложения.
+
+Возможности:
+
+- обязательный выбор Kafka-топика с сохранением адреса в URL hash;
+- компактная информация о топике, формате и количестве полей;
+- табличное представление properties с поддержкой вложенных объектов и массивов;
+- разрешение локальных `$ref`, включая enum, `allOf` и защиту от циклов;
+- отображение `x-topics`, ограничений, `pattern`, `default`, examples и пользовательских `x-*`;
+- поиск внутри выбранного топика и фильтры `Required` / `Deprecated`;
+- раскрытие и сворачивание вложенных полей;
+- экспорт текущего отфильтрованного представления в CSV с UTF-8 BOM.
+
+### Подключение к Confluence
+
+1. Прикрепить к странице файл с точным именем `asyncapi.yaml`.
+2. Поместить содержимое [`xdto/viewer.html`](xdto/viewer.html) в HTML macro на этой же странице.
+3. Если `pageId` не определяется из контекста Confluence автоматически, указать его в константе `PAGE_ID` внутри `viewer.html`.
+
+При обновлении спецификации достаточно заменить attachment; изменять HTML macro не требуется.
 
 ---
 

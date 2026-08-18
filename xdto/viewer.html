@@ -1,0 +1,1331 @@
+<meta charset="UTF-8">
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<div id="asyncapi-schema-viewer" class="aav-shell" lang="ru" aria-live="polite"></div>
+
+<style>
+  .aav-shell {
+    --aav-blue: #0c66e4;
+    --aav-blue-soft: #e9f2ff;
+    --aav-border: #dfe1e6;
+    --aav-text: #172b4d;
+    --aav-muted: #626f86;
+    --aav-bg: #ffffff;
+    --aav-subtle: #f7f8f9;
+    color: var(--aav-text);
+    background: var(--aav-bg);
+    font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    min-width: 0;
+  }
+
+  .aav-shell *, .aav-shell *::before, .aav-shell *::after { box-sizing: border-box; }
+  .aav-titlebar { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 16px; border: 1px solid var(--aav-border); border-radius: 8px 8px 0 0; }
+  .aav-titlebar h1 { margin: 0; font-size: 20px; line-height: 1.25; }
+  .aav-toolbar { position: sticky; top: 0; z-index: 20; display: flex; flex-wrap: wrap; align-items: end; gap: 10px; padding: 12px 16px; background: rgba(255,255,255,.97); border: 1px solid var(--aav-border); border-top: 0; box-shadow: 0 2px 4px rgba(9,30,66,.08); }
+  .aav-field { display: grid; gap: 4px; min-width: 220px; flex: 1 1 280px; }
+  .aav-field-compact { min-width: 140px; flex: 0 1 170px; }
+  .aav-field label { color: var(--aav-muted); font-size: 12px; font-weight: 600; }
+  .aav-field select, .aav-field input { width: 100%; min-height: 36px; padding: 7px 10px; color: var(--aav-text); background: white; border: 1px solid #8590a2; border-radius: 4px; font: inherit; }
+  .aav-field input:focus, .aav-field select:focus, .aav-button:focus-visible, .aav-link:focus-visible, summary:focus-visible { outline: 2px solid var(--aav-blue); outline-offset: 2px; }
+  .aav-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+  .aav-button { min-height: 36px; padding: 7px 12px; color: #0c66e4; background: #f1f2f4; border: 0; border-radius: 4px; cursor: pointer; font: inherit; font-weight: 600; }
+  .aav-button:hover { background: #dcdfe4; }
+  .aav-button-primary { color: white; background: var(--aav-blue); }
+  .aav-button-primary:hover { background: #0055cc; }
+  .aav-button:disabled { cursor: not-allowed; opacity: .55; }
+  .aav-content { border: 1px solid var(--aav-border); border-top: 0; border-radius: 0 0 8px 8px; }
+  .aav-topic-header { padding: 18px 20px; border-bottom: 1px solid var(--aav-border); }
+  .aav-topic-header h2 { margin: 0 0 4px; font-size: 22px; }
+  .aav-context { color: var(--aav-muted); overflow-wrap: anywhere; }
+  .aav-description { margin: 9px 0 0; white-space: pre-wrap; }
+  .aav-tree { padding: 8px 12px 20px; }
+  .aav-message { margin-top: 10px; border: 1px solid var(--aav-border); border-radius: 6px; }
+  .aav-topic-payload-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 9px; color: var(--aav-muted); }
+  .aav-topic-payload-title { color: var(--aav-text); font-weight: 650; }
+  .aav-message-body { padding: 0; }
+  .aav-table-wrap { width: 100%; overflow-x: auto; }
+  .aav-fields-table { width: 100%; min-width: 1540px; border-collapse: collapse; table-layout: fixed; }
+  .aav-fields-table th { padding: 8px 9px; color: var(--aav-muted); background: #f7f8f9; border-bottom: 2px solid var(--aav-border); border-right: 1px solid var(--aav-border); font-size: 11px; line-height: 1.25; text-align: left; text-transform: uppercase; vertical-align: bottom; }
+  .aav-fields-table td { padding: 7px 9px; border-bottom: 1px solid #ebecf0; border-right: 1px solid #ebecf0; overflow-wrap: anywhere; vertical-align: top; }
+  .aav-fields-table th:last-child, .aav-fields-table td:last-child { border-right: 0; }
+  .aav-fields-table tbody tr:hover { background: var(--aav-subtle); }
+  .aav-fields-table .aav-col-field { width: 270px; }
+  .aav-fields-table .aav-col-description { width: 300px; }
+  .aav-fields-table .aav-col-type { width: 110px; }
+  .aav-fields-table .aav-col-format-enum { width: 230px; }
+  .aav-fields-table .aav-col-topics { width: 220px; }
+  .aav-fields-table .aav-col-minmax { width: 190px; }
+  .aav-fields-table .aav-col-pattern { width: 160px; }
+  .aav-fields-table .aav-col-default { width: 160px; }
+  .aav-field-main { display: flex; align-items: flex-start; min-width: 0; }
+  .aav-field-indent { display: inline-block; flex: 0 0 auto; }
+  .aav-field-label { min-width: 0; }
+  .aav-field-code { font-weight: 500; }
+  .aav-field-title { display: block; margin-top: 2px; color: var(--aav-muted); font-size: 11px; line-height: 1.3; }
+  .aav-field-row.aav-required .aav-field-code { font-weight: 750; }
+  .aav-field-row.aav-deprecated .aav-field-code { text-decoration: line-through; }
+  .aav-disclosure, .aav-disclosure-spacer { flex: 0 0 20px; width: 20px; height: 20px; margin: -1px 2px 0 0; padding: 0; }
+  .aav-disclosure { color: var(--aav-blue); background: transparent; border: 0; border-radius: 3px; cursor: pointer; }
+  .aav-disclosure::before { content: '▸'; }
+  .aav-disclosure[aria-expanded="true"]::before { content: '▾'; }
+  .aav-disclosure:hover { background: var(--aav-blue-soft); }
+  .aav-cell-list { display: grid; gap: 3px; }
+  .aav-cell-title { display: block; margin-bottom: 2px; font-weight: 650; }
+  .aav-cell-metadata { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 5px; }
+  .aav-cell-empty { color: #97a0af; }
+  .aav-node { margin: 4px 0; min-width: 0; }
+  details.aav-node > summary { cursor: pointer; }
+  .aav-node-line { display: grid; grid-template-columns: minmax(260px, 1.45fr) minmax(150px, .55fr) minmax(260px, 1fr); align-items: start; gap: 12px; min-width: 0; padding: 6px 8px; border-bottom: 1px solid #ebecf0; border-radius: 3px; }
+  .aav-node-line:hover { background: var(--aav-subtle); }
+  .aav-node-field, .aav-node-type { display: flex; flex-wrap: wrap; align-items: baseline; gap: 5px; min-width: 0; }
+  .aav-node-info { min-width: 0; color: var(--aav-muted); overflow-wrap: anywhere; }
+  .aav-node-name { font-weight: 650; overflow-wrap: anywhere; }
+  .aav-node-title { color: var(--aav-muted); overflow-wrap: anywhere; }
+  .aav-node-title::before { content: "— "; }
+  .aav-children { margin-left: 12px; padding-left: 11px; border-left: 1px solid #b7c0cd; }
+  .aav-meta { margin: 0 7px 7px 25px; color: var(--aav-muted); overflow-wrap: anywhere; }
+  .aav-meta-row { margin-top: 3px; }
+  .aav-badge { display: inline-block; padding: 1px 6px; color: #44546f; background: #dcdfe4; border-radius: 999px; font-size: 11px; font-weight: 650; white-space: nowrap; }
+  .aav-badge-required { color: #7f5f01; background: #fff0b3; }
+  .aav-badge-deprecated { color: #ae2e24; background: #ffeceb; }
+  .aav-deprecated { opacity: .65; }
+  .aav-code { font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace; overflow-wrap: anywhere; white-space: pre-wrap; }
+  .aav-link { color: var(--aav-blue); text-decoration: none; }
+  .aav-link:hover { text-decoration: underline; }
+  .aav-details { margin: 5px 0; }
+  .aav-details > summary { color: var(--aav-blue); cursor: pointer; font-weight: 600; }
+  .aav-json { max-height: 320px; margin: 6px 0; padding: 8px; overflow: auto; color: var(--aav-text); background: var(--aav-subtle); border-radius: 4px; white-space: pre-wrap; }
+  .aav-enum-list { margin: 6px 0 4px; padding-left: 22px; }
+  .aav-state { padding: 24px 20px; border: 1px solid var(--aav-border); border-radius: 8px; background: white; }
+  .aav-error { color: #ae2e24; background: #fff7f7; border-color: #ffd5d2; }
+  .aav-warning { margin: 6px 7px; padding: 8px 10px; color: #7f5f01; background: #fff7d6; border-radius: 4px; }
+  .aav-empty { padding: 24px; color: var(--aav-muted); text-align: center; }
+  .aav-sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+  @media (max-width: 800px) { .aav-titlebar { align-items: flex-start; } .aav-toolbar { position: static; } .aav-actions { width: 100%; } .aav-button { flex: 1 1 auto; } }
+</style>
+
+<script>
+(function () {
+  'use strict';
+
+  const PAGE_ID = '1';
+  const ATTACHMENT_NAME = 'asyncapi.yaml';
+  const SEARCH_DEBOUNCE_MS = 200;
+  const MAX_SCHEMA_DEPTH = 80;
+  const CSV_COLUMNS = [
+    'FormatVersion', 'TopicShortName', 'TopicAddress', 'TopicTitle', 'Message',
+    'Schema', 'Path', 'Level', 'Name', 'Title', 'Description', 'Required',
+    'Deprecated', 'Type', 'Format', 'Ref', 'AllOf', 'Enum', 'EnumNames',
+    'XTopics', 'MinItems', 'MaxItems', 'MinLength', 'MaxLength', 'Minimum',
+    'Maximum', 'Pattern', 'Default', 'Extensions'
+  ];
+
+  const root = document.getElementById('asyncapi-schema-viewer');
+  const state = {
+    document: null,
+    topic: null,
+    query: '',
+    requiredFilter: 'all',
+    deprecatedFilter: 'all',
+    elements: {},
+    hashListenerInstalled: false
+  };
+
+  function element(tag, className, text) {
+    const node = document.createElement(tag);
+    if (className) node.className = className;
+    if (text !== undefined && text !== null) node.textContent = String(text);
+    return node;
+  }
+
+  function append(parent) {
+    for (let i = 1; i < arguments.length; i += 1) {
+      const child = arguments[i];
+      if (child !== null && child !== undefined) parent.appendChild(child);
+    }
+    return parent;
+  }
+
+  function hasOwn(value, key) {
+    return Object.prototype.hasOwnProperty.call(value || {}, key);
+  }
+
+  function stringify(value, pretty) {
+    if (typeof value === 'string') return value;
+    if (value === undefined) return '';
+    try { return JSON.stringify(value, null, pretty ? 2 : 0); }
+    catch (error) { return String(value); }
+  }
+
+  function renderState(message, isError) {
+    root.replaceChildren();
+    const box = element('div', 'aav-state' + (isError ? ' aav-error' : ''));
+    box.setAttribute('role', isError ? 'alert' : 'status');
+    box.textContent = message;
+    root.appendChild(box);
+  }
+
+  function contextPath() {
+    if (window.AJS && typeof window.AJS.contextPath === 'function') return window.AJS.contextPath();
+    const meta = document.querySelector('meta[name="ajs-context-path"]');
+    return meta ? meta.getAttribute('content') || '' : '';
+  }
+
+  function resolvePageId() {
+    if (PAGE_ID) return PAGE_ID;
+    if (window.AJS && window.AJS.params && window.AJS.params.pageId) return String(window.AJS.params.pageId);
+    const meta = document.querySelector('meta[name="ajs-page-id"]');
+    if (meta && meta.getAttribute('content')) return meta.getAttribute('content');
+    const queryId = new URLSearchParams(window.location.search).get('pageId');
+    if (queryId) return queryId;
+    const pathMatch = window.location.pathname.match(/\/pages\/(\d+)(?:\/|$)/);
+    return pathMatch ? pathMatch[1] : '';
+  }
+
+  async function loadYaml() {
+    const pageId = resolvePageId();
+    if (!pageId) throw new Error('Не удалось определить pageId. Укажите PAGE_ID в конфигурации viewer.');
+    const url = contextPath() + '/download/attachments/' + encodeURIComponent(pageId) + '/' + encodeURIComponent(ATTACHMENT_NAME);
+    let response;
+    try {
+      response = await fetch(url, { credentials: 'same-origin', cache: 'no-store' });
+    } catch (error) {
+      throw new Error('Ошибка загрузки attachment: ' + error.message);
+    }
+    if (!response.ok) {
+      if (response.status === 404) throw new Error('Attachment не найден: ' + ATTACHMENT_NAME);
+      throw new Error('HTTP error при загрузке attachment: ' + response.status + ' ' + response.statusText);
+    }
+    return response.text();
+  }
+
+  /* Самодостаточный parser используемого конструктором YAML-подмножества: block maps/sequences,
+     flow collections, quoted/plain scalars и block scalars. Ошибки всегда содержат номер строки. */
+  function parseYaml(source) {
+    const lines = String(source || '').replace(/^\uFEFF/, '').replace(/\r\n?/g, '\n').split('\n').map(function (raw, index) {
+      if (/^\s*\t/.test(raw) || /^ *[^ ]+\t/.test(raw)) throw yamlError(index + 1, 'табуляция в отступах не поддерживается');
+      const indent = (raw.match(/^ */) || [''])[0].length;
+      return { raw: raw, text: raw.slice(indent), indent: indent, number: index + 1 };
+    });
+
+    function yamlError(line, message) { return new Error('YAML parse error, строка ' + line + ': ' + message); }
+    function ignorable(line) { return !line || /^\s*(?:#.*)?$/.test(line.raw) || /^(?:---|\.\.\.)\s*(?:#.*)?$/.test(line.text); }
+    function nextSignificant(index) { while (index < lines.length && ignorable(lines[index])) index += 1; return index; }
+
+    function splitPair(text, lineNumber) {
+      let quote = '', escaped = false, square = 0, curly = 0;
+      for (let i = 0; i < text.length; i += 1) {
+        const char = text[i];
+        if (quote) {
+          if (quote === '"' && char === '\\' && !escaped) { escaped = true; continue; }
+          if (char === quote && !escaped) {
+            if (quote === "'" && text[i + 1] === "'") { i += 1; continue; }
+            quote = '';
+          }
+          escaped = false;
+          continue;
+        }
+        if (char === '"' || char === "'") quote = char;
+        else if (char === '[') square += 1;
+        else if (char === ']') square -= 1;
+        else if (char === '{') curly += 1;
+        else if (char === '}') curly -= 1;
+        else if (char === ':' && square === 0 && curly === 0 && (i === text.length - 1 || /\s/.test(text[i + 1]))) {
+          const rawKey = text.slice(0, i).trim();
+          if (!rawKey) throw yamlError(lineNumber, 'пустой ключ');
+          return [parseScalar(rawKey, lineNumber, true), text.slice(i + 1).trim()];
+        }
+      }
+      return null;
+    }
+
+    function stripComment(text) {
+      let quote = '', escaped = false, square = 0, curly = 0;
+      for (let i = 0; i < text.length; i += 1) {
+        const char = text[i];
+        if (quote) {
+          if (quote === '"' && char === '\\' && !escaped) { escaped = true; continue; }
+          if (char === quote && !escaped) {
+            if (quote === "'" && text[i + 1] === "'") { i += 1; continue; }
+            quote = '';
+          }
+          escaped = false;
+        } else if (char === '"' || char === "'") quote = char;
+        else if (char === '[') square += 1;
+        else if (char === ']') square -= 1;
+        else if (char === '{') curly += 1;
+        else if (char === '}') curly -= 1;
+        else if (char === '#' && square === 0 && curly === 0 && (i === 0 || /\s/.test(text[i - 1]))) return text.slice(0, i).trimEnd();
+      }
+      return text.trimEnd();
+    }
+
+    function parseQuoted(text, lineNumber) {
+      if (text[0] === "'") {
+        if (text[text.length - 1] !== "'") throw yamlError(lineNumber, 'незакрытая строка');
+        return text.slice(1, -1).replace(/''/g, "'");
+      }
+      try { return JSON.parse(text); }
+      catch (error) { throw yamlError(lineNumber, 'некорректная quoted string'); }
+    }
+
+    function parseFlow(text, lineNumber) {
+      let index = 0;
+      function ws() { while (/\s/.test(text[index] || '')) index += 1; }
+      function token(stoppers) {
+        ws();
+        if (text[index] === '"' || text[index] === "'") {
+          const quote = text[index++]; let value = quote; let escaped = false;
+          while (index < text.length) {
+            const char = text[index++]; value += char;
+            if (quote === '"' && char === '\\' && !escaped) { escaped = true; continue; }
+            if (char === quote && !escaped) {
+              if (quote === "'" && text[index] === "'") { value += text[index++]; continue; }
+              return parseQuoted(value, lineNumber);
+            }
+            escaped = false;
+          }
+          throw yamlError(lineNumber, 'незакрытая строка в flow collection');
+        }
+        const start = index;
+        while (index < text.length && stoppers.indexOf(text[index]) < 0) index += 1;
+        return parseScalar(text.slice(start, index).trim(), lineNumber);
+      }
+      function value() {
+        ws();
+        if (text[index] === '[') {
+          index += 1; const result = []; ws();
+          while (text[index] !== ']') {
+            result.push(value()); ws();
+            if (text[index] === ',') { index += 1; ws(); continue; }
+            if (text[index] !== ']') throw yamlError(lineNumber, 'ожидались , или ]');
+          }
+          index += 1; return result;
+        }
+        if (text[index] === '{') {
+          index += 1; const result = {}; ws();
+          while (text[index] !== '}') {
+            const key = token(':'); ws();
+            if (text[index] !== ':') throw yamlError(lineNumber, 'ожидалось : в flow map');
+            index += 1; result[String(key)] = value(); ws();
+            if (text[index] === ',') { index += 1; ws(); continue; }
+            if (text[index] !== '}') throw yamlError(lineNumber, 'ожидались , или }');
+          }
+          index += 1; return result;
+        }
+        return token(',]}');
+      }
+      const result = value(); ws();
+      if (index !== text.length) throw yamlError(lineNumber, 'лишние символы после flow collection');
+      return result;
+    }
+
+    function parseScalar(raw, lineNumber, isKey) {
+      const text = stripComment(String(raw).trim());
+      if (!text) return isKey ? '' : null;
+      if (text[0] === '[' || text[0] === '{') return parseFlow(text, lineNumber);
+      if (text[0] === '"' || text[0] === "'") return parseQuoted(text, lineNumber);
+      if (/^(?:null|~)$/i.test(text)) return null;
+      if (/^(?:true|false)$/i.test(text)) return text.toLowerCase() === 'true';
+      if (/^[-+]?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][-+]?\d+)?$/.test(text)) return Number(text);
+      if (!isKey && /^[&*!]/.test(text)) throw yamlError(lineNumber, 'anchors, aliases и tags не поддерживаются');
+      return text;
+    }
+
+    function blockScalar(start, parentIndent, marker) {
+      let index = start; const parts = []; let contentIndent = null;
+      while (index < lines.length) {
+        const line = lines[index];
+        if (line.raw.trim() && line.indent <= parentIndent) break;
+        if (!line.raw.trim()) { parts.push(''); index += 1; continue; }
+        if (contentIndent === null) contentIndent = line.indent;
+        parts.push(line.raw.slice(Math.min(contentIndent, line.raw.length)));
+        index += 1;
+      }
+      let value = marker[0] === '>' ? parts.join('\n').replace(/([^\n])\n(?=[^\n])/g, '$1 ') : parts.join('\n');
+      if (!/-$/.test(marker)) value += '\n';
+      return { value: value, index: index };
+    }
+
+    function parseMap(start, indent) {
+      const result = {}; let index = start;
+      while (true) {
+        index = nextSignificant(index);
+        if (index >= lines.length || lines[index].indent < indent || /^-\s*(?:#.*)?$|^-\s+/.test(lines[index].text)) break;
+        const line = lines[index];
+        if (line.indent > indent) throw yamlError(line.number, 'неожиданный отступ');
+        const pair = splitPair(line.text, line.number);
+        if (!pair) throw yamlError(line.number, 'ожидалась пара key: value');
+        const key = String(pair[0]);
+        if (/^[|>][+-]?$/.test(pair[1])) {
+          const parsedBlock = blockScalar(index + 1, indent, pair[1]);
+          result[key] = parsedBlock.value; index = parsedBlock.index; continue;
+        }
+        if (pair[1] !== '') { result[key] = parseScalar(pair[1], line.number); index += 1; continue; }
+        const childIndex = nextSignificant(index + 1);
+        if (childIndex < lines.length && lines[childIndex].indent > indent) {
+          const child = parseNode(childIndex, lines[childIndex].indent);
+          result[key] = child.value; index = child.index;
+        } else { result[key] = null; index += 1; }
+      }
+      return { value: result, index: index };
+    }
+
+    function parseSequence(start, indent) {
+      const result = []; let index = start;
+      while (true) {
+        index = nextSignificant(index);
+        if (index >= lines.length || lines[index].indent !== indent || !/^-(?:\s|$)/.test(lines[index].text)) break;
+        const line = lines[index]; const rest = line.text.replace(/^-\s*/, '');
+        if (!rest || /^#/.test(rest)) {
+          const childIndex = nextSignificant(index + 1);
+          if (childIndex < lines.length && lines[childIndex].indent > indent) {
+            const child = parseNode(childIndex, lines[childIndex].indent); result.push(child.value); index = child.index;
+          } else { result.push(null); index += 1; }
+          continue;
+        }
+        const pair = splitPair(rest, line.number);
+        if (!pair) { result.push(parseScalar(rest, line.number)); index += 1; continue; }
+        const item = {}; const key = String(pair[0]);
+        if (pair[1] !== '') { item[key] = parseScalar(pair[1], line.number); index += 1; }
+        else {
+          const childIndex = nextSignificant(index + 1);
+          if (childIndex < lines.length && lines[childIndex].indent > indent + 1) {
+            const child = parseNode(childIndex, lines[childIndex].indent); item[key] = child.value; index = child.index;
+          } else { item[key] = null; index += 1; }
+        }
+        const continuation = nextSignificant(index);
+        if (continuation < lines.length && lines[continuation].indent > indent) {
+          const extra = parseMap(continuation, lines[continuation].indent);
+          Object.keys(extra.value).forEach(function (extraKey) { item[extraKey] = extra.value[extraKey]; });
+          index = extra.index;
+        }
+        result.push(item);
+      }
+      return { value: result, index: index };
+    }
+
+    function parseNode(start, indent) {
+      const index = nextSignificant(start);
+      if (index >= lines.length) return { value: null, index: index };
+      return /^-(?:\s|$)/.test(lines[index].text) ? parseSequence(index, indent) : parseMap(index, indent);
+    }
+
+    const start = nextSignificant(0);
+    if (start >= lines.length) throw new Error('YAML parse error: пустой документ');
+    const parsed = parseNode(start, lines[start].indent);
+    const tail = nextSignificant(parsed.index);
+    if (tail < lines.length) throw yamlError(lines[tail].number, 'неожиданные данные');
+    return parsed.value;
+  }
+
+  function decodeJsonPointerToken(token) {
+    return decodeURIComponent(token).replace(/~1/g, '/').replace(/~0/g, '~');
+  }
+
+  function createResolver(document) {
+    const cache = new Map();
+    return function resolveRef(ref) {
+      if (cache.has(ref)) return cache.get(ref);
+      if (typeof ref !== 'string' || ref.slice(0, 2) !== '#/') throw new Error('Поддерживаются только локальные $ref вида #/...: ' + ref);
+      let current = document;
+      const tokens = ref.slice(2).split('/').map(decodeJsonPointerToken);
+      for (let i = 0; i < tokens.length; i += 1) {
+        if (current === null || typeof current !== 'object' || !hasOwn(current, tokens[i])) throw new Error('Не найден target для $ref: ' + ref);
+        current = current[tokens[i]];
+      }
+      cache.set(ref, current);
+      return current;
+    };
+  }
+
+  function refName(ref) {
+    if (!ref) return '';
+    const parts = String(ref).split('/');
+    try { return decodeJsonPointerToken(parts[parts.length - 1]); }
+    catch (error) { return parts[parts.length - 1]; }
+  }
+
+  function shortTopicName(address) {
+    const parts = String(address || '').split('.');
+    return parts.length >= 2 ? parts[1] : String(address || '');
+  }
+
+  function topicDisplay(topic) {
+    return topic.shortName + (topic.title ? ' (' + topic.title + ')' : '');
+  }
+
+  function normalizeExtensions(schema) {
+    const extensions = {};
+    Object.keys(schema || {}).forEach(function (key) {
+      if (/^x-/.test(key) && key !== 'x-topics' && key !== 'x-enumNames') extensions[key] = schema[key];
+    });
+    return extensions;
+  }
+
+  function normalizeNode(schema, context, visitedRefs) {
+    const raw = schema && typeof schema === 'object' ? schema : {};
+    const node = {
+      name: context.name,
+      path: context.path,
+      level: context.level,
+      title: raw.title,
+      description: raw.description,
+      examples: Array.isArray(raw.examples) ? raw.examples : (hasOwn(raw, 'examples') ? [raw.examples] : []),
+      deprecated: raw.deprecated === true,
+      type: raw.type,
+      format: raw.format,
+      required: context.required === true,
+      constraints: {},
+      hasDefault: hasOwn(raw, 'default'),
+      defaultValue: raw.default,
+      ref: raw.$ref || '',
+      allOfRefs: [],
+      allOf: [],
+      enumValues: Array.isArray(raw.enum) ? raw.enum : [],
+      enumNames: Array.isArray(raw['x-enumNames']) ? raw['x-enumNames'] : [],
+      xTopics: Array.isArray(raw['x-topics']) ? raw['x-topics'] : [],
+      extensions: normalizeExtensions(raw),
+      itemSchema: null,
+      children: [],
+      resolvedNode: null,
+      errors: [],
+      recursiveRef: false
+    };
+    ['minItems', 'maxItems', 'minLength', 'maxLength', 'minimum', 'maximum', 'pattern'].forEach(function (key) {
+      if (hasOwn(raw, key)) node.constraints[key] = raw[key];
+    });
+    if (node.enumNames.length && node.enumNames.length !== node.enumValues.length) console.warn('AsyncAPI Viewer: длины enum и x-enumNames различаются для ' + context.path);
+    if (context.level >= MAX_SCHEMA_DEPTH) {
+      node.errors.push('Достигнут максимальный уровень вложенности: ' + MAX_SCHEMA_DEPTH);
+      return node;
+    }
+    const requiredNames = Array.isArray(raw.required) ? raw.required : [];
+    if (raw.properties && typeof raw.properties === 'object') {
+      Object.keys(raw.properties).forEach(function (propertyName) {
+        const propertyPath = context.path ? context.path + '.' + propertyName : propertyName;
+        node.children.push(normalizeNode(raw.properties[propertyName], {
+          name: propertyName, path: propertyPath, level: context.level + 1,
+          required: requiredNames.indexOf(propertyName) >= 0, resolver: context.resolver
+        }, new Set(visitedRefs)));
+      });
+    }
+    if (raw.items && typeof raw.items === 'object') {
+      node.itemSchema = normalizeNode(raw.items, {
+        name: 'items', path: context.path + '[]', level: context.level + 1,
+        required: false, resolver: context.resolver
+      }, new Set(visitedRefs));
+    }
+    if (node.ref) {
+      if (visitedRefs.has(node.ref)) node.recursiveRef = true;
+      else {
+        try {
+          const nextVisited = new Set(visitedRefs); nextVisited.add(node.ref);
+          node.resolvedNode = normalizeNode(context.resolver(node.ref), {
+            name: refName(node.ref), path: context.path, level: context.level + 1,
+            required: false, resolver: context.resolver
+          }, nextVisited);
+        } catch (error) { node.errors.push(error.message); }
+      }
+    }
+    if (Array.isArray(raw.allOf)) {
+      raw.allOf.forEach(function (part, index) {
+        const label = part && part.$ref ? refName(part.$ref) : 'inline schema ' + (index + 1);
+        node.allOfRefs.push(part && part.$ref ? part.$ref : 'inline schema ' + (index + 1));
+        node.allOf.push(normalizeNode(part, {
+          name: label, path: context.path, level: context.level + 1,
+          required: false, resolver: context.resolver
+        }, new Set(visitedRefs)));
+      });
+    }
+    return node;
+  }
+
+  function buildDocumentModel(raw) {
+    if (!raw || typeof raw !== 'object') throw new Error('YAML document должен быть object.');
+    if (!raw.channels || typeof raw.channels !== 'object') throw new Error('Документ не содержит channels.');
+    const resolver = createResolver(raw);
+    const topics = [];
+    Object.keys(raw.channels).forEach(function (channelKey) {
+      const channel = raw.channels[channelKey];
+      if (!channel || !channel.address) return;
+      const topic = {
+        channelKey: channelKey,
+        address: String(channel.address),
+        shortName: shortTopicName(channel.address),
+        title: channel.title ? String(channel.title) : '',
+        description: channel.description ? String(channel.description) : '',
+        displayName: '',
+        messages: [], errors: []
+      };
+      topic.displayName = topicDisplay(topic);
+      const messages = channel.messages;
+      if (!messages || typeof messages !== 'object') topic.errors.push('Channel не содержит messages.');
+      else Object.keys(messages).forEach(function (messageKey) {
+        let message = messages[messageKey];
+        try { if (message && message.$ref) message = resolver(message.$ref); }
+        catch (error) { topic.errors.push('Message ' + messageKey + ': ' + error.message); return; }
+        if (!message || typeof message !== 'object') { topic.errors.push('Message ' + messageKey + ' не является object.'); return; }
+        if (!message.payload) { topic.errors.push('Message ' + messageKey + ' не содержит payload.'); return; }
+        let schema = message.payload; let schemaName = schema.$ref ? refName(schema.$ref) : (schema.title || messageKey + 'Payload');
+        let initialRefs = new Set();
+        if (schema.$ref) {
+          try { initialRefs.add(schema.$ref); schema = resolver(schema.$ref); }
+          catch (error) { topic.errors.push('Schema ' + schemaName + ': ' + error.message); return; }
+        }
+        try {
+          topic.messages.push({
+            name: message.name ? String(message.name) : messageKey,
+            schemaName: String(schemaName),
+            schema: normalizeNode(schema, { name: schemaName, path: '', level: 0, required: false, resolver: resolver }, initialRefs)
+          });
+        } catch (error) { topic.errors.push('Schema ' + schemaName + ': ' + error.message); }
+      });
+      topics.push(topic);
+    });
+    topics.sort(function (a, b) { return a.displayName.localeCompare(b.displayName, undefined, { sensitivity: 'base' }); });
+    if (!topics.length) throw new Error('Документ не содержит доступных топиков (channels с address).');
+    return {
+      asyncapiVersion: raw.asyncapi || '',
+      formatVersion: raw.info && raw.info.version ? String(raw.info.version) : '',
+      title: raw.info && raw.info.title ? String(raw.info.title) : '',
+      description: raw.info && raw.info.description ? String(raw.info.description) : '',
+      topics: topics,
+      topicIndex: new Map(topics.map(function (topic) { return [topic.address, topic]; }))
+    };
+  }
+
+  function readUrlState() {
+    const rawHash = window.location.hash.replace(/^#/, '');
+    if (!rawHash) return '';
+    try { return new URLSearchParams(rawHash).get('topic') || ''; }
+    catch (error) { return ''; }
+  }
+
+  function writeUrlState(address) {
+    const hash = '#topic=' + encodeURIComponent(address);
+    if (window.location.hash !== hash) window.history.replaceState(null, '', hash);
+  }
+
+  function valuesForSearch(value) {
+    if (value === undefined || value === null) return '';
+    return typeof value === 'object' ? stringify(value, false) : String(value);
+  }
+
+  function nodeOwnSearchText(node) {
+    const extensionParts = [];
+    Object.keys(node.extensions).forEach(function (key) { extensionParts.push(key, valuesForSearch(node.extensions[key])); });
+    return [node.name, node.path, node.title, node.description, node.type, node.format, node.ref,
+      refName(node.ref), node.enumValues.join(' '), node.enumNames.join(' '), node.xTopics.join(' '),
+      node.hasDefault ? valuesForSearch(node.defaultValue) : '', valuesForSearch(node.constraints.pattern)
+    ].concat(extensionParts).join('\n').toLocaleLowerCase();
+  }
+
+  function nodeMatches(node, query) {
+    if (!query) return true;
+    if (nodeOwnSearchText(node).includes(query)) return true;
+    if (node.children.some(function (child) { return nodeMatches(child, query); })) return true;
+    if (node.itemSchema && nodeMatches(node.itemSchema, query)) return true;
+    if (node.resolvedNode && nodeMatches(node.resolvedNode, query)) return true;
+    return node.allOf.some(function (part) { return nodeMatches(part, query); });
+  }
+
+  function messageOwnMatches(topic, message, query) {
+    if (!query) return true;
+    return [topic.shortName, topic.address, topic.title, topic.description, message.name, message.schemaName]
+      .join('\n').toLocaleLowerCase().includes(query);
+  }
+
+  function badge(text, kind) { return element('span', 'aav-badge' + (kind ? ' aav-badge-' + kind : ''), text); }
+
+  function addMeta(parent, label, value, code) {
+    if (value === undefined || value === null || value === '') return;
+    const row = element('div', 'aav-meta-row');
+    append(row, element('strong', '', label + ': '), element('span', code ? 'aav-code' : '', valuesForSearch(value)));
+    parent.appendChild(row);
+  }
+
+  function renderEnum(node) {
+    if (!node.enumValues.length) return null;
+    const details = element('details', 'aav-details');
+    const previewValues = node.enumValues.slice(0, 4).map(valuesForSearch);
+    const suffix = node.enumValues.length > 4 ? ', ...' : '';
+    details.appendChild(element('summary', '', 'Enum (' + previewValues.join(', ') + suffix + ')'));
+    const list = element('ol', 'aav-enum-list');
+    node.enumValues.forEach(function (value, index) {
+      const label = valuesForSearch(value) + (index < node.enumNames.length ? ' — ' + valuesForSearch(node.enumNames[index]) : '');
+      list.appendChild(element('li', 'aav-code', label));
+    });
+    details.appendChild(list);
+    return details;
+  }
+
+  function enumPreview(node) {
+    if (!node || !node.enumValues.length) return '';
+    const values = node.enumValues.slice(0, 4).map(valuesForSearch).join(', ');
+    return '(' + values + (node.enumValues.length > 4 ? ', ...' : '') + ')';
+  }
+
+  function renderExamples(node) {
+    if (!node.examples.length) return null;
+    const details = element('details', 'aav-details');
+    details.appendChild(element('summary', '', 'Примеры (' + node.examples.length + ')'));
+    node.examples.forEach(function (example) { details.appendChild(element('pre', 'aav-json aav-code', stringify(example, true))); });
+    return details;
+  }
+
+  function renderExtensions(node) {
+    const keys = Object.keys(node.extensions);
+    if (!keys.length) return null;
+    const details = element('details', 'aav-details');
+    details.appendChild(element('summary', '', 'Расширения'));
+    keys.forEach(function (key) { addMeta(details, key, node.extensions[key], true); });
+    return details;
+  }
+
+  function topicHref(address) {
+    return window.location.href.replace(/#.*$/, '') + '#topic=' + encodeURIComponent(address);
+  }
+
+  function renderXTopics(node) {
+    if (!node.xTopics.length) return null;
+    const row = element('div', 'aav-meta-row'); row.appendChild(element('strong', '', 'Topics: '));
+    node.xTopics.forEach(function (address, index) {
+      if (index) row.appendChild(document.createTextNode(', '));
+      const known = state.document.topicIndex.get(String(address));
+      if (known) {
+        const link = element('a', 'aav-link', topicDisplay(known));
+        link.href = topicHref(known.address); link.target = '_blank'; link.rel = 'noopener noreferrer'; link.title = known.address;
+        row.appendChild(link);
+      } else {
+        const text = element('span', '', shortTopicName(address)); text.title = String(address); row.appendChild(text);
+      }
+    });
+    return row;
+  }
+
+  function renderNode(node, query, forceVisible, mode) {
+    const visible = forceVisible || nodeMatches(node, query);
+    if (!visible) return null;
+    const nested = node.children.length || node.itemSchema || node.resolvedNode || node.allOf.length || node.enumValues.length || node.examples.length || Object.keys(node.extensions).length;
+    const container = element(nested ? 'details' : 'div', 'aav-node' + (node.deprecated ? ' aav-deprecated' : ''));
+    if (nested && mode === 'root') container.open = true;
+    if (nested && query) container.open = true;
+    const line = element(nested ? 'summary' : 'div', 'aav-node-line');
+    const fieldCell = element('span', 'aav-node-field');
+    append(fieldCell, element('span', 'aav-node-name aav-code', node.name || '(schema)'), node.title ? element('span', 'aav-node-title', node.title) : null);
+    if (node.required) fieldCell.appendChild(badge('required', 'required'));
+    if (node.deprecated) fieldCell.appendChild(badge('deprecated', 'deprecated'));
+    const typeCell = element('span', 'aav-node-type');
+    const effectiveType = node.type || (node.resolvedNode && node.resolvedNode.type);
+    const effectiveFormat = node.format || (node.resolvedNode && node.resolvedNode.format);
+    if (effectiveType) typeCell.appendChild(badge(effectiveType));
+    if (effectiveFormat) typeCell.appendChild(badge(effectiveFormat));
+    if (node.enumValues.length || (node.resolvedNode && node.resolvedNode.enumValues.length)) typeCell.appendChild(badge('enum'));
+    const preview = [];
+    if (node.description) preview.push(node.description);
+    ['minItems', 'maxItems', 'minLength', 'maxLength', 'minimum', 'maximum', 'pattern'].forEach(function (key) {
+      if (hasOwn(node.constraints, key)) preview.push(key + ': ' + valuesForSearch(node.constraints[key]));
+    });
+    if (node.ref) preview.push('$ref: ' + refName(node.ref) + (enumPreview(node.resolvedNode) ? ' ' + enumPreview(node.resolvedNode) : ''));
+    if (node.hasDefault) preview.push('default: ' + stringify(node.defaultValue, false));
+    if (node.xTopics.length) preview.push('topics: ' + node.xTopics.length);
+    const infoCell = element('span', 'aav-node-info', preview.join(' · '));
+    append(line, fieldCell, typeCell, infoCell);
+    container.appendChild(line);
+
+    const body = nested ? element('div', 'aav-children') : container;
+    const meta = element('div', 'aav-meta');
+    if (node.hasDefault) addMeta(meta, 'default', stringify(node.defaultValue, false), true);
+    if (node.ref) {
+      const refRow = element('div', 'aav-meta-row');
+      const resolvedEnumPreview = enumPreview(node.resolvedNode);
+      append(refRow, element('strong', '', '$ref: '), element('span', 'aav-link aav-code', refName(node.ref)),
+        resolvedEnumPreview ? document.createTextNode(' ' + resolvedEnumPreview) : null,
+        document.createTextNode(' · ' + node.ref));
+      meta.appendChild(refRow);
+    }
+    const topics = renderXTopics(node); if (topics) meta.appendChild(topics);
+    const enumDetails = renderEnum(node); if (enumDetails) meta.appendChild(enumDetails);
+    const examples = renderExamples(node); if (examples) meta.appendChild(examples);
+    const extensions = renderExtensions(node); if (extensions) meta.appendChild(extensions);
+    node.errors.forEach(function (message) { meta.appendChild(element('div', 'aav-warning', message)); });
+    if (node.recursiveRef) meta.appendChild(element('div', 'aav-warning', '↳ ' + refName(node.ref) + ' (recursive reference)'));
+    if (meta.childNodes.length) body.appendChild(meta);
+
+    const childForce = forceVisible || !query || nodeOwnSearchText(node).includes(query);
+    node.children.forEach(function (child) { const rendered = renderNode(child, query, childForce, 'child'); if (rendered) body.appendChild(rendered); });
+    if (node.itemSchema) {
+      const renderedItems = renderNode(node.itemSchema, query, childForce, 'child'); if (renderedItems) body.appendChild(renderedItems);
+    }
+    if (node.resolvedNode && !node.recursiveRef) {
+      const renderedRef = renderNode(node.resolvedNode, query, childForce, 'ref'); if (renderedRef) body.appendChild(renderedRef);
+    }
+    if (node.allOf.length) {
+      const group = element('details', 'aav-details'); group.open = !!query;
+      group.appendChild(element('summary', '', 'allOf (' + node.allOf.length + ')'));
+      node.allOf.forEach(function (part) { const rendered = renderNode(part, query, childForce, 'allOf'); if (rendered) group.appendChild(rendered); });
+      body.appendChild(group);
+    }
+    if (nested) container.appendChild(body);
+    return container;
+  }
+
+  function directPropertyChildren(node) {
+    const result = [];
+    const seenContainers = new Set();
+    const seenProperties = new Set();
+    function collect(container) {
+      if (!container || seenContainers.has(container)) return;
+      seenContainers.add(container);
+      (container.children || []).forEach(function (property) {
+        if (!seenProperties.has(property)) { seenProperties.add(property); result.push(property); }
+      });
+      if (container.itemSchema) collect(container.itemSchema);
+      if (container.resolvedNode && !container.recursiveRef) collect(container.resolvedNode);
+      (container.allOf || []).forEach(collect);
+    }
+    collect(node);
+    return result;
+  }
+
+  function fieldStatusMatches(node, ignoreFilters) {
+    if (ignoreFilters) return true;
+    if (state.requiredFilter === 'yes' && !node.required) return false;
+    if (state.requiredFilter === 'no' && node.required) return false;
+    if (state.deprecatedFilter === 'yes' && !node.deprecated) return false;
+    if (state.deprecatedFilter === 'no' && node.deprecated) return false;
+    return true;
+  }
+
+  function nodeOrWrapperOwnMatches(node, query, visited) {
+    if (!node || !query) return !query;
+    const seen = visited || new Set();
+    if (seen.has(node)) return false;
+    seen.add(node);
+    if (nodeOwnSearchText(node).includes(query)) return true;
+    if (node.itemSchema && nodeOrWrapperOwnMatches(node.itemSchema, query, seen)) return true;
+    if (node.resolvedNode && nodeOrWrapperOwnMatches(node.resolvedNode, query, seen)) return true;
+    return (node.allOf || []).some(function (part) { return nodeOrWrapperOwnMatches(part, query, seen); });
+  }
+
+  function buildFieldRows(schema, query, forceVisible, ignoreStatusFilters) {
+    let sequence = 0;
+    function visit(container, depth, ancestors, forceQuery) {
+      const rows = [];
+      directPropertyChildren(container).forEach(function (property) {
+        const id = 'aav-field-' + (++sequence);
+        const ownQueryMatch = forceQuery || !query || nodeOrWrapperOwnMatches(property, query);
+        const childForceQuery = forceQuery || ownQueryMatch;
+        const children = visit(property, depth + 1, ancestors.concat(id), childForceQuery);
+        if (!children.length && !(ownQueryMatch && fieldStatusMatches(property, ignoreStatusFilters))) return;
+        rows.push({ id: id, node: property, depth: depth, ancestors: ancestors.slice(), hasChildren: children.length > 0 });
+        Array.prototype.push.apply(rows, children);
+      });
+      return rows;
+    }
+    return visit(schema, 0, [], forceVisible || !query || nodeOrWrapperOwnMatches(schema, query));
+  }
+
+  function effectiveField(node) {
+    const resolved = node.resolvedNode || {};
+    return {
+      title: node.title || resolved.title || '',
+      description: node.description || resolved.description || '',
+      type: node.type || resolved.type || '',
+      format: node.format || resolved.format || '',
+      constraints: Object.assign({}, resolved.constraints || {}, node.constraints || {}),
+      hasDefault: node.hasDefault || resolved.hasDefault === true,
+      defaultValue: node.hasDefault ? node.defaultValue : resolved.defaultValue,
+      enumValues: node.enumValues.length ? node.enumValues : (resolved.enumValues || []),
+      enumNames: node.enumNames.length ? node.enumNames : (resolved.enumNames || []),
+      xTopics: node.xTopics.length ? node.xTopics : (resolved.xTopics || []),
+      examples: node.examples.length ? node.examples : (resolved.examples || []),
+      extensions: Object.assign({}, resolved.extensions || {}, node.extensions || {})
+    };
+  }
+
+  function tableCell(className, value, code) {
+    const cell = element('td', 'confluenceTd' + (className ? ' ' + className : ''));
+    if (value === undefined || value === null || value === '') cell.appendChild(element('span', 'aav-cell-empty', '—'));
+    else cell.appendChild(element('span', code ? 'aav-code' : '', valuesForSearch(value)));
+    return cell;
+  }
+
+  function renderTableEnum(field) {
+    const cell = element('td', 'aav-col-enum');
+    if (!field.enumValues.length) { cell.appendChild(element('span', 'aav-cell-empty', '—')); return cell; }
+    const details = element('details', 'aav-details');
+    const preview = field.enumValues.slice(0, 4).map(valuesForSearch).join(', ') + (field.enumValues.length > 4 ? ', ...' : '');
+    details.appendChild(element('summary', 'aav-code', preview));
+    const list = element('div', 'aav-cell-list');
+    field.enumValues.forEach(function (value, index) {
+      list.appendChild(element('span', 'aav-code', valuesForSearch(value) + (index < field.enumNames.length ? ' — ' + valuesForSearch(field.enumNames[index]) : '')));
+    });
+    details.appendChild(list); cell.appendChild(details); return cell;
+  }
+
+  function renderTableTopics(field) {
+    const cell = element('td', 'confluenceTd aav-col-topics');
+    if (!field.xTopics.length) { cell.appendChild(element('span', 'aav-cell-empty', '—')); return cell; }
+    const list = element('div', 'aav-cell-list');
+    field.xTopics.forEach(function (address) {
+      const known = state.document.topicIndex.get(String(address));
+      if (known) {
+        const link = element('a', 'aav-link', topicDisplay(known));
+        link.href = topicHref(known.address); link.target = '_blank'; link.rel = 'noopener noreferrer'; link.title = known.address;
+        list.appendChild(link);
+      } else {
+        const text = element('span', '', shortTopicName(address)); text.title = String(address); list.appendChild(text);
+      }
+    });
+    cell.appendChild(list); return cell;
+  }
+
+  function renderPropertyType(node, field) {
+    const cell = element('td', 'confluenceTd aav-col-type');
+    if (field.type) cell.appendChild(element('span', 'aav-code', field.type));
+    else cell.appendChild(element('span', 'aav-cell-empty', '—'));
+    if (node.ref && !field.enumValues.length) {
+      const ref = element('span', 'aav-field-title aav-code', refName(node.ref)); ref.title = node.ref; cell.appendChild(ref);
+    }
+    if (node.allOfRefs.length) {
+      const allOf = element('span', 'aav-field-title aav-code', 'allOf'); allOf.title = node.allOfRefs.join(' | '); cell.appendChild(allOf);
+    }
+    return cell;
+  }
+
+  function renderFormatEnum(node, field) {
+    const cell = element('td', 'confluenceTd aav-col-format-enum');
+    const itemField = node.itemSchema ? effectiveField(node.itemSchema) : null;
+    const enumValues = field.enumValues.length ? field.enumValues : (itemField && itemField.enumValues.length ? itemField.enumValues : []);
+    const enumNames = field.enumValues.length ? field.enumNames : (itemField ? itemField.enumNames : []);
+    let hasContent = false;
+    if (field.format) { cell.appendChild(element('div', 'aav-code', field.format)); hasContent = true; }
+    if (enumValues.length) {
+      const details = element('details', 'aav-details');
+      const preview = enumValues.slice(0, 4).map(valuesForSearch).join(', ') + (enumValues.length > 4 ? ', ...' : '');
+      details.appendChild(element('summary', 'aav-code', 'enum: ' + preview));
+      const list = element('div', 'aav-cell-list');
+      enumValues.forEach(function (value, index) {
+        list.appendChild(element('span', 'aav-code', valuesForSearch(value) + (index < enumNames.length ? ' — ' + valuesForSearch(enumNames[index]) : '')));
+      });
+      details.appendChild(list); cell.appendChild(details); hasContent = true;
+    }
+    if (!hasContent) cell.appendChild(element('span', 'aav-cell-empty', '—'));
+    return cell;
+  }
+
+  function renderMinMax(field) {
+    const cell = element('td', 'confluenceTd aav-col-minmax'); const list = element('div', 'aav-cell-list');
+    ['minItems', 'maxItems', 'minimum', 'maximum', 'minLength', 'maxLength'].forEach(function (key) {
+      if (hasOwn(field.constraints, key)) list.appendChild(element('span', 'aav-code', key + ': ' + valuesForSearch(field.constraints[key])));
+    });
+    if (list.childNodes.length) cell.appendChild(list); else cell.appendChild(element('span', 'aav-cell-empty', '—'));
+    return cell;
+  }
+
+  function renderPropertyDescription(node, field) {
+    const cell = element('td', 'confluenceTd aav-col-description'); let hasContent = false;
+    if (field.description) { cell.appendChild(element('div', '', field.description)); hasContent = true; }
+    if (field.examples.length) {
+      const details = element('details', 'aav-details'); details.appendChild(element('summary', '', 'Примеры (' + field.examples.length + ')'));
+      field.examples.forEach(function (example) { details.appendChild(element('pre', 'aav-json aav-code', stringify(example, true))); });
+      cell.appendChild(details); hasContent = true;
+    }
+    const extensionKeys = Object.keys(field.extensions);
+    if (extensionKeys.length) {
+      const details = element('details', 'aav-details'); details.appendChild(element('summary', '', 'Расширения (' + extensionKeys.length + ')'));
+      extensionKeys.forEach(function (key) { addMeta(details, key, field.extensions[key], true); });
+      cell.appendChild(details); hasContent = true;
+    }
+    node.errors.forEach(function (message) { cell.appendChild(element('div', 'aav-warning', message)); hasContent = true; });
+    if (node.recursiveRef) { cell.appendChild(element('div', 'aav-warning', 'recursive reference')); hasContent = true; }
+    if (!hasContent) cell.appendChild(element('span', 'aav-cell-empty', '—'));
+    return cell;
+  }
+
+  function renderTableExtra(node, field) {
+    const cell = element('td', 'aav-col-extra');
+    let hasContent = false;
+    if (field.examples.length) {
+      const details = element('details', 'aav-details'); details.appendChild(element('summary', '', 'Примеры (' + field.examples.length + ')'));
+      field.examples.forEach(function (example) { details.appendChild(element('pre', 'aav-json aav-code', stringify(example, true))); });
+      cell.appendChild(details); hasContent = true;
+    }
+    const extensionKeys = Object.keys(field.extensions);
+    if (extensionKeys.length) {
+      const details = element('details', 'aav-details'); details.appendChild(element('summary', '', 'Расширения (' + extensionKeys.length + ')'));
+      extensionKeys.forEach(function (key) { addMeta(details, key, field.extensions[key], true); });
+      cell.appendChild(details); hasContent = true;
+    }
+    node.errors.forEach(function (message) { cell.appendChild(element('div', 'aav-warning', message)); hasContent = true; });
+    if (node.recursiveRef) { cell.appendChild(element('div', 'aav-warning', 'recursive reference')); hasContent = true; }
+    if (!hasContent) cell.appendChild(element('span', 'aav-cell-empty', '—'));
+    return cell;
+  }
+
+  function updateTableVisibility(table) {
+    const expanded = new Map();
+    table.querySelectorAll('.aav-field-row').forEach(function (row) {
+      const button = row.querySelector('.aav-disclosure');
+      expanded.set(row.dataset.rowId, !button || button.getAttribute('aria-expanded') === 'true');
+    });
+    table.querySelectorAll('.aav-field-row').forEach(function (row) {
+      const ancestors = row.dataset.ancestors ? row.dataset.ancestors.split(',') : [];
+      row.hidden = ancestors.some(function (id) { return expanded.get(id) === false; });
+    });
+  }
+
+  function setAllExpansion(container, expanded) {
+    container.querySelectorAll('.aav-disclosure').forEach(function (button) { button.setAttribute('aria-expanded', expanded ? 'true' : 'false'); });
+    container.querySelectorAll('details').forEach(function (details) { details.open = expanded; });
+    container.querySelectorAll('.aav-fields-table').forEach(updateTableVisibility);
+  }
+
+  function displayFieldType(node, field) {
+    if (field.type === 'array') {
+      const items = node.itemSchema;
+      if (!items) return 'array';
+      const itemField = effectiveField(items);
+      if (itemField.enumValues.length) return 'array<' + (itemField.type ? itemField.type + ' · enum' : 'enum') + '>';
+      if (items.ref) return 'array<' + refName(items.ref) + '>';
+      return 'array<' + (itemField.type || 'object') + '>';
+    }
+    if (field.enumValues.length) return field.type ? field.type + ' · enum' : 'enum';
+    if (node.ref) return refName(node.ref);
+    return field.type || '';
+  }
+
+  function renderFieldDescription(node, field) {
+    const cell = element('td', 'confluenceTd aav-col-description'); let hasContent = false;
+    if (field.title) { cell.appendChild(element('span', 'aav-cell-title', field.title)); hasContent = true; }
+    if (field.description) { cell.appendChild(element('div', '', field.description)); hasContent = true; }
+    const metadata = element('div', 'aav-cell-metadata');
+    if (node.deprecated) metadata.appendChild(badge('deprecated', 'deprecated'));
+    Object.keys(field.constraints).forEach(function (key) { metadata.appendChild(badge(key + ': ' + valuesForSearch(field.constraints[key]))); });
+    if (field.hasDefault) metadata.appendChild(badge('default: ' + stringify(field.defaultValue, false)));
+    const refTargetsEnum = node.resolvedNode && node.resolvedNode.enumValues.length > 0;
+    if (node.ref && !refTargetsEnum) metadata.appendChild(element('span', 'aav-code', '$ref: ' + node.ref));
+    if (node.allOfRefs.length) metadata.appendChild(element('span', 'aav-code', 'allOf: ' + node.allOfRefs.join(' | ')));
+    if (metadata.childNodes.length) { cell.appendChild(metadata); hasContent = true; }
+    if (field.enumValues.length) {
+      const details = element('details', 'aav-details');
+      const preview = field.enumValues.slice(0, 4).map(valuesForSearch).join(', ') + (field.enumValues.length > 4 ? ', ...' : '');
+      details.appendChild(element('summary', 'aav-code', 'Enum: ' + preview));
+      const list = element('div', 'aav-cell-list');
+      field.enumValues.forEach(function (value, index) {
+        list.appendChild(element('span', 'aav-code', valuesForSearch(value) + (index < field.enumNames.length ? ' — ' + valuesForSearch(field.enumNames[index]) : '')));
+      });
+      details.appendChild(list); cell.appendChild(details); hasContent = true;
+    }
+    if (field.xTopics.length) {
+      const topics = element('div', 'aav-meta-row'); topics.appendChild(element('strong', '', 'Topics: '));
+      field.xTopics.forEach(function (address, index) {
+        if (index) topics.appendChild(document.createTextNode(', '));
+        const known = state.document.topicIndex.get(String(address));
+        if (known) {
+          const link = element('a', 'aav-link', topicDisplay(known));
+          link.href = topicHref(known.address); link.target = '_blank'; link.rel = 'noopener noreferrer'; link.title = known.address; topics.appendChild(link);
+        } else {
+          const text = element('span', '', shortTopicName(address)); text.title = String(address); topics.appendChild(text);
+        }
+      });
+      cell.appendChild(topics); hasContent = true;
+    }
+    if (field.examples.length) {
+      const details = element('details', 'aav-details'); details.appendChild(element('summary', '', 'Примеры (' + field.examples.length + ')'));
+      field.examples.forEach(function (example) { details.appendChild(element('pre', 'aav-json aav-code', stringify(example, true))); });
+      cell.appendChild(details); hasContent = true;
+    }
+    const extensionKeys = Object.keys(field.extensions);
+    if (extensionKeys.length) {
+      const details = element('details', 'aav-details'); details.appendChild(element('summary', '', 'Расширения (' + extensionKeys.length + ')'));
+      extensionKeys.forEach(function (key) { addMeta(details, key, field.extensions[key], true); });
+      cell.appendChild(details); hasContent = true;
+    }
+    node.errors.forEach(function (message) { cell.appendChild(element('div', 'aav-warning', message)); hasContent = true; });
+    if (node.recursiveRef) { cell.appendChild(element('div', 'aav-warning', '↳ ' + refName(node.ref) + ' (recursive reference)')); hasContent = true; }
+    if (!hasContent) cell.appendChild(element('span', 'aav-cell-empty', '—'));
+    return cell;
+  }
+
+  function renderFieldsTable(schema, query, forceVisible) {
+    const rows = buildFieldRows(schema, query, forceVisible);
+    const filtersActive = !!query || state.requiredFilter !== 'all' || state.deprecatedFilter !== 'all';
+    const wrap = element('div', 'aav-table-wrap');
+    const table = element('table', 'aav-fields-table confluenceTable');
+    const head = document.createElement('thead'); const headRow = document.createElement('tr');
+    [
+      ['Property', 'aav-col-field'], ['Description', 'aav-col-description'], ['Type', 'aav-col-type'],
+      ['Format / Enum', 'aav-col-format-enum'], ['x-topics', 'aav-col-topics'], ['Min / Max', 'aav-col-minmax'],
+      ['Pattern', 'aav-col-pattern'], ['Default', 'aav-col-default']
+    ]
+      .forEach(function (column) { headRow.appendChild(element('th', 'confluenceTh ' + column[1], column[0])); });
+    head.appendChild(headRow); table.appendChild(head);
+    const body = document.createElement('tbody');
+    if (!rows.length) {
+      const emptyRow = document.createElement('tr'); const emptyCell = element('td', 'aav-empty', query ? 'Совпадений среди полей не найдено.' : 'Schema не содержит properties.');
+      emptyCell.colSpan = 8; emptyRow.appendChild(emptyCell); body.appendChild(emptyRow);
+    }
+    rows.forEach(function (rowModel) {
+      const node = rowModel.node; const field = effectiveField(node);
+      const row = element('tr', 'aav-field-row' + (node.required ? ' aav-required' : '') + (node.deprecated ? ' aav-deprecated' : ''));
+      row.dataset.rowId = rowModel.id; row.dataset.ancestors = rowModel.ancestors.join(',');
+      const fieldCell = element('td', 'confluenceTd aav-col-field'); const main = element('div', 'aav-field-main');
+      const indent = element('span', 'aav-field-indent'); indent.style.width = (rowModel.depth * 16) + 'px'; main.appendChild(indent);
+      if (rowModel.hasChildren) {
+        const disclosure = element('button', 'aav-disclosure'); disclosure.type = 'button';
+        disclosure.setAttribute('aria-label', 'Показать или скрыть вложенные поля'); disclosure.setAttribute('aria-expanded', filtersActive ? 'true' : 'false');
+        disclosure.addEventListener('click', function () {
+          disclosure.setAttribute('aria-expanded', disclosure.getAttribute('aria-expanded') === 'true' ? 'false' : 'true');
+          updateTableVisibility(table);
+        });
+        main.appendChild(disclosure);
+      } else main.appendChild(element('span', 'aav-disclosure-spacer'));
+      const label = element('span', 'aav-field-label');
+      label.title = node.path;
+      label.appendChild(element('span', 'aav-field-code aav-code', node.name + (field.type === 'array' ? '[]' : '')));
+      if (field.title) label.appendChild(element('span', 'aav-field-title', field.title));
+      main.appendChild(label); fieldCell.appendChild(main); row.appendChild(fieldCell);
+      row.appendChild(renderPropertyDescription(node, field));
+      row.appendChild(renderPropertyType(node, field));
+      row.appendChild(renderFormatEnum(node, field));
+      row.appendChild(renderTableTopics(field));
+      row.appendChild(renderMinMax(field));
+      row.appendChild(tableCell('aav-col-pattern', hasOwn(field.constraints, 'pattern') ? field.constraints.pattern : '', true));
+      row.appendChild(tableCell('aav-col-default', field.hasDefault ? stringify(field.defaultValue, false) : '', true));
+      body.appendChild(row);
+    });
+    table.appendChild(body); wrap.appendChild(table); updateTableVisibility(table); return wrap;
+  }
+
+  function appendPayloadInfo(topicHeader, message, includeSummary) {
+    const schema = message.schema; const field = effectiveField(schema);
+    if (includeSummary) {
+      const metadata = element('div', 'aav-topic-payload-meta');
+      if (field.title) metadata.appendChild(element('span', 'aav-topic-payload-title', field.title));
+      if (field.type) metadata.appendChild(badge(field.type));
+      if (field.format) metadata.appendChild(badge(field.format));
+      metadata.appendChild(element('span', '', buildFieldRows(schema, '', true, true).length + ' полей'));
+      topicHeader.appendChild(metadata);
+      if (field.description) topicHeader.appendChild(element('p', 'aav-description', field.description));
+    }
+    const rootEnum = renderEnum(schema); if (rootEnum) topicHeader.appendChild(rootEnum);
+    const rootExamples = renderExamples(schema); if (rootExamples) topicHeader.appendChild(rootExamples);
+    const rootExtensions = renderExtensions(schema); if (rootExtensions) topicHeader.appendChild(rootExtensions);
+    schema.errors.forEach(function (messageText) { topicHeader.appendChild(element('div', 'aav-warning', messageText)); });
+  }
+
+  function renderTopic() {
+    const content = state.elements.content; content.replaceChildren();
+    const topic = state.topic;
+    if (!topic) {
+      const requested = readUrlState();
+      content.appendChild(element('div', 'aav-state aav-error', requested ? 'Топик не найден: ' + requested : 'Выберите топик.'));
+      state.elements.exportButton.disabled = true;
+      return;
+    }
+    state.elements.exportButton.disabled = false;
+    const header = element('section', 'aav-topic-header');
+    const primaryMessage = topic.messages[0];
+    const primaryField = primaryMessage ? effectiveField(primaryMessage.schema) : {};
+    header.appendChild(element('h2', '', topicDisplay(topic)));
+    const fieldCount = topic.messages.reduce(function (total, message) {
+      return total + buildFieldRows(message.schema, '', true, true).length;
+    }, 0);
+    const context = [topic.address];
+    if (primaryField.type) context.push(primaryField.type);
+    if (primaryField.format) context.push(primaryField.format);
+    context.push(fieldCount + ' полей');
+    header.appendChild(element('div', 'aav-context aav-code', context.join(' · ')));
+    if (primaryField.description || topic.description) header.appendChild(element('p', 'aav-description', primaryField.description || topic.description));
+    topic.messages.forEach(function (message, index) { appendPayloadInfo(header, message, index > 0); });
+    content.appendChild(header);
+    const tree = element('section', 'aav-tree');
+    topic.errors.forEach(function (message) { tree.appendChild(element('div', 'aav-warning', message)); });
+    let renderedCount = 0;
+    topic.messages.forEach(function (message) {
+      const contextMatch = messageOwnMatches(topic, message, state.query);
+      if (!contextMatch && !nodeMatches(message.schema, state.query)) return;
+      const section = element('section', 'aav-message');
+      const body = element('div', 'aav-message-body');
+      body.appendChild(renderFieldsTable(message.schema, state.query, contextMatch));
+      section.appendChild(body); tree.appendChild(section); renderedCount += 1;
+    });
+    if (!renderedCount) tree.appendChild(element('div', 'aav-empty', 'Совпадений не найдено.'));
+    content.appendChild(tree);
+  }
+
+  function selectTopic(address, updateUrl) {
+    state.topic = state.document.topicIndex.get(address) || null;
+    state.elements.topicSelect.value = state.topic ? state.topic.address : '';
+    if (state.topic && updateUrl) writeUrlState(state.topic.address);
+    renderTopic();
+  }
+
+  function renderApp(documentModel) {
+    state.document = documentModel; root.replaceChildren();
+    const titlebar = element('div', 'aav-titlebar');
+    const viewerTitle = [documentModel.title, documentModel.formatVersion ? 'v' + documentModel.formatVersion : ''].filter(Boolean).join(' · ');
+    titlebar.appendChild(element('h1', '', viewerTitle || 'AsyncAPI Schema Viewer'));
+    const exportButton = element('button', 'aav-button aav-button-primary', 'Экспорт CSV'); exportButton.type = 'button';
+    titlebar.appendChild(exportButton);
+    const toolbar = element('div', 'aav-toolbar');
+    const topicField = element('div', 'aav-field');
+    const topicLabel = element('label', '', 'Топик *'); topicLabel.htmlFor = 'aav-topic-select';
+    const topicSelect = element('select'); topicSelect.id = 'aav-topic-select'; topicSelect.required = true;
+    const placeholder = element('option', '', 'Выберите топик'); placeholder.value = ''; placeholder.disabled = true; topicSelect.appendChild(placeholder);
+    documentModel.topics.forEach(function (topic) { const option = element('option', '', topic.displayName); option.value = topic.address; topicSelect.appendChild(option); });
+    append(topicField, topicLabel, topicSelect);
+    const searchField = element('div', 'aav-field');
+    const searchLabel = element('label', '', 'Поиск'); searchLabel.htmlFor = 'aav-search';
+    const search = element('input'); search.id = 'aav-search'; search.type = 'search'; search.placeholder = 'property, title, description, type, format, enum, topic…';
+    append(searchField, searchLabel, search);
+    function createBooleanFilter(id, labelText) {
+      const field = element('div', 'aav-field aav-field-compact');
+      const label = element('label', '', labelText); label.htmlFor = id;
+      const select = element('select'); select.id = id;
+      [['all', 'Все'], ['yes', 'Да'], ['no', 'Нет']].forEach(function (entry) {
+        const option = element('option', '', entry[1]); option.value = entry[0]; select.appendChild(option);
+      });
+      append(field, label, select); return { field: field, select: select };
+    }
+    const requiredControl = createBooleanFilter('aav-required-filter', 'Required');
+    const deprecatedControl = createBooleanFilter('aav-deprecated-filter', 'Deprecated');
+    const actions = element('div', 'aav-actions');
+    const expand = element('button', 'aav-button', 'Развернуть все'); expand.type = 'button';
+    const collapse = element('button', 'aav-button', 'Свернуть все'); collapse.type = 'button';
+    append(actions, expand, collapse); append(toolbar, topicField, searchField, requiredControl.field, deprecatedControl.field, actions);
+    const content = element('div', 'aav-content'); append(root, titlebar, toolbar, content);
+    state.elements = {
+      topicSelect: topicSelect, search: search, requiredFilter: requiredControl.select,
+      deprecatedFilter: deprecatedControl.select, content: content, exportButton: exportButton
+    };
+
+    topicSelect.addEventListener('change', function () { selectTopic(topicSelect.value, true); });
+    let debounceTimer = 0;
+    search.addEventListener('input', function () {
+      window.clearTimeout(debounceTimer);
+      debounceTimer = window.setTimeout(function () { state.query = search.value.trim().toLocaleLowerCase(); renderTopic(); }, SEARCH_DEBOUNCE_MS);
+    });
+    requiredControl.select.addEventListener('change', function () { state.requiredFilter = requiredControl.select.value; renderTopic(); });
+    deprecatedControl.select.addEventListener('change', function () { state.deprecatedFilter = deprecatedControl.select.value; renderTopic(); });
+    expand.addEventListener('click', function () { setAllExpansion(content, true); });
+    collapse.addEventListener('click', function () { setAllExpansion(content, false); });
+    exportButton.addEventListener('click', downloadCsv);
+
+    const requested = readUrlState();
+    if (requested) selectTopic(requested, false);
+    else selectTopic(documentModel.topics[0].address, true);
+    if (!state.hashListenerInstalled) {
+      window.addEventListener('hashchange', function () {
+        if (!state.document) return;
+        selectTopic(readUrlState(), false);
+      });
+      state.hashListenerInstalled = true;
+    }
+  }
+
+  function rowFromNode(topic, message, node) {
+    const resolved = node.resolvedNode || {};
+    const enumValues = node.enumValues.length ? node.enumValues : (resolved.enumValues || []);
+    const enumNames = node.enumNames.length ? node.enumNames : (resolved.enumNames || []);
+    const constraints = Object.keys(node.constraints).length ? node.constraints : (resolved.constraints || {});
+    const hasDefault = node.hasDefault || resolved.hasDefault;
+    const defaultValue = node.hasDefault ? node.defaultValue : resolved.defaultValue;
+    return {
+      FormatVersion: state.document.formatVersion,
+      TopicShortName: topic.shortName,
+      TopicAddress: topic.address,
+      TopicTitle: topic.title,
+      Message: message.name,
+      Schema: message.schemaName,
+      Path: node.path,
+      Level: node.level,
+      Name: node.name,
+      Title: node.title || '',
+      Description: node.description || '',
+      Required: node.required ? 'true' : 'false',
+      Deprecated: node.deprecated ? 'true' : 'false',
+      Type: node.type || resolved.type || '',
+      Format: node.format || resolved.format || '',
+      Ref: node.ref || '',
+      AllOf: node.allOfRefs.join(' | '),
+      Enum: enumValues.map(valuesForSearch).join(' | '),
+      EnumNames: enumNames.map(valuesForSearch).join(' | '),
+      XTopics: node.xTopics.map(valuesForSearch).join(' | '),
+      MinItems: hasOwn(constraints, 'minItems') ? constraints.minItems : '',
+      MaxItems: hasOwn(constraints, 'maxItems') ? constraints.maxItems : '',
+      MinLength: hasOwn(constraints, 'minLength') ? constraints.minLength : '',
+      MaxLength: hasOwn(constraints, 'maxLength') ? constraints.maxLength : '',
+      Minimum: hasOwn(constraints, 'minimum') ? constraints.minimum : '',
+      Maximum: hasOwn(constraints, 'maximum') ? constraints.maximum : '',
+      Pattern: hasOwn(constraints, 'pattern') ? constraints.pattern : '',
+      Default: hasDefault ? stringify(defaultValue, false) : '',
+      Extensions: Object.keys(node.extensions).length ? stringify(node.extensions, false) : ''
+    };
+  }
+
+  function collectCsvNodes(node, query, forceVisible, result, seen, includeSelf) {
+    const visible = forceVisible || nodeMatches(node, query);
+    if (!visible) return;
+    const ownMatch = forceVisible || !query || nodeOwnSearchText(node).includes(query);
+    if (includeSelf !== false && node.level > 0 && node.name !== 'items') {
+      const identity = node.path + '\u0000' + node.name + '\u0000' + node.ref;
+      if (!seen.has(identity)) { seen.add(identity); result.push(node); }
+    }
+    node.children.forEach(function (child) { collectCsvNodes(child, query, ownMatch, result, seen, true); });
+    if (node.itemSchema) collectCsvNodes(node.itemSchema, query, ownMatch, result, seen, false);
+    if (node.resolvedNode && !node.recursiveRef) collectCsvNodes(node.resolvedNode, query, ownMatch, result, seen, false);
+    node.allOf.forEach(function (part) { collectCsvNodes(part, query, ownMatch, result, seen, false); });
+  }
+
+  function buildCsvRows() {
+    const rows = []; const topic = state.topic;
+    if (!topic) return rows;
+    topic.messages.forEach(function (message) {
+      const force = messageOwnMatches(topic, message, state.query);
+      buildFieldRows(message.schema, state.query, force, false).forEach(function (fieldRow) {
+        rows.push(rowFromNode(topic, message, fieldRow.node));
+      });
+    });
+    return rows;
+  }
+
+  function csvCell(value) {
+    const text = value === undefined || value === null ? '' : String(value);
+    return /[";\r\n]/.test(text) ? '"' + text.replace(/"/g, '""') + '"' : text;
+  }
+
+  function downloadCsv() {
+    if (!state.topic) return;
+    const rows = buildCsvRows();
+    const csv = [CSV_COLUMNS.join(';')].concat(rows.map(function (row) {
+      return CSV_COLUMNS.map(function (column) { return csvCell(row[column]); }).join(';');
+    })).join('\r\n');
+    const blob = new Blob(['\uFEFF', csv], { type: 'text/csv;charset=utf-8' });
+    const link = document.createElement('a'); const url = URL.createObjectURL(blob);
+    const date = new Date(); const day = [date.getFullYear(), String(date.getMonth() + 1).padStart(2, '0'), String(date.getDate()).padStart(2, '0')].join('-');
+    const safeTopic = state.topic.shortName.replace(/[^A-Za-z0-9._-]+/g, '_');
+    link.href = url;
+    link.download = 'asyncapi_' + safeTopic + (state.document.formatVersion ? '_v' + state.document.formatVersion.replace(/[^A-Za-z0-9._-]+/g, '_') : '') + '_' + day + '.csv';
+    document.body.appendChild(link); link.click(); link.remove(); window.setTimeout(function () { URL.revokeObjectURL(url); }, 0);
+  }
+
+  async function start() {
+    renderState('Загрузка ' + ATTACHMENT_NAME + '…', false);
+    try {
+      const yaml = await loadYaml();
+      let parsed;
+      try { parsed = parseYaml(yaml); }
+      catch (error) { throw new Error(error.message.indexOf('YAML parse error') === 0 ? error.message : 'YAML parse error: ' + error.message); }
+      renderApp(buildDocumentModel(parsed));
+    } catch (error) {
+      console.error('AsyncAPI Viewer:', error);
+      renderState(error.message || String(error), true);
+    }
+  }
+
+  start();
+}());
+</script>
