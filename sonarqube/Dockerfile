@@ -1,7 +1,7 @@
 FROM sonarqube:community
 
 # Версии плагинов меняются только здесь.
-ARG BSL_PLUGIN_VERSION=1.18.1
+ARG BSL_PLUGIN_VERSION=1.20.0
 ARG L10N_RU_PLUGIN_VERSION=25.7
 ARG SONARQUBE_PLUGINS_DIR=/opt/sonarqube/extensions/plugins
 

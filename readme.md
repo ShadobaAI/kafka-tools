@@ -247,6 +247,38 @@ docker compose up -d --build
 
 Настройки анализа проекта задаются в `sonar-project.properties` анализируемого репозитория.
 
+### Обновление BSL-плагина
+
+Перед обновлением сделать резервную копию PostgreSQL. Это обязательно, поскольку используемый в `sonarqube/Dockerfile` плавающий базовый образ `sonarqube:community` при пересборке может обновить не только BSL-плагин, но и сам SonarQube:
+
+```powershell
+cd sonarqube
+bash backup-sonarqube.sh
+docker compose build --no-cache sonarqube
+docker compose up -d --no-deps --force-recreate sonarqube
+docker compose logs -f sonarqube
+```
+
+Если после пересоздания отображается сообщение «SonarQube находится на обслуживании», проверить состояние:
+
+```powershell
+Invoke-RestMethod http://localhost:9000/api/system/status | ConvertTo-Json
+Invoke-RestMethod http://localhost:9000/api/system/db_migration_status | ConvertTo-Json
+```
+
+Статусы `DB_MIGRATION_NEEDED` или `MIGRATION_REQUIRED` означают, что обновилась версия SonarQube и требуется миграция БД. Открыть `http://localhost:9000/setup`, запустить миграцию и дождаться статуса `UP`. Предупреждения Elasticsearch об inference/ML и `sun.misc.Unsafe` сами по себе не являются причиной режима обслуживания.
+
+Проверить фактически запущенные версии SonarQube и BSL-плагина:
+
+```powershell
+docker compose logs sonarqube |
+  Select-String "SonarQube Server /|Deploy 1C|Database needs to be migrated"
+```
+
+Версию плагина также можно проверить в SonarQube: `Administration → Marketplace → Installed`. Если требуется обновлять только плагин, базовый образ в `FROM` необходимо зафиксировать на точном совместимом теге SonarQube вместо `sonarqube:community`.
+
+Данные PostgreSQL и результаты анализа сохраняются в Docker volumes. Не используйте `docker compose down -v`: эта команда удаляет volumes.
+
 ### Резервное копирование SonarQube
 
 Скрипт `sonarqube/backup-sonarqube.sh` сохраняет полный дамп PostgreSQL в `sonarqube/backups/`. В дамп входят проекты, история анализов, настройки, пользователи и токены SonarQube. Контейнер `db` должен быть запущен.
