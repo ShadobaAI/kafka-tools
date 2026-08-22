@@ -72,4 +72,3 @@ Create an ADR only for a durable architecture or component-boundary decision and
 
 - Do not read, expose, or commit secrets, tokens, credentials, passwords, `.env` contents, or personal configuration.
 - Do not use destructive Git, filesystem, EDT, database, volume, cache, service, remote-state, or history operations without explicit authorization.
-- Do not start an internet download larger than 100 MB, or one whose size cannot be established, without explicit authorization. Locally cached artifacts may be used.
