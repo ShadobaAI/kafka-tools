@@ -42,11 +42,25 @@ Before work, identify every affected repository and read its local `AGENTS.md` w
 | `conversion/KFK` | `conv-edt` | `conversion/KFK/.codex/config.toml` |
 | `tests/unit/unit` | `kfk-unit-edt` | `tests/unit/unit/.codex/config.toml` |
 
-- Use the assigned EDT-MCP as the source of truth for the current EDT project state, 1C source and metadata, platform-aware navigation, mutations, and EDT diagnostics.
-- Perform every change to 1C artifacts under `src/**` through the assigned EDT-MCP. Never text-patch `.bsl`, `.mdo`, `.form`, `.rights`, XDTO, or other 1C model files.
+- Use `$1c-routing` only when the request concerns work with a concrete 1C project or a general question about 1C. Do not load it for unrelated repository, tooling, Git, documentation, or engineering requests merely because the workspace contains 1C.
+- Use the assigned EDT-MCP as the source of truth for the live EDT model, 1C source and metadata, platform-aware navigation, every persistent mutation, and primary diagnostics.
+- Never access configuration or extension source trees under `src/**` directly through filesystem, shell, generic file, or patch tools. This prohibition includes list, find, glob, grep, read, parse, write, move, rename, and delete operations.
+- Access 1C project source only through the assigned EDT-MCP or explicitly allowed read-only `code-index`/BSL LS MCP tools. Perform every change through EDT-MCP; never text-patch `.bsl`, `.mdo`, `.form`, `.rights`, DCS, XDTO, or other serialized 1C model files.
+- Use the shared `code-index` MCP for broad indexed discovery, structure, call/data graphs, and impact analysis. Bind the exact repository alias, check `health` when freshness is not established, and treat the index as eventually consistent supplementary evidence.
+- For BSL call graphs, use `get_callers_bsl`, `get_callees_bsl`, `get_call_tree_bsl`, or `find_path_bsl`; the universal call tools expose the less precise core graph. A zero-edge result covers only indexed static calls and does not exclude dynamic string/reflection dispatch.
+- Use repository-local BSL LS only for focused BSL diagnostics and semantic navigation when that MCP is explicitly configured. It does not replace EDT diagnostics, metadata, platform documentation, or tests.
+- The `bsl-indexer` daemon may write only its own `.code-index/` data in configured repository roots and coordination/runtime files under managed `CODE_INDEX_HOME`; do not expose daemon/index mutation commands through MCP.
+- Use the MCP named `v8std` as the primary standards/policy corpus. Its endpoint is user-owned configuration: the default is `https://ai.v8std.ru/mcp`, and the user may replace its `url` with a local endpoint. Do not apply agent-side source classification, endpoint switching, or code-transfer restrictions beyond the configured MCP.
+- For platform APIs and version-specific semantics, use EDT `get_platform_documentation` with `projectName`; use content assist and EDT validation when needed.
+- After every 1C mutation, run focused EDT diagnostics for the affected objects and inspect the resulting findings.
+- Do not disable, suppress, filter out, or hide EDT diagnostics.
+- Do not treat an EDT finding as a confirmed defect until it is verified against the current source and metadata context.
+- Leave a finding unfixed only when evidence supports classifying it as a false positive; otherwise keep it unresolved. Report its code, message, location, classification, and evidence. code-index, BSL LS, platform documentation, content assist, standards, and focused tests may corroborate the classification but never replace EDT diagnostics.
+- If EDT and code-index/BSL LS disagree about project state, trust EDT, inspect index/analyzer freshness, and use EDT `resync_to_disk` only when model-to-disk reconciliation is actually required. Never run `clean_project` automatically after an EDT mutation.
+- Keep EDT raw `git` and `ask_workmate` disabled. Treat database updates, destructive metadata/project operations, imports, credential changes, runtime variable changes, branch switching, and evaluation as explicit-context high-risk operations.
 - If the assigned server or project is unavailable, report the failure and stop the 1C edit; never substitute another workspace.
-- After a 1C change, run focused EDT diagnostics for the affected objects. Run additional analyzers or tests only when required by the local repository instructions or the task.
-- Activate EDT, v8std, and BSL LS skills independently according to the concrete need; a generic 1C task does not require all of them.
+- For unknown or version-sensitive EDT tool semantics, use `get_tool_guide` instead of guessing. Enable only the EDT toolset required for the task; progressive disclosure is context control, not authorization.
+- Run additional tests only when required by the local repository instructions or the changed behavior.
 
 ## Non-1C Files
 

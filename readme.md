@@ -27,24 +27,109 @@
 | Путь | Назначение |
 |------|------------|
 | `ai/AGENTS.md` | Общие инструкции workspace, на которые ссылаются локальные `AGENTS.md` репозиториев |
-| `ai/.codex/config.toml` | Общая конфигурация Codex для установки в пользовательский каталог `%USERPROFILE%\.codex` |
-| `ai/.codex/skills/edt-mcp/` | Codex skill для безопасной разработки, навигации, диагностики и тестирования 1С через назначенный EDT-MCP |
-| `ai/.codex/skills/v8std-mcp/` | Codex skill для проектирования и доказательной проверки решений 1С по стандартам, паттернам и диагностикам v8std |
+| `ai/.codex/config.toml` | Managed block общей MCP/hook policy для `%USERPROFILE%\.codex\config.toml` |
+| `ai/.codex/skills/1c-routing/` | Выбор authoritative route между EDT-MCP, code-index, BSL LS и v8std |
+| `ai/.codex/skills/1c-code-change/` | Pipeline изменений 1С: inspect → EDT write → EDT validate |
+| `ai/.codex/skills/1c-platform-docs/` | Project-aware проверка API и совместимости платформы через EDT |
+| `ai/.codex/skills/1c-standards/` | Стандарты, diagnostics, patterns и snippet analysis через настроенный v8std |
+| `ai/.codex/skills/1c-code-index/` | Broad read-only поиск, структура и графы по индексу проекта |
+| `ai/.codex/skills/bsl-ls-mcp/` | Focused BSL diagnostics и semantic navigation |
+| `ai/hooks/guard-1c-routing.ps1` | PreToolUse guard для MCP allowlists и прямого доступа к `src/**` |
+| `ai/mcp/code-index-mcp.ps1` | Fail-fast запуск federated read-only `bsl-indexer serve` через managed proxy |
+| `ai/mcp/code-index-proxy.mjs` | Read-only BSL callers/callees/tree, проверка реального daemon health и уточнение coverage инструментов |
+| `ai/mcp/code-index-daemon.ps1` | Управляемый Windows-запуск единого daemon `bsl-indexer` с проверкой PID и HTTP health |
+| `ai/code-index/daemon.toml.template` | Канонические aliases и paths общего индекса |
+| `ai/workspace-policy.json` | Относительные пути 1С-репозиториев, защищаемых hook |
+| `ai/setup.ps1` | Единый bootstrap prerequisites, runtime, policy и code-index daemon |
+| `ai/install.ps1` | Идемпотентная установка common config и skills с backup заменяемых файлов |
+| `ai/start-v8std.ps1` | Проверка и запуск локального endpoint v8std |
 
-Codex не загружает `.codex` из соседнего репозитория автоматически. Общие MCP и skills устанавливаются в пользовательский каталог `%USERPROFILE%\.codex`. Репозиторий `tools` хранит их версионируемый источник; repository-local MCP хранятся только в `.codex/config.toml` владеющего репозитория. Исключение среди skills — `bsl-ls-mcp`: он принадлежит только `adapter/adapter/.codex/skills/bsl-ls-mcp`.
+Codex не загружает `.codex` из соседнего репозитория автоматически. `tools/ai` является версионируемым источником, а installer переносит managed block и skills в пользовательский `CODEX_HOME`, сохраняя остальную конфигурацию. Repository-local `.codex/config.toml` содержит назначенный EDT-MCP и его risk policy; repository-local BSL LS добавляется только там, где есть собственная analyzer-конфигурация.
 
-Локальное распределение MCP:
+Bootstrap не запускается автоматически при открытии workspace. Его нужно выполнить один раз на каждой машине и повторять после обновления `ai/`. Пользователь может запустить команду самостоятельно; модель также может выполнить её по явному запросу, при необходимости запросив разрешение на запись в `CODEX_HOME`.
 
-| Репозиторий | MCP |
-|---|---|
-| `adapter/adapter` | `kfk-edt`, `sonarqube`, `bsl-ls` |
-| `tests/unit/unit` | `kfk-unit-edt` |
-| `conversion/KFK` | `conv-edt` |
-
-SonarQube MCP подключается по Streamable HTTP через `http://ia11:9001/mcp`. В Compose адрес SonarQube фиксирован как `http://sonarqube:9000` — это контейнерный эквивалент `http://localhost:9000` на Docker-хосте. Сервер MCP получает `SONAR_TOKEN` из `sonarqube/.env`. Эта же переменная должна присутствовать в окружении процесса Codex: Codex передаёт её как `Authorization: Bearer` и не загружает dotenv-файлы автоматически.
+Внутренний поставочный комплект должен содержать неизменённые runtime-артефакты `tools/ai/runtime/windows/bsl-indexer.exe` версии `0.69.0` или новее и `tools/ai/runtime/windows/bsl-language-server-exec.jar`. После создания полной структуры `Kafka` установка выполняется одной командой из её корня:
 
 ```powershell
-docker compose --project-directory .\sonarqube up -d sonarqube-mcp
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\tools\ai\setup.ps1
+```
+
+Bootstrap проверяет Node.js 18+, Java, версию `bsl-indexer`, наличие всех пяти репозиториев; копирует runtime в `%CODEX_HOME%`; вызывает идемпотентный installer; мигрирует конфликтующие `v8std`, `code-index` и legacy Unica tables с backup; перезапускает только managed daemon и подтверждает его HTTP health. Сетевые загрузки во время установки не выполняются. Регистрация и readiness repository paths выполняются `bsl-indexer serve` после перезапуска Codex и проверяются инструментом `code-index.health`; daemon сам по себе не публикует ещё не подключённые paths.
+
+Если артефакты доставляются отдельно, их пути можно передать явно:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\tools\ai\setup.ps1 `
+  -BslIndexerPath D:\distribution\bsl-indexer.exe `
+  -BslLanguageServerJar D:\distribution\bsl-language-server-exec.jar
+```
+
+После успешного завершения перезапустите Codex. `install.ps1` остаётся низкоуровневым идемпотентным установщиком policy/config без runtime prerequisites и используется тестами или при целевом обновлении только managed-конфигурации.
+
+Installer:
+
+- автоматически устанавливает все skills из `ai/.codex/skills/`;
+- удаляет с backup только известные устаревшие managed skills `edt-mcp`, `1c-engineering` и `v8std-mcp`, не затрагивая пользовательские skills;
+- обновляет только block между `KAFKA-AI MANAGED` markers в `config.toml`;
+- сохраняет выбранный пользователем `mcp_servers.v8std.url` при повторной установке;
+- создаёт `%CODEX_HOME%\code-index\daemon.toml` с теми же aliases и paths, которые использует MCP;
+- синхронизирует workspace `AGENTS.md`;
+- подставляет абсолютные пути workspace и hook в установленную конфигурацию;
+- сохраняет заменяемые файлы под `%CODEX_HOME%\backups\workspace-ai`;
+- не читает и не копирует credentials, `.env` или `auth.json`.
+
+Для переноса в другой workspace скопируйте каталог `ai/`, настройте его `AGENTS.md` и `workspace-policy.json`, добавьте runtime-артефакты, затем выполните:
+
+```powershell
+D:\path\to\ai\setup.ps1 -WorkspaceRoot D:\path\to\workspace
+```
+
+Расположение каталога `ai/` внутри workspace не фиксировано. Installer обнаруживает skills автоматически и генерирует рабочий hook command для фактических путей.
+
+Hooks — lifecycle-обработчики Codex. `PreToolUse` вызывается перед подходящим tool call и может разрешить или отклонить его. В этой policy hook запускает `guard-1c-routing.ps1`, который блокирует code-index/BSL LS tools вне read-only allowlists, прямой filesystem-доступ к настроенным 1С `src/**` и EDT `git`/`ask_workmate`. Hook не является MCP и не выполняет диагностику или изменение 1С сам по себе.
+
+MCP routing:
+
+| Scope | MCP |
+|---|---|
+| `adapter/adapter`, `adapter/base`, `adapter/examples` | repository-owned `kfk-edt` |
+| `tests/unit/unit`, generated `tests/unit/base` | repository-owned `kfk-unit-edt` |
+| `conversion/KFK` | repository-owned `conv-edt` |
+| Все канонические 1С-репозитории | общий federated `code-index`, только explicit read-only allowlist |
+| `adapter/adapter` | repository-owned `bsl-ls` через `.codex/mcp/bsl-ls-proxy.mjs` |
+| Standards, diagnostic codes и snippets | `v8std`; по умолчанию `https://ai.v8std.ru/mcp` |
+
+Для полной 1С-surface требуются Node.js 18+, Java, Windows-сборка `bsl-indexer.exe` версии `0.69.0` или новее (не публичный npm-бинарник `code-index`) и executable JAR BSL LS. Bootstrap устанавливает оба артефакта в managed-каталоги `%CODEX_HOME%`. `CODE_INDEX_HOME` для MCP и daemon задаётся installer согласованно; coordination/log runtime хранится там, а индексы — в исключённых из Git `.code-index/` каталогах repository roots. Managed proxy добавляет `get_callers_bsl`, `get_callees_bsl` и `get_call_tree_bsl`; имена процедур ищутся регистронезависимо для латиницы и кириллицы, а coverage относится только к статическому графу. `get_register_writers` показывает только декларативные связи `RegisterRecords`, а не программную запись через `RecordSet`/`RecordManager`.
+
+На Windows запускайте daemon через managed launcher. Он сериализует конкурентные старты для одного `CODE_INDEX_HOME`, отключает проблемный self-detach бинарника и создаёт процесс с `bInheritHandles=false`, поэтому daemon не удерживает stdio-pipes MCP-клиента и не падает после их закрытия. Успех возвращается только после проверки реального `GET /health`; основной журнал остаётся в `%CODEX_HOME%\code-index\daemon.log`:
+
+```powershell
+.\tools\ai\mcp\code-index-daemon.ps1 -Action run
+```
+
+Обычный запуск `code-index` MCP выполняет эту проверку и bootstrap автоматически. Ручная команда нужна для отдельной диагностики или предварительного запуска.
+
+Проверка состояния:
+
+```powershell
+.\tools\ai\mcp\code-index-daemon.ps1 -Action status -Json
+```
+
+Статус `online` выдаётся только при совпадении PID из `daemon.json` с ответом `GET /health`. Устаревший runtime descriptor классифицируется как `stale_runtime_info`, а живой процесс без рабочего endpoint — как `unhealthy`. Launcher не запускает второй daemon поверх живого `unhealthy`-процесса: сначала исследуйте причину и используйте явный `-Action stop`.
+
+Repository-local BSL LS config использует относительный `cwd` и не требует изменения путей на машинах команд. Proxy использует существующую `.bsl-language-server.json`, фиксирует repository root и отклоняет file-аргументы вне него. На Windows для не-ASCII file paths требуется доступный 8.3 short path; proxy сообщает явную compatibility error, если volume short names отключены.
+
+Endpoint выбирает пользователь в `%USERPROFILE%\.codex\config.toml`. Для локального v8std замените только URL, сохранив имя MCP `v8std`:
+
+```toml
+[mcp_servers.v8std]
+url = "http://127.0.0.1:8766/mcp"
+```
+
+Installer сохраняет выбранный URL при последующих обновлениях policy. Локальный v8std запускается из отдельного checkout на порту `8766`, поскольку `8765` занят EDT-MCP. Checkout должен содержать сгенерированные `docs/ai/pages.jsonl` и `docs/ai/search-vectors.jsonl` и установленные зависимости из upstream `requirements.txt`/`requirements-mcp.txt`:
+
+```powershell
+.\ai\start-v8std.ps1 -V8stdRoot C:\path\to\v8std
 ```
 
 Не добавляйте в `ai/` `auth.json`, токены, пароли, локальные `.env`, данные сессий и другие персональные файлы Codex.

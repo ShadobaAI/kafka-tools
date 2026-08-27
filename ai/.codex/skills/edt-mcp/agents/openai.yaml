@@ -1,4 +1,0 @@
-interface:
-  display_name: "EDT MCP"
-  short_description: "Targeted 1C project work through EDT-MCP"
-  default_prompt: "Use $edt-mcp for the minimal project-aware EDT read, change, or focused validation required by this task."

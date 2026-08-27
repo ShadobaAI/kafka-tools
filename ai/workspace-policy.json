@@ -1,0 +1,10 @@
+{
+  "protectedRepositoryRoots": [
+    "adapter/adapter",
+    "adapter/base",
+    "adapter/examples",
+    "conversion/KFK",
+    "tests/unit/unit",
+    "tests/unit/base"
+  ]
+}

@@ -1,0 +1,28 @@
+[daemon]
+http_port = 0
+max_concurrent_initial = 1
+
+[[paths]]
+alias = "kafka-adapter"
+path = "__WORKSPACE_ROOT_FORWARD__/adapter/adapter"
+language = "bsl"
+
+[[paths]]
+alias = "kafka-adapter-base"
+path = "__WORKSPACE_ROOT_FORWARD__/adapter/base"
+language = "bsl"
+
+[[paths]]
+alias = "kafka-adapter-examples"
+path = "__WORKSPACE_ROOT_FORWARD__/adapter/examples"
+language = "bsl"
+
+[[paths]]
+alias = "kafka-adapter-conv"
+path = "__WORKSPACE_ROOT_FORWARD__/conversion/KFK"
+language = "bsl"
+
+[[paths]]
+alias = "kafka-adapter-tests-unit"
+path = "__WORKSPACE_ROOT_FORWARD__/tests/unit/unit"
+language = "bsl"

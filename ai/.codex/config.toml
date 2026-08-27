@@ -1,14 +1,89 @@
-# MCP server configuration for Codex CLI
-# Maintained in kafka-tools/ai for installation into the user Codex configuration
+#:schema https://developers.openai.com/codex/config-schema.json
 
-# -----------------------------------------------------------------------------
-# v8std
-# -----------------------------------------------------------------------------
+# BEGIN KAFKA-AI MANAGED
+# This block is installed idempotently by tools/ai/install.ps1.
 
 [mcp_servers.v8std]
 url = "https://ai.v8std.ru/mcp"
 enabled = true
 required = false
 startup_timeout_sec = 5
-description = "1C development standards, diagnostics and related materials"
+tool_timeout_sec = 60
+enabled_tools = [
+  "v8std_search",
+  "v8std_get_page",
+  "v8std_get_related",
+  "v8std_explain_snippet",
+  "v8std_explain_diagnostics",
+]
+description = "User-selectable v8std standards, diagnostics, and snippet corpus; public endpoint by default"
 default_tools_approval_mode = "approve"
+
+[mcp_servers.code-index]
+command = "powershell.exe"
+args = [
+  "-NoLogo",
+  "-NoProfile",
+  "-NonInteractive",
+  "-ExecutionPolicy",
+  "Bypass",
+  "-File",
+  "__AI_ROOT__\\mcp\\code-index-mcp.ps1",
+  "-WorkspaceRoot",
+  "__WORKSPACE_ROOT__",
+  "-CodeIndexHome",
+  "__CODE_INDEX_HOME__",
+]
+enabled = true
+required = false
+startup_timeout_sec = 45
+tool_timeout_sec = 120
+description = "Federated read-only code and 1C metadata index; requires bsl-indexer daemon"
+default_tools_approval_mode = "approve"
+enabled_tools = [
+  "search_function",
+  "search_class",
+  "get_function",
+  "get_class",
+  "get_callers",
+  "get_callees",
+  "get_callers_bsl",
+  "get_callees_bsl",
+  "find_path",
+  "get_call_tree",
+  "get_call_tree_bsl",
+  "find_symbol",
+  "get_imports",
+  "get_file_summary",
+  "get_stats",
+  "search_text",
+  "grep_body",
+  "stat_file",
+  "list_files",
+  "read_file",
+  "grep_text",
+  "grep_code",
+  "health",
+  "get_object_structure",
+  "get_form_handlers",
+  "get_event_subscriptions",
+  "find_path_bsl",
+  "search_terms",
+  "get_data_links",
+  "find_data_path",
+  "get_register_writers",
+  "get_object_profile",
+  "find_references",
+  "bsl_sql",
+]
+
+[[hooks.PreToolUse]]
+matcher = "^(Bash|shell|exec_command|apply_patch|view_image|mcp__code_index__.*|mcp__bsl_ls__.*|mcp__.*edt.*__(git|ask_workmate))$"
+
+[[hooks.PreToolUse.hooks]]
+type = "command"
+command = "powershell.exe -NoProfile -ExecutionPolicy Bypass -File \"__AI_ROOT__\\hooks\\guard-1c-routing.ps1\" -WorkspaceRoot \"__WORKSPACE_ROOT__\""
+timeout = 5
+statusMessage = "Checking 1C routing policy"
+
+# END KAFKA-AI MANAGED
