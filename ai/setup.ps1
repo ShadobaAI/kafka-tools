@@ -11,6 +11,31 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
+function Invoke-NativeCommand {
+    param(
+        [Parameter(Mandatory)][string]$Executable,
+        [string[]]$ArgumentList = @()
+    )
+
+    # Windows PowerShell surfaces a native process's stderr as ErrorRecord objects.
+    # Temporarily allow those records through because tools such as Java print
+    # successful version output to stderr; the process exit code remains authoritative.
+    $previousErrorActionPreference = $ErrorActionPreference
+    try {
+        $ErrorActionPreference = 'Continue'
+        $output = @(& $Executable @ArgumentList 2>&1 | ForEach-Object { $_.ToString() })
+        $exitCode = $LASTEXITCODE
+    }
+    finally {
+        $ErrorActionPreference = $previousErrorActionPreference
+    }
+
+    return [pscustomobject]@{
+        ExitCode = $exitCode
+        Output = $output
+    }
+}
+
 function Resolve-ExistingFile {
     param(
         [Parameter(Mandatory)][string]$Path,
@@ -48,8 +73,9 @@ function Assert-MinimumVersion {
         [Parameter(Mandatory)][string]$Description
     )
 
-    $output = @(& $Executable --version 2>&1) -join ' '
-    if ($LASTEXITCODE -ne 0 -or $output -notmatch '(?<version>\d+\.\d+\.\d+)') {
+    $result = Invoke-NativeCommand -Executable $Executable -ArgumentList @('--version')
+    $output = $result.Output -join ' '
+    if ($result.ExitCode -ne 0 -or $output -notmatch '(?<version>\d+\.\d+\.\d+)') {
         throw "$Description version could not be determined from '$Executable --version': $output"
     }
     $actualVersion = [version]$Matches.version
@@ -140,11 +166,7 @@ function Invoke-ManagedDaemon {
         '-BslIndexerPath', $Indexer,
         '-StartupTimeoutSeconds', [string]$StartupTimeoutSeconds
     )
-    $output = @(& powershell.exe @arguments 2>&1)
-    return [pscustomobject]@{
-        ExitCode = $LASTEXITCODE
-        Output = $output
-    }
+    return Invoke-NativeCommand -Executable 'powershell.exe' -ArgumentList $arguments
 }
 
 if ([string]::IsNullOrWhiteSpace($WorkspaceRoot)) {
@@ -180,8 +202,9 @@ foreach ($relativePath in $requiredRepositories) {
 $node = Resolve-CommandPath -RequestedPath $NodePath -CommandName 'node' -Description 'Node.js executable'
 $nodeVersion = Assert-MinimumVersion -Executable $node -MinimumVersion ([version]'18.0.0') -Description 'Node.js'
 $java = Resolve-CommandPath -RequestedPath $JavaPath -CommandName 'java' -Description 'Java executable'
-$javaOutput = @(& $java -version 2>&1) -join ' '
-if ($LASTEXITCODE -ne 0) {
+$javaResult = Invoke-NativeCommand -Executable $java -ArgumentList @('-version')
+$javaOutput = $javaResult.Output -join ' '
+if ($javaResult.ExitCode -ne 0) {
     throw "Java runtime check failed for '$java': $javaOutput"
 }
 

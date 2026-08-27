@@ -1,6 +1,6 @@
 #:schema https://developers.openai.com/codex/config-schema.json
 
-# BEGIN KAFKA-AI MANAGED
+# BEGIN SHARED-1C-AI MANAGED
 # This block is installed idempotently by tools/ai/install.ps1.
 
 [mcp_servers.v8std]
@@ -28,9 +28,7 @@ args = [
   "-ExecutionPolicy",
   "Bypass",
   "-File",
-  "__AI_ROOT__\\mcp\\code-index-mcp.ps1",
-  "-WorkspaceRoot",
-  "__WORKSPACE_ROOT__",
+  "__CODE_INDEX_HOME__\\mcp\\code-index-mcp.ps1",
   "-CodeIndexHome",
   "__CODE_INDEX_HOME__",
 ]
@@ -77,6 +75,11 @@ enabled_tools = [
   "bsl_sql",
 ]
 
+# END SHARED-1C-AI MANAGED
+
+# BEGIN KAFKA-AI GUARD
+# This workspace-level guard is independent from the shared MCP registration.
+
 [[hooks.PreToolUse]]
 matcher = "^(Bash|shell|exec_command|apply_patch|view_image|mcp__code_index__.*|mcp__bsl_ls__.*|mcp__.*edt.*__(git|ask_workmate))$"
 
@@ -86,4 +89,4 @@ command = "powershell.exe -NoProfile -ExecutionPolicy Bypass -File \"__AI_ROOT__
 timeout = 5
 statusMessage = "Checking 1C routing policy"
 
-# END KAFKA-AI MANAGED
+# END KAFKA-AI GUARD

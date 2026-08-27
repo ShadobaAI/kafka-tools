@@ -23,7 +23,6 @@ $startInfo.CreateNoWindow = $true
 foreach ($argument in @(
     '-NoLogo', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass',
     '-File', $launcher,
-    '-WorkspaceRoot', $WorkspaceRoot,
     '-CodeIndexHome', $CodeIndexHome
 )) {
     $startInfo.ArgumentList.Add($argument)
@@ -194,9 +193,18 @@ if (
 ) {
     throw "Managed MCP health did not verify the daemon endpoint: $($responses[6].result.content[0].text)"
 }
-$notReadyRepos = @($health.repos | Where-Object { $_.path_status.status -ne 'ready' })
-if ($health.repos.Count -ne 5 -or $notReadyRepos.Count -ne 0) {
-    throw "Managed MCP health did not report all five repository paths as ready: $($responses[6].result.content[0].text)"
+$expectedKafkaRepos = @(
+    'kafka-adapter',
+    'kafka-adapter-base',
+    'kafka-adapter-examples',
+    'kafka-adapter-conv',
+    'kafka-adapter-tests-unit'
+)
+$reportedKafkaRepos = @($health.repos | Where-Object { $_.repo -in $expectedKafkaRepos })
+$missingKafkaRepos = @($expectedKafkaRepos | Where-Object { $_ -notin $reportedKafkaRepos.repo })
+$notReadyKafkaRepos = @($reportedKafkaRepos | Where-Object { $_.path_status.status -ne 'ready' })
+if ($missingKafkaRepos.Count -ne 0 -or $notReadyKafkaRepos.Count -ne 0) {
+    throw "Managed MCP health did not report all required Kafka repository paths as ready: $($responses[6].result.content[0].text)"
 }
 $grepText = [string]$responses[7].result.content[0].text
 if ($grepText -match 'daemon_offline' -or $grepText -notmatch [regex]::Escape($Procedure)) {

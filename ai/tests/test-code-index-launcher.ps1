@@ -8,16 +8,6 @@ $codeIndexHome = Join-Path $temporaryRoot 'runtime'
 $capturePath = Join-Path $temporaryRoot 'capture.txt'
 
 try {
-    $relativeRepositories = @(
-        'adapter\adapter',
-        'adapter\base',
-        'adapter\examples',
-        'conversion\KFK',
-        'tests\unit\unit'
-    )
-    foreach ($relativePath in $relativeRepositories) {
-        New-Item -ItemType Directory -Path (Join-Path $temporaryRoot $relativePath) -Force | Out-Null
-    }
     New-Item -ItemType Directory -Path $codeIndexHome -Force | Out-Null
     $daemonConfig = Join-Path $codeIndexHome 'daemon.toml'
     [System.IO.File]::WriteAllText(
@@ -54,7 +44,6 @@ exit /b 0
     $env:CODE_INDEX_CAPTURE = $capturePath
     try {
         & $launcher `
-            -WorkspaceRoot $temporaryRoot `
             -CodeIndexHome $codeIndexHome `
             -BslIndexerPath $fakeIndexer `
             -NodePath $fakeNode `
@@ -83,7 +72,6 @@ exit /b 0
     $unsupportedRejected = $false
     try {
         & $launcher `
-            -WorkspaceRoot $temporaryRoot `
             -CodeIndexHome $codeIndexHome `
             -BslIndexerPath $fakeIndexer `
             -NodePath $fakeNode `

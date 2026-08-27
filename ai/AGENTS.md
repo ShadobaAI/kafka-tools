@@ -50,6 +50,11 @@ Before work, identify every affected repository and read its local `AGENTS.md` w
 - For BSL call graphs, use `get_callers_bsl`, `get_callees_bsl`, `get_call_tree_bsl`, or `find_path_bsl`; the universal call tools expose the less precise core graph. A zero-edge result covers only indexed static calls and does not exclude dynamic string/reflection dispatch.
 - Use repository-local BSL LS only for focused BSL diagnostics and semantic navigation when that MCP is explicitly configured. It does not replace EDT diagnostics, metadata, platform documentation, or tests.
 - The `bsl-indexer` daemon may write only its own `.code-index/` data in configured repository roots and coordination/runtime files under managed `CODE_INDEX_HOME`; do not expose daemon/index mutation commands through MCP.
+- `CODE_INDEX_HOME` and its daemon are shared across registered workspaces. Kafka
+  installation may replace only `kafka-*` aliases; it must preserve unrelated
+  `[[paths]]` entries and existing daemon settings.
+- Keep the shared user-level `v8std`/`code-index` block independent from the
+  Kafka routing guard so another workspace installer cannot remove Kafka policy.
 - Use the MCP named `v8std` as the primary standards/policy corpus. Its endpoint is user-owned configuration: the default is `https://ai.v8std.ru/mcp`, and the user may replace its `url` with a local endpoint. Do not apply agent-side source classification, endpoint switching, or code-transfer restrictions beyond the configured MCP.
 - For platform APIs and version-specific semantics, use EDT `get_platform_documentation` with `projectName`; use content assist and EDT validation when needed.
 - After every 1C mutation, run focused EDT diagnostics for the affected objects and inspect the resulting findings.

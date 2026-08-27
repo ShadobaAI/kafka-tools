@@ -32,7 +32,18 @@ $sourceSkills = Join-Path $sourceRoot '.codex\skills'
 $sourceAgents = Join-Path $sourceRoot 'AGENTS.md'
 $sourceWorkspacePolicy = Join-Path $sourceRoot 'workspace-policy.json'
 $sourceCodeIndexConfig = Join-Path $sourceRoot 'code-index\daemon.toml.template'
-foreach ($requiredPath in @($sourceConfig, $sourceSkills, $sourceAgents, $sourceWorkspacePolicy, $sourceCodeIndexConfig)) {
+$sourceCodeIndexMcpFiles = @(
+    (Join-Path $sourceRoot 'mcp\code-index-mcp.ps1'),
+    (Join-Path $sourceRoot 'mcp\code-index-daemon.ps1'),
+    (Join-Path $sourceRoot 'mcp\code-index-proxy.mjs')
+)
+foreach ($requiredPath in @(
+    $sourceConfig,
+    $sourceSkills,
+    $sourceAgents,
+    $sourceWorkspacePolicy,
+    $sourceCodeIndexConfig
+) + $sourceCodeIndexMcpFiles) {
     if (-not (Test-Path -LiteralPath $requiredPath)) {
         throw "Required source is missing: $requiredPath"
     }
@@ -95,11 +106,36 @@ function Test-DirectoryContentEqual {
     return $true
 }
 
+function Get-CodeIndexPathBlocks {
+    param([Parameter(Mandatory)][AllowEmptyString()][string]$Content)
+
+    return @(
+        [regex]::Matches(
+            $Content,
+            '(?ms)^\[\[paths\]\][ \t]*\r?\n.*?(?=^\[\[paths\]\][ \t]*\r?$|^\[(?!\[)[^\r\n]+\][ \t]*\r?$|\z)'
+        )
+    )
+}
+
+function Get-CodeIndexPathAlias {
+    param([Parameter(Mandatory)][string]$Block)
+
+    $aliasMatch = [regex]::Match(
+        $Block,
+        '(?m)^[ \t]*alias[ \t]*=[ \t]*"(?<alias>[^"]+)"[ \t]*\r?$'
+    )
+    if (-not $aliasMatch.Success) {
+        throw "A code-index [[paths]] entry has no simple quoted alias: $Block"
+    }
+    return $aliasMatch.Groups['alias'].Value
+}
+
 New-Item -ItemType Directory -Path $CodexHome -Force | Out-Null
 
 $targetConfig = Join-Path $CodexHome 'config.toml'
 $managedConfig = Get-Content -LiteralPath $sourceConfig -Raw
-$blockPattern = '(?ms)^\# BEGIN KAFKA-AI MANAGED\r?\n.*?^\# END KAFKA-AI MANAGED\r?\n?'
+$blockPattern = '(?ms)^\# BEGIN SHARED-1C-AI MANAGED\r?\n.*?^\# END SHARED-1C-AI MANAGED\r?\n?'
+$guardBlockPattern = '(?ms)^\# BEGIN KAFKA-AI GUARD\r?\n.*?^\# END KAFKA-AI GUARD\r?\n?'
 $existingConfig = if (Test-Path -LiteralPath $targetConfig) {
     Get-Content -LiteralPath $targetConfig -Raw
 }
@@ -107,41 +143,56 @@ else {
     ''
 }
 
-$configuredV8stdUrlLine = $null
+$preservedV8stdBaseSettings = [ordered]@{}
+$preservedV8stdSettingNames = @(
+    'url',
+    'bearer_token_env_var',
+    'http_headers',
+    'env_http_headers'
+)
 $existingV8stdTable = [regex]::Match(
     $existingConfig,
     '(?ms)^\[mcp_servers\.v8std\]\r?\n.*?(?=^\[|\z)'
 )
 if ($existingV8stdTable.Success) {
-    $existingV8stdUrl = [regex]::Match(
-        $existingV8stdTable.Value,
-        '(?m)^[ \t]*url[ \t]*=[ \t]*"[^"\r\n]*"[ \t]*$'
-    )
-    if ($existingV8stdUrl.Success) {
-        $configuredV8stdUrlLine = $existingV8stdUrl.Value.Trim()
+    foreach ($settingName in $preservedV8stdSettingNames) {
+        $existingSetting = [regex]::Match(
+            $existingV8stdTable.Value,
+            "(?m)^[ \t]*$([regex]::Escape($settingName))[ \t]*=[^\r\n]*$"
+        )
+        if ($existingSetting.Success) {
+            $preservedV8stdBaseSettings[$settingName] = $existingSetting.Value.Trim()
+        }
     }
 }
+$preservedV8stdNestedTables = @(
+    [regex]::Matches(
+        $existingConfig,
+        '(?ms)^\[mcp_servers\.v8std\.[^\]]+\]\r?\n.*?(?=^\[|\z)'
+    ) | ForEach-Object { $_.Value.Trim() }
+)
 
 $managedMatch = [regex]::Match($managedConfig, $blockPattern)
 if (-not $managedMatch.Success) {
-    throw "Managed markers are missing from '$sourceConfig'."
+    throw "Shared managed markers are missing from '$sourceConfig'."
 }
 $managedBlock = $managedMatch.Value
+$guardMatch = [regex]::Match($managedConfig, $guardBlockPattern)
+if (-not $guardMatch.Success) {
+    throw "Kafka guard markers are missing from '$sourceConfig'."
+}
+$guardBlock = $guardMatch.Value
 $escapedSourceRoot = $sourceRoot.Replace('\', '\\').Replace('"', '\"')
 $escapedWorkspaceRoot = $WorkspaceRoot.Replace('\', '\\').Replace('"', '\"')
 $codeIndexHome = Join-Path $CodexHome 'code-index'
 $escapedCodeIndexHome = $codeIndexHome.Replace('\', '\\').Replace('"', '\"')
-$managedBlock = $managedBlock.Replace('__AI_ROOT__', $escapedSourceRoot)
-$managedBlock = $managedBlock.Replace('__WORKSPACE_ROOT__', $escapedWorkspaceRoot)
 $managedBlock = $managedBlock.Replace('__CODE_INDEX_HOME__', $escapedCodeIndexHome)
-if (
-    $managedBlock.Contains('__AI_ROOT__') -or
-    $managedBlock.Contains('__WORKSPACE_ROOT__') -or
-    $managedBlock.Contains('__CODE_INDEX_HOME__')
-) {
-    throw "Managed hook path placeholders were not resolved in '$sourceConfig'."
+$guardBlock = $guardBlock.Replace('__AI_ROOT__', $escapedSourceRoot)
+$guardBlock = $guardBlock.Replace('__WORKSPACE_ROOT__', $escapedWorkspaceRoot)
+if ($managedBlock.Contains('__CODE_INDEX_HOME__') -or $guardBlock.Contains('__AI_ROOT__') -or $guardBlock.Contains('__WORKSPACE_ROOT__')) {
+    throw "Managed path placeholders were not resolved in '$sourceConfig'."
 }
-if ($null -ne $configuredV8stdUrlLine) {
+if ($preservedV8stdBaseSettings.Count -gt 0 -or $preservedV8stdNestedTables.Count -gt 0) {
     $managedV8stdTable = [regex]::Match(
         $managedBlock,
         '(?ms)^\[mcp_servers\.v8std\]\r?\n.*?(?=^\[|\z)'
@@ -149,24 +200,61 @@ if ($null -ne $configuredV8stdUrlLine) {
     if (-not $managedV8stdTable.Success) {
         throw "Managed v8std table is missing from '$sourceConfig'."
     }
-    $managedV8stdUrl = [regex]::Match(
-        $managedV8stdTable.Value,
-        '(?m)^[ \t]*url[ \t]*=[ \t]*"[^"\r\n]*"[ \t]*$'
-    )
-    if (-not $managedV8stdUrl.Success) {
-        throw "Managed v8std URL is missing from '$sourceConfig'."
+    $updatedV8stdTable = $managedV8stdTable.Value
+    foreach ($settingName in $preservedV8stdBaseSettings.Keys) {
+        $managedSetting = [regex]::Match(
+            $updatedV8stdTable,
+            "(?m)^[ \t]*$([regex]::Escape($settingName))[ \t]*=[^\r\n]*$"
+        )
+        if ($managedSetting.Success) {
+            $updatedV8stdTable = $updatedV8stdTable.Remove(
+                $managedSetting.Index,
+                $managedSetting.Length
+            ).Insert($managedSetting.Index, $preservedV8stdBaseSettings[$settingName])
+        }
+        else {
+            $tableHeader = [regex]::Match($updatedV8stdTable, '^\[mcp_servers\.v8std\]\r?\n')
+            if (-not $tableHeader.Success) {
+                throw "Managed v8std table header is invalid in '$sourceConfig'."
+            }
+            $updatedV8stdTable = $updatedV8stdTable.Insert(
+                $tableHeader.Index + $tableHeader.Length,
+                "$($preservedV8stdBaseSettings[$settingName])`r`n"
+            )
+        }
     }
-    $updatedV8stdTable = $managedV8stdTable.Value.Remove(
-        $managedV8stdUrl.Index,
-        $managedV8stdUrl.Length
-    ).Insert($managedV8stdUrl.Index, $configuredV8stdUrlLine)
     $managedBlock = $managedBlock.Remove(
         $managedV8stdTable.Index,
         $managedV8stdTable.Length
     ).Insert($managedV8stdTable.Index, $updatedV8stdTable)
+
+    if ($preservedV8stdNestedTables.Count -gt 0) {
+        $updatedManagedV8stdTable = [regex]::Match(
+            $managedBlock,
+            '(?ms)^\[mcp_servers\.v8std\]\r?\n.*?(?=^\[|\z)'
+        )
+        $nestedTables = $preservedV8stdNestedTables -join "`r`n`r`n"
+        $managedBlock = $managedBlock.Insert(
+            $updatedManagedV8stdTable.Index + $updatedManagedV8stdTable.Length,
+            "$nestedTables`r`n`r`n"
+        )
+    }
 }
 
 $unmanagedConfig = [regex]::Replace($existingConfig, $blockPattern, '').TrimEnd()
+$unmanagedConfig = [regex]::Replace($unmanagedConfig, $guardBlockPattern, '').TrimEnd()
+$legacyManagedBlockPatterns = @(
+    '(?ms)^\# BEGIN CRM-AI MANAGED\r?\n.*?^\# END CRM-AI MANAGED\r?\n?',
+    '(?ms)^\# BEGIN KAFKA-AI MANAGED\r?\n.*?^\# END KAFKA-AI MANAGED\r?\n?'
+)
+foreach ($legacyBlockPattern in $legacyManagedBlockPatterns) {
+    if ([regex]::IsMatch($unmanagedConfig, $legacyBlockPattern)) {
+        if (-not $ReplaceConflictingCommonMcp) {
+            throw "Config '$targetConfig' contains a legacy managed Codex block. Re-run with -ReplaceConflictingCommonMcp to migrate it with backup."
+        }
+        $unmanagedConfig = [regex]::Replace($unmanagedConfig, $legacyBlockPattern, '').TrimEnd()
+    }
+}
 $conflictingGroups = @(
     @{ Header = '[mcp_servers.v8std]'; Pattern = '(?ms)^\[mcp_servers\.v8std(?:\.[^\]]+)?\]\r?\n.*?(?=^\[|\z)' },
     @{ Header = '[mcp_servers.code-index]'; Pattern = '(?ms)^\[mcp_servers\.code-index(?:\.[^\]]+)?\]\r?\n.*?(?=^\[|\z)' },
@@ -184,10 +272,10 @@ foreach ($group in $conflictingGroups) {
 }
 
 $newConfig = if ([string]::IsNullOrWhiteSpace($unmanagedConfig)) {
-    "#:schema https://developers.openai.com/codex/config-schema.json`r`n`r`n$($managedBlock.Trim())`r`n"
+    "#:schema https://developers.openai.com/codex/config-schema.json`r`n`r`n$($managedBlock.Trim())`r`n`r`n$($guardBlock.Trim())`r`n"
 }
 else {
-    "$unmanagedConfig`r`n`r`n$($managedBlock.Trim())`r`n"
+    "$unmanagedConfig`r`n`r`n$($managedBlock.Trim())`r`n`r`n$($guardBlock.Trim())`r`n"
 }
 $normalizedExistingConfig = ($existingConfig -replace "`r`n", "`n").TrimEnd()
 $normalizedNewConfig = ($newConfig -replace "`r`n", "`n").TrimEnd()
@@ -211,6 +299,25 @@ if ($normalizedExistingConfig -ne $normalizedNewConfig -or $targetHasUtf8Bom) {
 }
 
 New-Item -ItemType Directory -Path $codeIndexHome -Force | Out-Null
+$targetCodeIndexMcpRoot = Join-Path $codeIndexHome 'mcp'
+New-Item -ItemType Directory -Path $targetCodeIndexMcpRoot -Force | Out-Null
+foreach ($sourceMcpFile in $sourceCodeIndexMcpFiles) {
+    $targetMcpFile = Join-Path $targetCodeIndexMcpRoot (Split-Path -Leaf $sourceMcpFile)
+    $sourceHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $sourceMcpFile).Hash
+    $targetHash = if (Test-Path -LiteralPath $targetMcpFile -PathType Leaf) {
+        (Get-FileHash -Algorithm SHA256 -LiteralPath $targetMcpFile).Hash
+    }
+    else {
+        $null
+    }
+    if ($sourceHash -ne $targetHash) {
+        if (Test-Path -LiteralPath $targetMcpFile -PathType Leaf) {
+            Backup-ManagedPath -Path $targetMcpFile -RelativeBackupPath (Join-Path 'code-index\mcp' (Split-Path -Leaf $targetMcpFile))
+        }
+        Copy-Item -LiteralPath $sourceMcpFile -Destination $targetMcpFile -Force
+    }
+}
+
 $targetCodeIndexConfig = Join-Path $codeIndexHome 'daemon.toml'
 $managedCodeIndexConfig = (Get-Content -LiteralPath $sourceCodeIndexConfig -Raw).Replace(
     '__WORKSPACE_ROOT_FORWARD__',
@@ -225,13 +332,58 @@ $existingCodeIndexConfig = if (Test-Path -LiteralPath $targetCodeIndexConfig -Pa
 else {
     ''
 }
-if (($existingCodeIndexConfig -replace "`r`n", "`n") -ne ($managedCodeIndexConfig -replace "`r`n", "`n")) {
+
+$managedPathMatches = Get-CodeIndexPathBlocks -Content $managedCodeIndexConfig
+if ($managedPathMatches.Count -eq 0) {
+    throw "Managed code-index config '$sourceCodeIndexConfig' does not define any [[paths]] entries."
+}
+$managedAliases = @{}
+$managedPathBlocks = foreach ($pathMatch in $managedPathMatches) {
+    $alias = Get-CodeIndexPathAlias -Block $pathMatch.Value
+    if ($managedAliases.ContainsKey($alias)) {
+        throw "Managed code-index config contains duplicate alias '$alias'."
+    }
+    $managedAliases[$alias] = $true
+    $pathMatch.Value.Trim()
+}
+
+$existingPathMatches = Get-CodeIndexPathBlocks -Content $existingCodeIndexConfig
+$preservedPathBlocks = foreach ($pathMatch in $existingPathMatches) {
+    $alias = Get-CodeIndexPathAlias -Block $pathMatch.Value
+    if (-not $managedAliases.ContainsKey($alias)) {
+        $pathMatch.Value.Trim()
+    }
+}
+
+$codeIndexBase = $existingCodeIndexConfig
+for ($index = $existingPathMatches.Count - 1; $index -ge 0; $index--) {
+    $pathMatch = $existingPathMatches[$index]
+    $codeIndexBase = $codeIndexBase.Remove($pathMatch.Index, $pathMatch.Length)
+}
+if (-not [regex]::IsMatch($codeIndexBase, '(?m)^\[daemon\][ \t]*$')) {
+    $firstManagedPath = $managedPathMatches[0]
+    $managedBase = $managedCodeIndexConfig.Substring(0, $firstManagedPath.Index).Trim()
+    $codeIndexBase = if ([string]::IsNullOrWhiteSpace($codeIndexBase)) {
+        $managedBase
+    }
+    else {
+        $managedBase + [Environment]::NewLine + [Environment]::NewLine + $codeIndexBase.Trim()
+    }
+}
+$allPathBlocks = @($preservedPathBlocks) + @($managedPathBlocks)
+$mergedCodeIndexConfig = @(
+    $codeIndexBase.Trim()
+    $allPathBlocks
+) -join ([Environment]::NewLine + [Environment]::NewLine)
+$mergedCodeIndexConfig += [Environment]::NewLine
+
+if (($existingCodeIndexConfig -replace "`r`n", "`n") -ne ($mergedCodeIndexConfig -replace "`r`n", "`n")) {
     if (Test-Path -LiteralPath $targetCodeIndexConfig -PathType Leaf) {
         Backup-ManagedPath -Path $targetCodeIndexConfig -RelativeBackupPath 'code-index\daemon.toml'
     }
     [System.IO.File]::WriteAllText(
         $targetCodeIndexConfig,
-        $managedCodeIndexConfig,
+        $mergedCodeIndexConfig,
         [System.Text.UTF8Encoding]::new($false)
     )
 }

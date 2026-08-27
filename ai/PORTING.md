@@ -176,8 +176,10 @@ language = "bsl"
 ```
 
 Тот же список aliases должен использоваться в skills, `AGENTS.md`, policy и тестах.
-Installer подставляет фактический workspace root и создаёт единственный managed
-`%CODEX_HOME%\code-index\daemon.toml`.
+Installer подставляет фактический workspace root и обновляет общий
+`%CODEX_HOME%\code-index\daemon.toml`: заменяет только aliases текущего workspace,
+сохраняет остальные `[[paths]]` и существующие настройки `[daemon]`. Один
+`CODE_INDEX_HOME` и daemon обслуживают все зарегистрированные workspace.
 
 Не следует экспортировать через MCP команды мутации индекса или daemon. MCP surface
 ограничивается чтением; daemon пишет только coordination/runtime в `CODE_INDEX_HOME` и
@@ -275,7 +277,7 @@ Guard — дополнительный enforcement, а не источник б�
 5. вызвать идемпотентный `install.ps1`;
 6. сделать backup заменяемых user config, skills и runtime;
 7. установить runtime под стабильными managed-именами;
-8. остановить только daemon своего `CODE_INDEX_HOME`, дождаться завершения PID;
+8. остановить общий daemon в `CODE_INDEX_HOME`, дождаться завершения PID;
 9. запустить daemon и подтвердить реальный `GET /health` с совпадающим PID;
 10. сообщить о необходимости перезапуска Codex.
 
@@ -292,11 +294,14 @@ Daemon health не равен readiness индексов. На чистой ус
 - сбрасывать пользовательский v8std URL;
 - удалять посторонние skills;
 - перезаписывать credentials;
+- удалять или изменять code-index aliases других workspace;
+- сбрасывать существующие настройки `[daemon]`;
 - менять runtime, если SHA-256 совпадает;
 - оставлять daemon на старом config;
 - создавать конкурирующий daemon поверх live/unhealthy процесса.
 
-Managed block в пользовательском `config.toml` ограничивается явными BEGIN/END markers.
+Общий MCP block и workspace-specific guard block в пользовательском `config.toml`
+имеют разные BEGIN/END markers.
 Конфликтующие legacy tables удаляются только с backup и только в рамках новой
 утверждённой архитектуры.
 
@@ -364,7 +369,7 @@ Live smoke не должен изменять проект 1С.
 - установка новой машины требует одной команды после раскладки workspace и runtime;
 - конфигурация не содержит путей конкретного разработчика;
 - каждый репозиторий использует только свой EDT-MCP;
-- code-index видит все и только утверждённые aliases;
+- code-index видит aliases текущего workspace и сохраняет утверждённые aliases других workspace;
 - `code-index.health` подтверждает daemon endpoint и readiness каждого path;
 - BSL LS не может читать файл вне repository root;
 - все изменения 1С технически возможны только через EDT-MCP;

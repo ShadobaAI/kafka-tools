@@ -52,6 +52,9 @@ try {
 
     foreach ($managedFile in @(
         (Join-Path $temporaryCodexHome 'code-index\bsl-indexer.exe'),
+        (Join-Path $temporaryCodexHome 'code-index\mcp\code-index-mcp.ps1'),
+        (Join-Path $temporaryCodexHome 'code-index\mcp\code-index-daemon.ps1'),
+        (Join-Path $temporaryCodexHome 'code-index\mcp\code-index-proxy.mjs'),
         (Join-Path $temporaryCodexHome 'bsl-ls\bsl-language-server-exec.jar'),
         (Join-Path $temporaryCodexHome 'code-index\daemon.toml'),
         (Join-Path $temporaryCodexHome 'config.toml')

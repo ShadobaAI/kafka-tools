@@ -54,18 +54,18 @@ input.on("line", (line) => {
   if (sql.includes("WITH RECURSIVE")) {
     columns = ["caller_proc_key", "callee_proc_name", "callee_proc_key", "call_type", "depth"];
     rows = [
-      ["CommonModules/A/Ext/Module.bsl::Старт", "ЗапуститьПотоки", "CommonModules/B/Ext/Module.bsl::ЗапуститьПотоки", "direct", 1],
-      ["CommonModules/B/Ext/Module.bsl::ЗапуститьПотоки", "ЗапуститьПоток", "CommonModules/B/Ext/Module.bsl::ЗапуститьПоток", "direct", 2],
+      ["CommonModules/A/Ext/Module.bsl::\u0421\u0442\u0430\u0440\u0442", "\u0417\u0430\u043f\u0443\u0441\u0442\u0438\u0442\u044c\u041f\u043e\u0442\u043e\u043a\u0438", "CommonModules/B/Ext/Module.bsl::\u0417\u0430\u043f\u0443\u0441\u0442\u0438\u0442\u044c\u041f\u043e\u0442\u043e\u043a\u0438", "direct", 1],
+      ["CommonModules/B/Ext/Module.bsl::\u0417\u0430\u043f\u0443\u0441\u0442\u0438\u0442\u044c\u041f\u043e\u0442\u043e\u043a\u0438", "\u0417\u0430\u043f\u0443\u0441\u0442\u0438\u0442\u044c\u041f\u043e\u0442\u043e\u043a", "CommonModules/B/Ext/Module.bsl::\u0417\u0430\u043f\u0443\u0441\u0442\u0438\u0442\u044c\u041f\u043e\u0442\u043e\u043a", "direct", 2],
     ];
   } else if (sql.includes("callee_proc_key GLOB ?2")) {
     columns = ["caller_proc_key", "callee_proc_name", "callee_proc_key", "call_type"];
     rows = [
-      ["CommonModules/A/Ext/Module.bsl::Старт", "B.ЗапуститьПотоки", "CommonModules/B/Ext/Module.bsl::ЗапуститьПотоки", "direct"],
-      ["CommonModules/C/Ext/Module.bsl::Старт", "ЗапуститьПотоки", null, "direct"],
+      ["CommonModules/A/Ext/Module.bsl::\u0421\u0442\u0430\u0440\u0442", "B.\u0417\u0430\u043f\u0443\u0441\u0442\u0438\u0442\u044c\u041f\u043e\u0442\u043e\u043a\u0438", "CommonModules/B/Ext/Module.bsl::\u0417\u0430\u043f\u0443\u0441\u0442\u0438\u0442\u044c\u041f\u043e\u0442\u043e\u043a\u0438", "direct"],
+      ["CommonModules/C/Ext/Module.bsl::\u0421\u0442\u0430\u0440\u0442", "\u0417\u0430\u043f\u0443\u0441\u0442\u0438\u0442\u044c\u041f\u043e\u0442\u043e\u043a\u0438", null, "direct"],
     ];
   } else {
     columns = ["caller_proc_key", "callee_proc_name", "callee_proc_key", "call_type"];
-    rows = [["CommonModules/A/Ext/Module.bsl::Старт", "ЗапуститьПотоки", "CommonModules/B/Ext/Module.bsl::ЗапуститьПотоки", "direct"]];
+    rows = [["CommonModules/A/Ext/Module.bsl::\u0421\u0442\u0430\u0440\u0442", "\u0417\u0430\u043f\u0443\u0441\u0442\u0438\u0442\u044c\u041f\u043e\u0442\u043e\u043a\u0438", "CommonModules/B/Ext/Module.bsl::\u0417\u0430\u043f\u0443\u0441\u0442\u0438\u0442\u044c\u041f\u043e\u0442\u043e\u043a\u0438", "direct"]];
   }
   const payload = { columns, rows, row_count: rows.length, truncated: false, limit: message.params.arguments.limit };
   write({ jsonrpc: "2.0", id: message.id, result: { content: [{ type: "text", text: JSON.stringify(payload) }], isError: false } });
@@ -80,13 +80,15 @@ input.on("line", (line) => {
     $startInfo.RedirectStandardOutput = $true
     $startInfo.RedirectStandardError = $true
     $startInfo.CreateNoWindow = $true
-    $startInfo.ArgumentList.Add($proxy)
-    $startInfo.ArgumentList.Add('--indexer')
-    $startInfo.ArgumentList.Add($node)
-    $startInfo.ArgumentList.Add('--indexer-arg')
-    $startInfo.ArgumentList.Add($fakeServer)
-    $startInfo.ArgumentList.Add('--config')
-    $startInfo.ArgumentList.Add($daemonConfig)
+    $proxyArguments = @(
+        $proxy,
+        '--indexer', $node,
+        '--indexer-arg', $fakeServer,
+        '--config', $daemonConfig
+    )
+    $startInfo.Arguments = ($proxyArguments | ForEach-Object {
+        '"' + ([string]$_).Replace('"', '\"') + '"'
+    }) -join ' '
 
     $process = [System.Diagnostics.Process]::new()
     $process.StartInfo = $startInfo
@@ -94,13 +96,15 @@ input.on("line", (line) => {
         throw 'Could not start code-index proxy test process.'
     }
 
+    $startProcedure = [System.Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('0KHRgtCw0YDRgg=='))
+    $runThreadsProcedure = [System.Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('0JfQsNC/0YPRgdGC0LjRgtGM0J/QvtGC0L7QutC4'))
     $requests = @(
         @{ jsonrpc = '2.0'; id = 0; method = 'initialize'; params = @{} },
         @{ jsonrpc = '2.0'; id = 1; method = 'tools/list'; params = @{} },
-        @{ jsonrpc = '2.0'; id = 2; method = 'tools/call'; params = @{ name = 'get_callers_bsl'; arguments = @{ repo = 'kafka-adapter'; procedure = 'ЗапуститьПотоки' } } },
-        @{ jsonrpc = '2.0'; id = 3; method = 'tools/call'; params = @{ name = 'get_callees_bsl'; arguments = @{ repo = 'kafka-adapter'; procedure = 'CommonModules/A/Ext/Module.bsl::Старт' } } },
-        @{ jsonrpc = '2.0'; id = 4; method = 'tools/call'; params = @{ name = 'get_call_tree_bsl'; arguments = @{ repo = 'kafka-adapter'; procedure = 'Старт'; direction = 'callees'; max_depth = 2 } } },
-        @{ jsonrpc = '2.0'; id = 5; method = 'tools/call'; params = @{ name = 'get_callers_bsl'; arguments = @{ procedure = 'ЗапуститьПотоки' } } },
+        @{ jsonrpc = '2.0'; id = 2; method = 'tools/call'; params = @{ name = 'get_callers_bsl'; arguments = @{ repo = 'kafka-adapter'; procedure = $runThreadsProcedure } } },
+        @{ jsonrpc = '2.0'; id = 3; method = 'tools/call'; params = @{ name = 'get_callees_bsl'; arguments = @{ repo = 'kafka-adapter'; procedure = "CommonModules/A/Ext/Module.bsl::$startProcedure" } } },
+        @{ jsonrpc = '2.0'; id = 4; method = 'tools/call'; params = @{ name = 'get_call_tree_bsl'; arguments = @{ repo = 'kafka-adapter'; procedure = $startProcedure; direction = 'callees'; max_depth = 2 } } },
+        @{ jsonrpc = '2.0'; id = 5; method = 'tools/call'; params = @{ name = 'get_callers_bsl'; arguments = @{ procedure = $runThreadsProcedure } } },
         @{ jsonrpc = '2.0'; id = 6; method = 'tools/call'; params = @{ name = 'health'; arguments = @{} } }
     )
     foreach ($request in $requests) {
@@ -121,7 +125,7 @@ input.on("line", (line) => {
 
     $responses = @{}
     foreach ($line in ($stdout -split "`r?`n" | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })) {
-        $response = $line | ConvertFrom-Json -Depth 20
+        $response = $line | ConvertFrom-Json
         $responses[[int]$response.id] = $response
     }
 
@@ -140,7 +144,7 @@ input.on("line", (line) => {
         throw 'Proxy did not clarify declarative register-writer coverage.'
     }
 
-    $callers = ($responses[2].result.content[0].text | ConvertFrom-Json -Depth 20)
+    $callers = ($responses[2].result.content[0].text | ConvertFrom-Json)
     if ($callers.callers.Count -ne 2 -or $callers.coverage.resolved_edges -ne 1 -or $callers.coverage.unresolved_edges -ne 1) {
         throw 'get_callers_bsl did not preserve resolved and unresolved edge coverage.'
     }
@@ -148,12 +152,12 @@ input.on("line", (line) => {
         throw 'get_callers_bsl did not report static coverage explicitly.'
     }
 
-    $callees = ($responses[3].result.content[0].text | ConvertFrom-Json -Depth 20)
+    $callees = ($responses[3].result.content[0].text | ConvertFrom-Json)
     if ($callees.callees.Count -ne 1 -or $callees.coverage.target_resolution -ne 'exact_key') {
         throw 'get_callees_bsl did not use the exact procedure key.'
     }
 
-    $tree = ($responses[4].result.content[0].text | ConvertFrom-Json -Depth 20)
+    $tree = ($responses[4].result.content[0].text | ConvertFrom-Json)
     if ($tree.edges.Count -ne 2 -or $tree.coverage.max_depth -ne 2 -or $tree.direction -ne 'callees') {
         throw 'get_call_tree_bsl did not return the expected tree contract.'
     }
@@ -168,7 +172,7 @@ input.on("line", (line) => {
         throw 'Proxy did not reject invalid custom tool arguments.'
     }
 
-    $health = ($responses[6].result.content[0].text | ConvertFrom-Json -Depth 20)
+    $health = ($responses[6].result.content[0].text | ConvertFrom-Json)
     if (
         $health.daemon.status -ne 'offline' -or
         $health.daemon.state -ne 'runtime_info_missing' -or

@@ -26,14 +26,24 @@ try {
     $escapedPackagePath = $portablePackage.Replace('\', '\\')
     $escapedWorkspacePath = $temporaryRoot.Replace('\', '\\')
     if (-not $installedConfig.Contains($escapedPackagePath)) {
-        throw 'Installed hook command does not reference the portable package path.'
+        throw 'Installed Kafka guard does not reference the portable package path.'
     }
     if (-not $installedConfig.Contains($escapedWorkspacePath)) {
-        throw 'Installed hook command does not reference the selected workspace root.'
+        throw 'Installed Kafka guard does not reference the selected workspace root.'
     }
     $expectedCodeIndexHome = (Join-Path $temporaryCodexHome 'code-index').Replace('\', '\\')
-    if (-not $installedConfig.Contains($expectedCodeIndexHome)) {
-        throw 'Installed code-index MCP does not reference its managed runtime home.'
+    $expectedSharedLauncher = ($expectedCodeIndexHome + '\\mcp\\code-index-mcp.ps1')
+    if (-not $installedConfig.Contains($expectedSharedLauncher)) {
+        throw 'Installed code-index MCP does not reference the shared launcher in CODE_INDEX_HOME.'
+    }
+    foreach ($managedMcpFile in @(
+        'code-index-mcp.ps1',
+        'code-index-daemon.ps1',
+        'code-index-proxy.mjs'
+    )) {
+        if (-not (Test-Path -LiteralPath (Join-Path $temporaryCodexHome "code-index\mcp\$managedMcpFile") -PathType Leaf)) {
+            throw "Installer did not install shared code-index MCP file '$managedMcpFile'."
+        }
     }
     $daemonConfigPath = Join-Path $temporaryCodexHome 'code-index\daemon.toml'
     if (-not (Test-Path -LiteralPath $daemonConfigPath -PathType Leaf)) {

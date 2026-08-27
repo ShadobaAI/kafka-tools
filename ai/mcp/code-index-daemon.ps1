@@ -109,14 +109,14 @@ function Start-DetachedDaemonProcess {
         [Parameter(Mandatory)][string]$WorkingDirectory
     )
 
-    if ($null -eq ('KafkaCodeIndex.DetachedProcess' -as [type])) {
+    if ($null -eq ('SharedCodeIndex.DetachedProcess' -as [type])) {
         Add-Type -TypeDefinition @'
 using System;
 using System.ComponentModel;
 using System.Runtime.InteropServices;
 using System.Text;
 
-namespace KafkaCodeIndex
+namespace SharedCodeIndex
 {
     public static class DetachedProcess
     {
@@ -199,7 +199,7 @@ namespace KafkaCodeIndex
 '@
     }
 
-    return [KafkaCodeIndex.DetachedProcess]::Start($Executable, 'daemon run', $WorkingDirectory)
+    return [SharedCodeIndex.DetachedProcess]::Start($Executable, 'daemon run', $WorkingDirectory)
 }
 
 function New-StartupMutex {
@@ -213,7 +213,7 @@ function New-StartupMutex {
     finally {
         $sha256.Dispose()
     }
-    return [System.Threading.Mutex]::new($false, "Local\KafkaCodeIndex.Start.$hash")
+    return [System.Threading.Mutex]::new($false, "Local\SharedCodeIndex.Start.$hash")
 }
 
 if ([string]::IsNullOrWhiteSpace($CodeIndexHome)) {
@@ -227,7 +227,7 @@ if ([string]::IsNullOrWhiteSpace($CodeIndexHome)) {
 }
 $CodeIndexHome = [System.IO.Path]::GetFullPath($CodeIndexHome)
 if (-not (Test-Path -LiteralPath (Join-Path $CodeIndexHome 'daemon.toml') -PathType Leaf)) {
-    throw "Managed daemon configuration is missing in '$CodeIndexHome'. Run tools/ai/install.ps1 first."
+    throw "Managed daemon configuration is missing in '$CodeIndexHome'. Run the workspace Codex installer first."
 }
 
 $candidates = @()

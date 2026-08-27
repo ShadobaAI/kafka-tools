@@ -27,7 +27,7 @@
 | Путь | Назначение |
 |------|------------|
 | `ai/AGENTS.md` | Общие инструкции workspace, на которые ссылаются локальные `AGENTS.md` репозиториев |
-| `ai/.codex/config.toml` | Managed block общей MCP/hook policy для `%USERPROFILE%\.codex\config.toml` |
+| `ai/.codex/config.toml` | Общий managed MCP block и отдельный Kafka guard block для `%USERPROFILE%\.codex\config.toml` |
 | `ai/.codex/skills/1c-routing/` | Выбор authoritative route между EDT-MCP, code-index, BSL LS и v8std |
 | `ai/.codex/skills/1c-code-change/` | Pipeline изменений 1С: inspect → EDT write → EDT validate |
 | `ai/.codex/skills/1c-platform-docs/` | Project-aware проверка API и совместимости платформы через EDT |
@@ -54,7 +54,7 @@ Bootstrap не запускается автоматически при откр
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\tools\ai\setup.ps1
 ```
 
-Bootstrap проверяет Node.js 18+, Java, версию `bsl-indexer`, наличие всех пяти репозиториев; копирует runtime в `%CODEX_HOME%`; вызывает идемпотентный installer; мигрирует конфликтующие `v8std`, `code-index` и legacy Unica tables с backup; перезапускает только managed daemon и подтверждает его HTTP health. Сетевые загрузки во время установки не выполняются. Регистрация и readiness repository paths выполняются `bsl-indexer serve` после перезапуска Codex и проверяются инструментом `code-index.health`; daemon сам по себе не публикует ещё не подключённые paths.
+Bootstrap проверяет Node.js 18+, Java, версию `bsl-indexer`, наличие всех пяти репозиториев; копирует runtime в `%CODEX_HOME%`; вызывает идемпотентный installer; обновляет только Kafka aliases в общем `daemon.toml`, сохраняя aliases других workspace и настройки daemon; перезапускает общий daemon и подтверждает его HTTP health. Сетевые загрузки во время установки не выполняются. Регистрация и readiness repository paths выполняются `bsl-indexer serve` после перезапуска Codex и проверяются инструментом `code-index.health`.
 
 Если артефакты доставляются отдельно, их пути можно передать явно:
 
@@ -70,9 +70,12 @@ Installer:
 
 - автоматически устанавливает все skills из `ai/.codex/skills/`;
 - удаляет с backup только известные устаревшие managed skills `edt-mcp`, `1c-engineering` и `v8std-mcp`, не затрагивая пользовательские skills;
-- обновляет только block между `KAFKA-AI MANAGED` markers в `config.toml`;
+- обновляет общий block между `SHARED-1C-AI MANAGED` markers и отдельный
+  Kafka guard block, не смешивая MCP registration с workspace policy;
 - сохраняет выбранный пользователем `mcp_servers.v8std.url` при повторной установке;
-- создаёт `%CODEX_HOME%\code-index\daemon.toml` с теми же aliases и paths, которые использует MCP;
+- устанавливает общий MCP launcher в `%CODEX_HOME%\code-index\mcp`;
+- обновляет в `%CODEX_HOME%\code-index\daemon.toml` только `kafka-*` aliases,
+  сохраняя aliases других workspace и существующие настройки `[daemon]`;
 - синхронизирует workspace `AGENTS.md`;
 - подставляет абсолютные пути workspace и hook в установленную конфигурацию;
 - сохраняет заменяемые файлы под `%CODEX_HOME%\backups\workspace-ai`;
@@ -99,7 +102,7 @@ MCP routing:
 | `adapter/adapter` | repository-owned `bsl-ls` через `.codex/mcp/bsl-ls-proxy.mjs` |
 | Standards, diagnostic codes и snippets | `v8std`; по умолчанию `https://ai.v8std.ru/mcp` |
 
-Для полной 1С-surface требуются Node.js 18+, Java, Windows-сборка `bsl-indexer.exe` версии `0.69.0` или новее (не публичный npm-бинарник `code-index`) и executable JAR BSL LS. Bootstrap устанавливает оба артефакта в managed-каталоги `%CODEX_HOME%`. `CODE_INDEX_HOME` для MCP и daemon задаётся installer согласованно; coordination/log runtime хранится там, а индексы — в исключённых из Git `.code-index/` каталогах repository roots. Managed proxy добавляет `get_callers_bsl`, `get_callees_bsl` и `get_call_tree_bsl`; имена процедур ищутся регистронезависимо для латиницы и кириллицы, а coverage относится только к статическому графу. `get_register_writers` показывает только декларативные связи `RegisterRecords`, а не программную запись через `RecordSet`/`RecordManager`.
+Для полной 1С-surface требуются Node.js 18+, Java, Windows-сборка `bsl-indexer.exe` версии `0.69.0` или новее (не публичный npm-бинарник `code-index`) и executable JAR BSL LS. Bootstrap устанавливает оба артефакта в managed-каталоги `%CODEX_HOME%`. Один `CODE_INDEX_HOME` и daemon обслуживают все зарегистрированные workspace; coordination/log runtime хранится там, а индексы — в исключённых из Git `.code-index/` каталогах repository roots. Managed proxy добавляет `get_callers_bsl`, `get_callees_bsl` и `get_call_tree_bsl`; имена процедур ищутся регистронезависимо для латиницы и кириллицы, а coverage относится только к статическому графу. `get_register_writers` показывает только декларативные связи `RegisterRecords`, а не программную запись через `RecordSet`/`RecordManager`.
 
 На Windows запускайте daemon через managed launcher. Он сериализует конкурентные старты для одного `CODE_INDEX_HOME`, отключает проблемный self-detach бинарника и создаёт процесс с `bInheritHandles=false`, поэтому daemon не удерживает stdio-pipes MCP-клиента и не падает после их закрытия. Успех возвращается только после проверки реального `GET /health`; основной журнал остаётся в `%CODEX_HOME%\code-index\daemon.log`:
 

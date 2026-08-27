@@ -1,6 +1,5 @@
 [CmdletBinding()]
 param(
-    [Parameter(Mandatory)][string]$WorkspaceRoot,
     [Parameter(Mandatory)][string]$CodeIndexHome,
     [string]$BslIndexerPath = $env:BSL_INDEXER_EXE,
     [string]$NodePath = $env:CODE_INDEX_NODE,
@@ -72,27 +71,9 @@ function Assert-MinimumVersion {
     }
 }
 
-$WorkspaceRoot = [System.IO.Path]::GetFullPath($WorkspaceRoot)
 $CodeIndexHome = [System.IO.Path]::GetFullPath($CodeIndexHome)
-if (-not (Test-Path -LiteralPath $WorkspaceRoot -PathType Container)) {
-    throw "Workspace root does not exist: '$WorkspaceRoot'."
-}
 if (-not (Test-Path -LiteralPath $CodeIndexHome -PathType Container)) {
-    throw "CODE_INDEX_HOME does not exist: '$CodeIndexHome'. Run tools/ai/install.ps1 first."
-}
-
-$configuredRepositories = @(
-    'adapter\adapter',
-    'adapter\base',
-    'adapter\examples',
-    'conversion\KFK',
-    'tests\unit\unit'
-)
-foreach ($relativePath in $configuredRepositories) {
-    $repositoryPath = [System.IO.Path]::GetFullPath((Join-Path $WorkspaceRoot $relativePath))
-    if (-not (Test-Path -LiteralPath $repositoryPath -PathType Container)) {
-        throw "Configured code-index repository does not exist: '$repositoryPath'."
-    }
+    throw "CODE_INDEX_HOME does not exist: '$CodeIndexHome'. Run the workspace Codex installer first."
 }
 
 $daemonConfig = Join-Path $CodeIndexHome 'daemon.toml'
