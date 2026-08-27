@@ -1,11 +1,11 @@
 ---
 name: 1c-code-index
-description: Search and analyze a 1C project through the read-only federated code-index MCP for broad discovery, procedures, indexed file content, metadata structure, call/data graphs, event subscriptions, register writers, or impact analysis. Use only after binding the exact repository alias; do not use for writes, live EDT state, platform API truth, or primary diagnostics.
+description: Retrieve read-only 1C project information and perform narrow or broad search and analysis through the federated code-index MCP when slight index staleness is acceptable. Use only after binding the exact repository alias; do not use for writes, authoritative live EDT state, platform API truth, or primary diagnostics.
 ---
 
 # 1C code-index
 
-Use `$1c-routing` invariants. `code-index` is a supplementary eventually-consistent index, not the live project model.
+Use `$1c-routing` invariants. `code-index` is the preferred eventually-consistent read-only project view when slight staleness is acceptable, not the live project model.
 
 ## Bind and verify
 

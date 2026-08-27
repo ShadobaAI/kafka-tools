@@ -5,6 +5,8 @@ description: Retrieve and apply 1C development standards, corporate policy, patt
 
 # 1C Standards
 
+Use `$1c-routing` invariants.
+
 Use v8std as a read-only policy corpus. It does not inspect the live project, establish API availability, or replace EDT diagnostics.
 
 ## Route evidence
