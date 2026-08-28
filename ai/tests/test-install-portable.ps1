@@ -10,9 +10,21 @@ $temporaryCodexHome = Join-Path $temporaryRoot 'codex-home'
 try {
     New-Item -ItemType Directory -Path (Split-Path -Parent $portablePackage) -Force | Out-Null
     Copy-Item -LiteralPath $sourcePackage -Destination $portablePackage -Recurse -Force
+    foreach ($relativePath in @(
+        'adapter\adapter',
+        'adapter\base',
+        'adapter\examples',
+        'conversion\KFK',
+        'tests\unit\unit'
+    )) {
+        New-Item -ItemType Directory -Path (Join-Path $temporaryRoot $relativePath) -Force | Out-Null
+    }
 
-    $portableInstaller = Join-Path $portablePackage 'install.ps1'
-    & $portableInstaller -WorkspaceRoot $temporaryRoot -CodexHome $temporaryCodexHome | Out-Null
+    $portableInstaller = Join-Path $portablePackage 'setup.ps1'
+    & $portableInstaller `
+        -WorkspaceRoot $temporaryRoot `
+        -CodexHome $temporaryCodexHome `
+        -ConfigurationOnly | Out-Null
 
     $installedConfigPath = Join-Path $temporaryCodexHome 'config.toml'
     $installedConfig = Get-Content -LiteralPath $installedConfigPath -Raw

@@ -34,7 +34,7 @@ EDT остаётся источником истины. Остальные ко�
 - управление единым Windows daemon `bsl-indexer`;
 - hook, запрещающий обход правил доступа к проектам 1С;
 - декларативный список репозиториев и aliases индекса;
-- идемпотентные `setup.ps1` и `install.ps1`;
+- единый идемпотентный `setup.ps1`;
 - regression-тесты установки и lifecycle.
 
 Этот слой устанавливает общие MCP и skills в `%CODEX_HOME%`, потому что Codex не обязан
@@ -100,7 +100,6 @@ code-index: быстро сузить область
     ├── AGENTS.md
     ├── PORTING.md
     ├── setup.ps1                     # единая команда установки
-    ├── install.ps1                   # низкоуровневая установка policy/config
     ├── workspace-policy.json
     ├── .codex/
     │   ├── config.toml               # managed user-level block
@@ -113,15 +112,15 @@ code-index: быстро сузить область
     │   ├── code-index-mcp.ps1
     │   ├── code-index-daemon.ps1
     │   └── code-index-proxy.mjs
-    ├── runtime/windows/
-    │   ├── bsl-indexer.exe
-    │   └── bsl-language-server-*-exec.jar
+    ├── runtime/windows/.gitignore
     └── tests/
 ```
 
-Runtime-файлы являются неизменёнными сторонними артефактами. Их не нужно форкать или
-патчить. Владелец внутренней поставки должен отдельно контролировать источник, версию и
-SHA-256 каждого файла.
+Runtime-файлы являются неизменёнными сторонними артефактами. `setup.ps1` получает
+последний опубликованный Windows x64 release `bsl-indexer`, включая prerelease,
+и последний стабильный BSL LS release из canonical GitHub repositories. Файлы
+проверяются во временном staging до persistent writes. Для закрытого контура
+остаются явные offline-параметры.
 
 ## 5. Что требуется определить для нового workspace
 
@@ -271,15 +270,20 @@ Guard — дополнительный enforcement, а не источник б�
 1. вычислить workspace root относительно собственного расположения либо принять
    `-WorkspaceRoot`;
 2. проверить наличие всех обязательных repository roots;
-3. проверить Node.js, Java и минимальную версию `bsl-indexer`;
-4. найти runtime в поставочном каталоге, существующем `%CODEX_HOME%`, environment или
-   по явно переданному пути;
-5. вызвать идемпотентный `install.ps1`;
-6. сделать backup заменяемых user config, skills и runtime;
-7. установить runtime под стабильными managed-именами;
-8. остановить общий daemon в `CODE_INDEX_HOME`, дождаться завершения PID;
-9. запустить daemon и подтвердить реальный `GET /health` с совпадающим PID;
-10. сообщить о необходимости перезапуска Codex.
+3. проверить Node.js и Java;
+4. определить latest releases через GitHub API или принять явно переданный offline runtime;
+5. скачать assets во временный staging, проверить size, SHA-256, upstream digest,
+   ZIP и версию executable JAR, не изменяя persistent configuration;
+6. проверить минимальную версию `bsl-indexer`;
+7. сделать backup и идемпотентно установить managed config, skills, Kafka guard,
+   aliases и MCP launchers;
+8. проверить общий daemon в `CODE_INDEX_HOME`; если он запущен, остановить его
+   и дождаться завершения PID до замены executable;
+9. сделать backup и установить runtime под стабильными managed-именами;
+10. запустить daemon и подтвердить реальный `GET /health` с совпадающим PID;
+11. при ошибке замены runtime или запуска восстановить прежние runtime/daemon
+   config и перезапустить прежний daemon;
+12. сообщить о необходимости перезапуска Codex.
 
 Daemon health не равен readiness индексов. На чистой установке configured paths появляются
 в daemon health после подключения `bsl-indexer serve`, то есть после запуска MCP в Codex.
@@ -307,14 +311,14 @@ Daemon health не равен readiness индексов. На чистой ус
 
 ## 7. Команда установки для команды
 
-После подготовки полной структуры workspace и внутреннего runtime bundle:
+После подготовки полной структуры workspace:
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File `
   .\<tools-repo>\ai\setup.ps1
 ```
 
-Если runtime доставляется централизованно вне workspace:
+Если runtime доставляется централизованно или установка выполняется без сети:
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File `
@@ -366,7 +370,7 @@ Live smoke не должен изменять проект 1С.
 
 Перенос завершён, если одновременно выполняются условия:
 
-- установка новой машины требует одной команды после раскладки workspace и runtime;
+- установка новой машины требует одной команды после раскладки workspace;
 - конфигурация не содержит путей конкретного разработчика;
 - каждый репозиторий использует только свой EDT-MCP;
 - code-index видит aliases текущего workspace и сохраняет утверждённые aliases других workspace;
@@ -411,7 +415,8 @@ enforcement hook и одна проверяемая команда устано�
   upstream-поддержки Unicode.
 - Remote v8std может получать переданные ему фрагменты; это отдельное организационное
   решение владельца endpoint.
-- Runtime supply chain остаётся ответственностью владельца внутренней поставки.
+- Runtime берётся только из canonical GitHub repositories или из явно переданных
+  владельцем offline-артефактов.
 - `daemon online` подтверждает процесс и HTTP API, но readiness aliases подтверждается
   только после запуска MCP через `code-index.health`.
 

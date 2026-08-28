@@ -3,13 +3,13 @@ param()
 
 $ErrorActionPreference = 'Stop'
 $workspaceRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..\..'))
-$installer = Join-Path $workspaceRoot 'tools\ai\install.ps1'
+$installer = Join-Path $workspaceRoot 'tools\ai\setup.ps1'
 $temporaryCodexHome = Join-Path ([System.IO.Path]::GetTempPath()) ("kafka-ai-v8std-" + [guid]::NewGuid().ToString('N'))
 $publicUrl = 'https://ai.v8std.ru/mcp'
 $localUrl = 'http://127.0.0.1:8766/mcp'
 
 try {
-    & $installer -WorkspaceRoot $workspaceRoot -CodexHome $temporaryCodexHome -ReplaceConflictingCommonMcp | Out-Null
+    & $installer -WorkspaceRoot $workspaceRoot -CodexHome $temporaryCodexHome -ConfigurationOnly | Out-Null
     $configPath = Join-Path $temporaryCodexHome 'config.toml'
     $config = Get-Content -LiteralPath $configPath -Raw
 
@@ -26,7 +26,7 @@ try {
         [System.Text.UTF8Encoding]::new($false)
     )
 
-    & $installer -WorkspaceRoot $workspaceRoot -CodexHome $temporaryCodexHome -ReplaceConflictingCommonMcp | Out-Null
+    & $installer -WorkspaceRoot $workspaceRoot -CodexHome $temporaryCodexHome -ConfigurationOnly | Out-Null
     $reinstalledConfig = Get-Content -LiteralPath $configPath -Raw
     if ($reinstalledConfig -notmatch [regex]::Escape("url = `"$localUrl`"")) {
         throw 'Installer did not preserve the user-selected v8std URL.'

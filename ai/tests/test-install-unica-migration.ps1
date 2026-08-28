@@ -3,7 +3,7 @@ param()
 
 $ErrorActionPreference = 'Stop'
 $workspaceRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..\..'))
-$installer = Join-Path $workspaceRoot 'tools\ai\install.ps1'
+$installer = Join-Path $workspaceRoot 'tools\ai\setup.ps1'
 $temporaryCodexHome = Join-Path ([System.IO.Path]::GetTempPath()) ("kafka-ai-unica-migration-" + [guid]::NewGuid().ToString('N'))
 
 try {
@@ -38,7 +38,7 @@ url = "http://127.0.0.1:9999/mcp"
         [System.Text.UTF8Encoding]::new($false)
     )
 
-    & $installer -WorkspaceRoot $workspaceRoot -CodexHome $temporaryCodexHome -ReplaceConflictingCommonMcp | Out-Null
+    & $installer -WorkspaceRoot $workspaceRoot -CodexHome $temporaryCodexHome -ConfigurationOnly | Out-Null
     $installedConfig = Get-Content -LiteralPath (Join-Path $temporaryCodexHome 'config.toml') -Raw
     if ($installedConfig -match '(?im)^\[(?:marketplaces\.unica|plugins\."unica@unica"(?:\.mcp_servers\.unica)?)\]') {
         throw 'Installer left a legacy Unica registration or MCP table in active config.'

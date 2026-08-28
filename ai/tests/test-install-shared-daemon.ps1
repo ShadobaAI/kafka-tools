@@ -3,7 +3,7 @@ param()
 
 $ErrorActionPreference = 'Stop'
 $workspaceRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..\..'))
-$installer = Join-Path $workspaceRoot 'tools\ai\install.ps1'
+$installer = Join-Path $workspaceRoot 'tools\ai\setup.ps1'
 $temporaryCodexHome = Join-Path ([System.IO.Path]::GetTempPath()) ("kafka-ai-shared-daemon-" + [guid]::NewGuid().ToString('N'))
 
 try {
@@ -58,7 +58,7 @@ language = "bsl"
     & $installer `
         -WorkspaceRoot $workspaceRoot `
         -CodexHome $temporaryCodexHome `
-        -ReplaceConflictingCommonMcp | Out-Null
+        -ConfigurationOnly | Out-Null
 
     $installedConfig = Get-Content -LiteralPath $configPath -Raw
     foreach ($required in @(
@@ -100,7 +100,7 @@ language = "bsl"
     & $installer `
         -WorkspaceRoot $workspaceRoot `
         -CodexHome $temporaryCodexHome `
-        -ReplaceConflictingCommonMcp | Out-Null
+        -ConfigurationOnly | Out-Null
     $reinstalledDaemonConfig = Get-Content -LiteralPath $daemonConfigPath -Raw
     foreach ($alias in $expectedAliases) {
         $aliasCount = [regex]::Matches(
