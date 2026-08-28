@@ -244,7 +244,9 @@ Proxy должен:
 - `1c-code-index` — задаёт binding alias, freshness и ограничения read-only индекса;
 - `bsl-ls-mcp` — ограничивает BSL LS focused diagnostics/navigation;
 - `1c-platform-docs` — направляет platform API questions в live EDT documentation;
-- `1c-standards` — направляет standards/policy questions в v8std.
+- `1c-standards` — направляет standards/policy questions в v8std;
+- `yaxunit-tests` — создаёт, изменяет, ищет, проверяет и запускает модульные тесты
+  YAxUnit через назначенный EDT и индекс ядра.
 
 Skill `1c-routing` должен загружаться только для работы с конкретным проектом 1С или
 общего вопроса про 1С. Наличие 1С-исходников в workspace само по себе не должно включать

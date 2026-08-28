@@ -35,6 +35,7 @@ Choose the source by the kind of fact or operation, not by which tool looks shor
 - For standards, diagnostic meaning, patterns, or architecture policy, use `$1c-standards`.
 - For read-only project information, search, discovery, structure, graph, references, or impact analysis where slight index staleness is acceptable, use `$1c-code-index` for both narrow and broad questions. Confirm through EDT only when the conclusion requires authoritative live state.
 - For focused BSL diagnostics or a specific symbol/reference/type question in a configured repository, use `$bsl-ls-mcp`.
+- For creating, changing, finding, reviewing, running, or debugging modular tests built on YAxUnit, use `$yaxunit-tests` together with the route required for any underlying 1C mutation or analysis.
 - Use EDT for a read-only lookup only when the task requires authoritative live state, platform truth, primary diagnostics, mutation preparation, or a fact that code-index cannot represent.
 
 Establish server status and project identity only when not already known. Enable only the EDT toolset needed for the current decision. Use `get_tool_guide` for unclear or version-sensitive tool semantics rather than inventing arguments.
