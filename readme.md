@@ -54,7 +54,7 @@ Bootstrap не запускается автоматически при откр
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\tools\ai\setup.ps1
 ```
 
-Bootstrap проверяет Node.js 18+, Java, версию `bsl-indexer`, наличие всех пяти репозиториев; копирует runtime в `%CODEX_HOME%`; вызывает идемпотентный installer; обновляет только Kafka aliases в общем `daemon.toml`, сохраняя aliases других workspace и настройки daemon; перезапускает общий daemon и подтверждает его HTTP health. Сетевые загрузки во время установки не выполняются. Регистрация и readiness repository paths выполняются `bsl-indexer serve` после перезапуска Codex и проверяются инструментом `code-index.health`.
+Bootstrap проверяет Node.js 18+, Java, версию `bsl-indexer` и наличие обязательных каталогов workspace; копирует runtime в `%CODEX_HOME%`; вызывает идемпотентный installer; заменяет полный набор Kafka aliases в общем `daemon.toml`, сохраняя aliases других workspace и настройки daemon; перезапускает общий daemon и подтверждает его HTTP health. Если локальные пути runtime не переданы явно, bootstrap загружает и проверяет release-артефакты `bsl-indexer` и BSL Language Server с GitHub. Регистрация и readiness repository paths выполняются `bsl-indexer serve` после перезапуска Codex и проверяются инструментом `code-index.health`.
 
 Если артефакты доставляются отдельно, их пути можно передать явно:
 
@@ -74,8 +74,9 @@ Installer:
   Kafka guard block, не смешивая MCP registration с workspace policy;
 - сохраняет выбранный пользователем `mcp_servers.v8std.url` при повторной установке;
 - устанавливает общий MCP launcher в `%CODEX_HOME%\code-index\mcp`;
-- обновляет в `%CODEX_HOME%\code-index\daemon.toml` только `kafka-*` aliases,
-  сохраняя aliases других workspace и существующие настройки `[daemon]`;
+- обновляет в `%CODEX_HOME%\code-index\daemon.toml` только управляемые `kfk*` aliases
+  и удаляет их известные устаревшие варианты `kafka-adapter*`, сохраняя aliases
+  других workspace и существующие настройки `[daemon]`;
 - синхронизирует workspace `AGENTS.md`;
 - подставляет абсолютные пути workspace и hook в установленную конфигурацию;
 - сохраняет заменяемые файлы под `%CODEX_HOME%\backups\workspace-ai`;
@@ -91,16 +92,31 @@ D:\path\to\ai\setup.ps1 -WorkspaceRoot D:\path\to\workspace
 
 Hooks — lifecycle-обработчики Codex. `PreToolUse` вызывается перед подходящим tool call и может разрешить или отклонить его. В этой policy hook запускает `guard-1c-routing.ps1`, который блокирует code-index/BSL LS tools вне read-only allowlists, прямой filesystem-доступ к настроенным 1С `src/**` и EDT `git`/`ask_workmate`. Hook не является MCP и не выполняет диагностику или изменение 1С сам по себе.
 
-MCP routing:
+EDT-MCP routing:
 
-| Scope | MCP |
+| Контур | Проекты | MCP | Порт |
+|---|---|---|---:|
+| adapter | `adapter/adapter`, `adapter/base`, `adapter/examples` | repository-owned `kfk-edt` | `8765` |
+| conversion | `conversion/KFK`, `conversion/КД` | repository-owned `conv-edt` | `8767` |
+| unit | `tests/unit/base`, `tests/unit/examples`, `tests/unit/unit`, `tests/unit/yaxunit` | project-local `unit-edt`, настраивается только в `tests/unit/unit/.codex/config.toml` | `8768` |
+
+Порты различаются, поэтому три EDT-MCP можно запускать одновременно. Порт, настроенный в сервере каждого EDT workspace, должен совпадать с URL в соответствующем `.codex/config.toml`.
+
+Файл `.codex/config.toml` настраивает только клиент Codex. Серверный порт задаётся отдельно в каждом EDT workspace: `Window → Preferences → MCP Server → General → Server Port`, после чего MCP server нужно перезапустить из той же страницы. Для adapter укажите `8765`, для conversion — `8767`, для unit — `8768`.
+
+Code-index routing:
+
+| Scope | Алиасы |
 |---|---|
-| `adapter/adapter`, `adapter/base`, `adapter/examples` | repository-owned `kfk-edt` |
-| `tests/unit/unit`, generated `tests/unit/base` | repository-owned `kfk-unit-edt` |
-| `conversion/KFK` | repository-owned `conv-edt` |
-| Все канонические 1С-репозитории | общий federated `code-index`, только explicit read-only allowlist |
-| `adapter/adapter` | repository-owned `bsl-ls` через `.codex/mcp/bsl-ls-proxy.mjs` |
-| Standards, diagnostic codes и snippets | `v8std`; по умолчанию `https://ai.v8std.ru/mcp` |
+| `adapter/adapter`, `adapter/base`, `adapter/examples` | `kfk`, `kfk-base`, `kfk-examples` |
+| `conversion/KFK`, `conversion/КД` | `kfk-conv`, `kfk-conv-kd` |
+| `tests/unit/base` | переиспользует `kfk-base` + `kfk` из `adapter/*`; отдельный индекс не создаётся |
+| `tests/unit/examples` | переиспользует `kfk-examples` из `adapter/*`; отдельный индекс не создаётся |
+| `tests/unit/unit` | локальный `kfk-unit` |
+| `tests/unit/yaxunit` | локальный `kfk-yaxunit` |
+| Все индексируемые 1С-проекты | общий federated `code-index`, только explicit read-only allowlist |
+
+Дополнительно `adapter/adapter` использует repository-owned `bsl-ls` через `.codex/mcp/bsl-ls-proxy.mjs`. Standards, diagnostic codes и snippets маршрутизируются в `v8std`; по умолчанию `https://ai.v8std.ru/mcp`.
 
 Для полной 1С-surface требуются Node.js 18+, Java, Windows-сборка `bsl-indexer.exe` версии `0.69.0` или новее (не публичный npm-бинарник `code-index`) и executable JAR BSL LS. Bootstrap устанавливает оба артефакта в managed-каталоги `%CODEX_HOME%`. Один `CODE_INDEX_HOME` и daemon обслуживают все зарегистрированные workspace; coordination/log runtime хранится там, а индексы — в исключённых из Git `.code-index/` каталогах repository roots. Managed proxy добавляет `get_callers_bsl`, `get_callees_bsl` и `get_call_tree_bsl`; имена процедур ищутся регистронезависимо для латиницы и кириллицы, а coverage относится только к статическому графу. `get_register_writers` показывает только декларативные связи `RegisterRecords`, а не программную запись через `RecordSet`/`RecordManager`.
 
@@ -129,7 +145,7 @@ Endpoint выбирает пользователь в `%USERPROFILE%\.codex\conf
 url = "http://127.0.0.1:8766/mcp"
 ```
 
-Installer сохраняет выбранный URL при последующих обновлениях policy. Локальный v8std запускается из отдельного checkout на порту `8766`, поскольку `8765` занят EDT-MCP. Checkout должен содержать сгенерированные `docs/ai/pages.jsonl` и `docs/ai/search-vectors.jsonl` и установленные зависимости из upstream `requirements.txt`/`requirements-mcp.txt`:
+Installer сохраняет выбранный URL при последующих обновлениях policy. Локальный v8std запускается из отдельного checkout на зарезервированном порту `8766`; EDT-MCP используют `8765`, `8767` и `8768`. Checkout должен содержать сгенерированные `docs/ai/pages.jsonl` и `docs/ai/search-vectors.jsonl` и установленные зависимости из upstream `requirements.txt`/`requirements-mcp.txt`:
 
 ```powershell
 .\ai\start-v8std.ps1 -V8stdRoot C:\path\to\v8std

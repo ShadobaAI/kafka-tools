@@ -4,7 +4,10 @@
     "adapter/base",
     "adapter/examples",
     "conversion/KFK",
+    "conversion/КД",
+    "tests/unit/base",
+    "tests/unit/examples",
     "tests/unit/unit",
-    "tests/unit/base"
+    "tests/unit/yaxunit"
   ]
 }

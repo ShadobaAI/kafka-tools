@@ -8,6 +8,7 @@ $portablePackage = Join-Path $temporaryRoot 'support\agent-kit'
 $temporaryCodexHome = Join-Path $temporaryRoot 'codex-home'
 
 try {
+    $conversionDataBaseRelativePath = 'conversion\' + [string][char]0x041A + [string][char]0x0414
     New-Item -ItemType Directory -Path (Split-Path -Parent $portablePackage) -Force | Out-Null
     Copy-Item -LiteralPath $sourcePackage -Destination $portablePackage -Recurse -Force
     foreach ($relativePath in @(
@@ -15,7 +16,11 @@ try {
         'adapter\base',
         'adapter\examples',
         'conversion\KFK',
-        'tests\unit\unit'
+        $conversionDataBaseRelativePath,
+        'tests\unit\base',
+        'tests\unit\examples',
+        'tests\unit\unit',
+        'tests\unit\yaxunit'
     )) {
         New-Item -ItemType Directory -Path (Join-Path $temporaryRoot $relativePath) -Force | Out-Null
     }
@@ -86,6 +91,25 @@ try {
     }
 
     $setupSource = Get-Content -LiteralPath (Join-Path $portablePackage 'setup.ps1') -Raw
+    $bundledRuntimeIndex = $setupSource.IndexOf('$bundledRuntimeRoot = Join-Path $PSScriptRoot ''runtime\windows''')
+    $runtimeStagingIndex = $setupSource.IndexOf("Get-GitHubLatestRelease -Repository 'Regsorm/code-index-mcp'")
+    if (
+        $bundledRuntimeIndex -lt 0 -or
+        $runtimeStagingIndex -lt 0 -or
+        $bundledRuntimeIndex -gt $runtimeStagingIndex
+    ) {
+        throw 'Setup does not inspect bundled Windows runtime before downloading from GitHub.'
+    }
+    foreach ($bundledRuntimeFragment in @(
+        "-Filter 'bsl-indexer.exe'",
+        "-Filter 'bsl-language-server-*-exec.jar'",
+        'Using bundled bsl-indexer executable',
+        'Using bundled BSL Language Server JAR'
+    )) {
+        if (-not $setupSource.Contains($bundledRuntimeFragment)) {
+            throw "Setup is missing bundled runtime selection fragment: $bundledRuntimeFragment"
+        }
+    }
     foreach ($releasePolicyFragment in @(
         "Get-GitHubLatestRelease -Repository 'Regsorm/code-index-mcp'",
         "-NamePattern '^bsl-indexer-windows-x64\.zip$'",
@@ -98,7 +122,6 @@ try {
             throw "Setup is missing GitHub release policy fragment: $releasePolicyFragment"
         }
     }
-    $runtimeStagingIndex = $setupSource.IndexOf("Get-GitHubLatestRelease -Repository 'Regsorm/code-index-mcp'")
     $persistentConfigIndex = $setupSource.IndexOf('$targetConfig = Join-Path $CodexHome')
     if (
         $runtimeStagingIndex -lt 0 -or
@@ -112,6 +135,18 @@ try {
         -WorkspaceRoot $temporaryRoot `
         -CodexHome $temporaryCodexHome `
         -ConfigurationOnly | Out-Null
+    $bundledRuntimeTestRoot = Join-Path $temporaryRoot 'bundled-runtime-test'
+    New-Item -ItemType Directory -Path $bundledRuntimeTestRoot -Force | Out-Null
+    $bundledIndexer = Join-Path $bundledRuntimeTestRoot 'bsl-indexer.exe'
+    $bundledJar = Join-Path $bundledRuntimeTestRoot 'bsl-language-server-1.2.3-exec.jar'
+    [System.IO.File]::WriteAllBytes($bundledIndexer, [byte[]](1))
+    [System.IO.File]::WriteAllBytes($bundledJar, [byte[]](2))
+    if (
+        (Resolve-BundledRuntimeFile -RuntimeRoot $bundledRuntimeTestRoot -Filter 'bsl-indexer.exe' -Description 'indexer') -ne $bundledIndexer -or
+        (Resolve-BundledRuntimeFile -RuntimeRoot $bundledRuntimeTestRoot -Filter 'bsl-language-server-*-exec.jar' -Description 'JAR') -ne $bundledJar
+    ) {
+        throw 'Bundled runtime files were not resolved from runtime/windows conventions.'
+    }
     function Invoke-RestMethod {
         param($Method, $Uri, $Headers)
 

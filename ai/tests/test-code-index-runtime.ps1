@@ -53,7 +53,7 @@ $requests = @(
         method = 'tools/call'
         params = @{
             name = 'get_callers_bsl'
-            arguments = @{ repo = 'kafka-adapter'; procedure = $Procedure; limit = 200 }
+            arguments = @{ repo = 'kfk'; procedure = $Procedure; limit = 200 }
         }
     },
     @{
@@ -62,7 +62,7 @@ $requests = @(
         method = 'tools/call'
         params = @{
             name = 'get_callees_bsl'
-            arguments = @{ repo = 'kafka-adapter'; procedure = $Procedure; limit = 200 }
+            arguments = @{ repo = 'kfk'; procedure = $Procedure; limit = 200 }
         }
     },
     @{
@@ -71,7 +71,7 @@ $requests = @(
         method = 'tools/call'
         params = @{
             name = 'get_call_tree_bsl'
-            arguments = @{ repo = 'kafka-adapter'; procedure = $Procedure; direction = 'callers'; max_depth = 3; max_nodes = 500 }
+            arguments = @{ repo = 'kfk'; procedure = $Procedure; direction = 'callers'; max_depth = 3; max_nodes = 500 }
         }
     },
     @{ jsonrpc = '2.0'; id = 6; method = 'tools/call'; params = @{ name = 'health'; arguments = @{} } },
@@ -81,7 +81,7 @@ $requests = @(
         method = 'tools/call'
         params = @{
             name = 'grep_code'
-            arguments = @{ repo = 'kafka-adapter'; pattern = $Procedure; language = 'bsl'; limit = 10 }
+            arguments = @{ repo = 'kfk'; pattern = $Procedure; language = 'bsl'; limit = 10 }
         }
     },
     @{
@@ -90,7 +90,7 @@ $requests = @(
         method = 'tools/call'
         params = @{
             name = 'get_function'
-            arguments = @{ repo = 'kafka-adapter'; name = $Procedure }
+            arguments = @{ repo = 'kfk'; name = $Procedure }
         }
     },
     @{
@@ -99,7 +99,7 @@ $requests = @(
         method = 'tools/call'
         params = @{
             name = 'get_register_writers'
-            arguments = @{ repo = 'kafka-adapter'; object = 'InformationRegister.кфкИсходящиеСообщения' }
+            arguments = @{ repo = 'kfk'; object = 'InformationRegister.кфкИсходящиеСообщения' }
         }
     },
     @{
@@ -108,7 +108,7 @@ $requests = @(
         method = 'tools/call'
         params = @{
             name = 'get_callers_bsl'
-            arguments = @{ repo = 'kafka-adapter'; procedure = $Procedure.ToLowerInvariant(); limit = 200 }
+            arguments = @{ repo = 'kfk'; procedure = $Procedure.ToLowerInvariant(); limit = 200 }
         }
     },
     @{
@@ -117,7 +117,7 @@ $requests = @(
         method = 'tools/call'
         params = @{
             name = 'search_function'
-            arguments = @{ repo = 'kafka-adapter'; query = $Procedure; limit = 10 }
+            arguments = @{ repo = 'kfk'; query = $Procedure; limit = 10 }
         }
     }
 )
@@ -194,11 +194,13 @@ if (
     throw "Managed MCP health did not verify the daemon endpoint: $($responses[6].result.content[0].text)"
 }
 $expectedKafkaRepos = @(
-    'kafka-adapter',
-    'kafka-adapter-base',
-    'kafka-adapter-examples',
-    'kafka-adapter-conv',
-    'kafka-adapter-tests-unit'
+    'kfk',
+    'kfk-base',
+    'kfk-examples',
+    'kfk-conv',
+    'kfk-conv-kd',
+    'kfk-unit',
+    'kfk-yaxunit'
 )
 $reportedKafkaRepos = @($health.repos | Where-Object { $_.repo -in $expectedKafkaRepos })
 $missingKafkaRepos = @($expectedKafkaRepos | Where-Object { $_ -notin $reportedKafkaRepos.repo })

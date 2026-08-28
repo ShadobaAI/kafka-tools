@@ -50,6 +50,27 @@ function Resolve-ExistingFile {
     return $resolved
 }
 
+function Resolve-BundledRuntimeFile {
+    param(
+        [Parameter(Mandatory)][string]$RuntimeRoot,
+        [Parameter(Mandatory)][string]$Filter,
+        [Parameter(Mandatory)][string]$Description
+    )
+
+    if (-not (Test-Path -LiteralPath $RuntimeRoot -PathType Container)) {
+        return $null
+    }
+    $candidates = @(Get-ChildItem -LiteralPath $RuntimeRoot -Filter $Filter -File)
+    if ($candidates.Count -gt 1) {
+        $candidatePaths = ($candidates.FullName | Sort-Object) -join "', '"
+        throw "Multiple bundled $Description files were found: '$candidatePaths'. Pass an explicit path to setup.ps1."
+    }
+    if ($candidates.Count -eq 1) {
+        return $candidates[0].FullName
+    }
+    return $null
+}
+
 function Resolve-CommandPath {
     param(
         [string]$RequestedPath,
@@ -304,20 +325,25 @@ else {
     $CodexHome = [System.IO.Path]::GetFullPath($CodexHome)
 }
 
-$requiredRepositories = @(
+$conversionDataBaseRelativePath = 'conversion\' + [string][char]0x041A + [string][char]0x0414
+$requiredWorkspacePaths = @(
     'adapter\adapter',
     'adapter\base',
     'adapter\examples',
     'conversion\KFK',
-    'tests\unit\unit'
+    $conversionDataBaseRelativePath,
+    'tests\unit\base',
+    'tests\unit\examples',
+    'tests\unit\unit',
+    'tests\unit\yaxunit'
 )
 if (-not (Test-Path -LiteralPath $WorkspaceRoot -PathType Container)) {
     throw "Workspace root does not exist: '$WorkspaceRoot'."
 }
-foreach ($relativePath in $requiredRepositories) {
-    $repositoryPath = Join-Path $WorkspaceRoot $relativePath
-    if (-not (Test-Path -LiteralPath $repositoryPath -PathType Container)) {
-        throw "Required repository is missing: '$repositoryPath'. Create the complete Kafka workspace structure before setup."
+foreach ($relativePath in $requiredWorkspacePaths) {
+    $workspacePath = Join-Path $WorkspaceRoot $relativePath
+    if (-not (Test-Path -LiteralPath $workspacePath -PathType Container)) {
+        throw "Required workspace path is missing: '$workspacePath'. Create the complete Kafka workspace structure before setup."
     }
 }
 
@@ -335,6 +361,25 @@ if (-not $ConfigurationOnly) {
 
     $managedIndexer = Join-Path $CodexHome 'code-index\bsl-indexer.exe'
     $managedJar = Join-Path $CodexHome 'bsl-ls\bsl-language-server-exec.jar'
+    $bundledRuntimeRoot = Join-Path $PSScriptRoot 'runtime\windows'
+    if ([string]::IsNullOrWhiteSpace($BslIndexerPath)) {
+        $BslIndexerPath = Resolve-BundledRuntimeFile `
+            -RuntimeRoot $bundledRuntimeRoot `
+            -Filter 'bsl-indexer.exe' `
+            -Description 'bsl-indexer executable'
+        if (-not [string]::IsNullOrWhiteSpace($BslIndexerPath)) {
+            Write-Output "Using bundled bsl-indexer executable: '$BslIndexerPath'."
+        }
+    }
+    if ([string]::IsNullOrWhiteSpace($BslLanguageServerJar)) {
+        $BslLanguageServerJar = Resolve-BundledRuntimeFile `
+            -RuntimeRoot $bundledRuntimeRoot `
+            -Filter 'bsl-language-server-*-exec.jar' `
+            -Description 'BSL Language Server JAR'
+        if (-not [string]::IsNullOrWhiteSpace($BslLanguageServerJar)) {
+            Write-Output "Using bundled BSL Language Server JAR: '$BslLanguageServerJar'."
+        }
+    }
     if (
         [string]::IsNullOrWhiteSpace($BslIndexerPath) -or
         [string]::IsNullOrWhiteSpace($BslLanguageServerJar)
@@ -512,11 +557,11 @@ function Get-CodeIndexPathAlias {
 New-Item -ItemType Directory -Path $CodexHome -Force | Out-Null
 
 $targetConfig = Join-Path $CodexHome 'config.toml'
-$managedConfig = Get-Content -LiteralPath $sourceConfig -Raw
+$managedConfig = Get-Content -LiteralPath $sourceConfig -Raw -Encoding UTF8
 $blockPattern = '(?ms)^\# BEGIN SHARED-1C-AI MANAGED\r?\n.*?^\# END SHARED-1C-AI MANAGED\r?\n?'
 $guardBlockPattern = '(?ms)^\# BEGIN KAFKA-AI GUARD\r?\n.*?^\# END KAFKA-AI GUARD\r?\n?'
 $existingConfig = if (Test-Path -LiteralPath $targetConfig) {
-    Get-Content -LiteralPath $targetConfig -Raw
+    Get-Content -LiteralPath $targetConfig -Raw -Encoding UTF8
 }
 else {
     ''
@@ -698,7 +743,7 @@ foreach ($sourceMcpFile in $sourceCodeIndexMcpFiles) {
 }
 
 $targetCodeIndexConfig = Join-Path $codeIndexHome 'daemon.toml'
-$managedCodeIndexConfig = (Get-Content -LiteralPath $sourceCodeIndexConfig -Raw).Replace(
+$managedCodeIndexConfig = (Get-Content -LiteralPath $sourceCodeIndexConfig -Raw -Encoding UTF8).Replace(
     '__WORKSPACE_ROOT_FORWARD__',
     $WorkspaceRoot.Replace('\', '/')
 )
@@ -706,7 +751,7 @@ if ($managedCodeIndexConfig.Contains('__WORKSPACE_ROOT_FORWARD__')) {
     throw "Managed code-index path placeholder was not resolved in '$sourceCodeIndexConfig'."
 }
 $existingCodeIndexConfig = if (Test-Path -LiteralPath $targetCodeIndexConfig -PathType Leaf) {
-    Get-Content -LiteralPath $targetCodeIndexConfig -Raw
+    Get-Content -LiteralPath $targetCodeIndexConfig -Raw -Encoding UTF8
 }
 else {
     ''
@@ -726,10 +771,20 @@ $managedPathBlocks = foreach ($pathMatch in $managedPathMatches) {
     $pathMatch.Value.Trim()
 }
 
+$legacyKafkaAliases = @(
+    'kafka-adapter',
+    'kafka-adapter-base',
+    'kafka-adapter-examples',
+    'kafka-adapter-conv',
+    'kafka-adapter-conv-kd',
+    'kafka-adapter-unit',
+    'kafka-adapter-yaxunit',
+    'kafka-adapter-tests-unit'
+)
 $existingPathMatches = Get-CodeIndexPathBlocks -Content $existingCodeIndexConfig
 $preservedPathBlocks = foreach ($pathMatch in $existingPathMatches) {
     $alias = Get-CodeIndexPathAlias -Block $pathMatch.Value
-    if (-not $managedAliases.ContainsKey($alias)) {
+    if (-not $managedAliases.ContainsKey($alias) -and $alias -notin $legacyKafkaAliases) {
         $pathMatch.Value.Trim()
     }
 }
@@ -804,8 +859,8 @@ foreach ($sourceSkillItem in $managedSkills) {
 
 $targetWorkspaceAgents = Join-Path $WorkspaceRoot 'AGENTS.md'
 if (Test-Path -LiteralPath $targetWorkspaceAgents) {
-    $currentAgents = Get-Content -LiteralPath $targetWorkspaceAgents -Raw
-    $nextAgents = Get-Content -LiteralPath $sourceAgents -Raw
+    $currentAgents = Get-Content -LiteralPath $targetWorkspaceAgents -Raw -Encoding UTF8
+    $nextAgents = Get-Content -LiteralPath $sourceAgents -Raw -Encoding UTF8
     if ($currentAgents -ne $nextAgents) {
         Backup-ManagedPath -Path $targetWorkspaceAgents -RelativeBackupPath 'workspace-AGENTS.md'
         Copy-Item -LiteralPath $sourceAgents -Destination $targetWorkspaceAgents -Force

@@ -3,26 +3,36 @@ http_port = 0
 max_concurrent_initial = 1
 
 [[paths]]
-alias = "kafka-adapter"
+alias = "kfk"
 path = "__WORKSPACE_ROOT_FORWARD__/adapter/adapter"
 language = "bsl"
 
 [[paths]]
-alias = "kafka-adapter-base"
+alias = "kfk-base"
 path = "__WORKSPACE_ROOT_FORWARD__/adapter/base"
 language = "bsl"
 
 [[paths]]
-alias = "kafka-adapter-examples"
+alias = "kfk-examples"
 path = "__WORKSPACE_ROOT_FORWARD__/adapter/examples"
 language = "bsl"
 
 [[paths]]
-alias = "kafka-adapter-conv"
+alias = "kfk-conv"
 path = "__WORKSPACE_ROOT_FORWARD__/conversion/KFK"
 language = "bsl"
 
 [[paths]]
-alias = "kafka-adapter-tests-unit"
+alias = "kfk-conv-kd"
+path = "__WORKSPACE_ROOT_FORWARD__/conversion/КД"
+language = "bsl"
+
+[[paths]]
+alias = "kfk-unit"
 path = "__WORKSPACE_ROOT_FORWARD__/tests/unit/unit"
+language = "bsl"
+
+[[paths]]
+alias = "kfk-yaxunit"
+path = "__WORKSPACE_ROOT_FORWARD__/tests/unit/yaxunit"
 language = "bsl"

@@ -8,6 +8,7 @@ $portablePackage = Join-Path $temporaryRoot 'support\agent-kit'
 $temporaryCodexHome = Join-Path $temporaryRoot 'codex-home'
 
 try {
+    $conversionDataBaseRelativePath = 'conversion\' + [string][char]0x041A + [string][char]0x0414
     New-Item -ItemType Directory -Path (Split-Path -Parent $portablePackage) -Force | Out-Null
     Copy-Item -LiteralPath $sourcePackage -Destination $portablePackage -Recurse -Force
     foreach ($relativePath in @(
@@ -15,7 +16,11 @@ try {
         'adapter\base',
         'adapter\examples',
         'conversion\KFK',
-        'tests\unit\unit'
+        $conversionDataBaseRelativePath,
+        'tests\unit\base',
+        'tests\unit\examples',
+        'tests\unit\unit',
+        'tests\unit\yaxunit'
     )) {
         New-Item -ItemType Directory -Path (Join-Path $temporaryRoot $relativePath) -Force | Out-Null
     }

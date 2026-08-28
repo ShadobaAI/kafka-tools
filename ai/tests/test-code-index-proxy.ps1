@@ -39,7 +39,7 @@ input.on("line", (line) => {
     return;
   }
   if (message.method === "tools/call" && message.params.name === "health") {
-    const payload = { mcp: { status: "ok", version: "fake", repos: ["kafka-adapter"] }, daemon: { status: "online" }, repos: [] };
+    const payload = { mcp: { status: "ok", version: "fake", repos: ["kfk"] }, daemon: { status: "online" }, repos: [] };
     write({ jsonrpc: "2.0", id: message.id, result: { content: [{ type: "text", text: JSON.stringify(payload) }], isError: false } });
     return;
   }
@@ -101,9 +101,9 @@ input.on("line", (line) => {
     $requests = @(
         @{ jsonrpc = '2.0'; id = 0; method = 'initialize'; params = @{} },
         @{ jsonrpc = '2.0'; id = 1; method = 'tools/list'; params = @{} },
-        @{ jsonrpc = '2.0'; id = 2; method = 'tools/call'; params = @{ name = 'get_callers_bsl'; arguments = @{ repo = 'kafka-adapter'; procedure = $runThreadsProcedure } } },
-        @{ jsonrpc = '2.0'; id = 3; method = 'tools/call'; params = @{ name = 'get_callees_bsl'; arguments = @{ repo = 'kafka-adapter'; procedure = "CommonModules/A/Ext/Module.bsl::$startProcedure" } } },
-        @{ jsonrpc = '2.0'; id = 4; method = 'tools/call'; params = @{ name = 'get_call_tree_bsl'; arguments = @{ repo = 'kafka-adapter'; procedure = $startProcedure; direction = 'callees'; max_depth = 2 } } },
+        @{ jsonrpc = '2.0'; id = 2; method = 'tools/call'; params = @{ name = 'get_callers_bsl'; arguments = @{ repo = 'kfk'; procedure = $runThreadsProcedure } } },
+        @{ jsonrpc = '2.0'; id = 3; method = 'tools/call'; params = @{ name = 'get_callees_bsl'; arguments = @{ repo = 'kfk'; procedure = "CommonModules/A/Ext/Module.bsl::$startProcedure" } } },
+        @{ jsonrpc = '2.0'; id = 4; method = 'tools/call'; params = @{ name = 'get_call_tree_bsl'; arguments = @{ repo = 'kfk'; procedure = $startProcedure; direction = 'callees'; max_depth = 2 } } },
         @{ jsonrpc = '2.0'; id = 5; method = 'tools/call'; params = @{ name = 'get_callers_bsl'; arguments = @{ procedure = $runThreadsProcedure } } },
         @{ jsonrpc = '2.0'; id = 6; method = 'tools/call'; params = @{ name = 'health'; arguments = @{} } }
     )

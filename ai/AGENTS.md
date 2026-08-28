@@ -13,6 +13,7 @@ This workspace is a fixed collection of independent Git repositories under `KAFK
 | `kafka-adapter-tests-reports` | `tests/reports` |
 | `kafka-adapter-tests-ui` | `tests/ui` |
 | `kafka-adapter-tests-unit` | `tests/unit/unit` |
+| `YAxUnit` (upstream checkout) | `tests/unit/yaxunit` |
 | `kafka-tools` | `tools` |
 | `kfk-tasks` | `tasks` |
 
@@ -34,13 +35,37 @@ Before work, identify every affected repository and read its local `AGENTS.md` w
 
 ## 1C Routing and Source Integrity
 
-| Scope | EDT-MCP server | Configuration owner |
+| Scope | EDT-MCP server | Port | Configuration owner |
+|---|---|---:|---|
+| `adapter/adapter` | `kfk-edt` | `8765` | `adapter/adapter/.codex/config.toml` |
+| `adapter/base` | `kfk-edt` | `8765` | `adapter/adapter/.codex/config.toml` |
+| `adapter/examples` | `kfk-edt` | `8765` | `adapter/adapter/.codex/config.toml` |
+| `conversion/KFK` | `conv-edt` | `8767` | `conversion/KFK/.codex/config.toml` |
+| `conversion/КД` | `conv-edt` | `8767` | `conversion/KFK/.codex/config.toml` |
+| `tests/unit/base` | `unit-edt` | `8768` | `tests/unit/unit/.codex/config.toml` |
+| `tests/unit/examples` | `unit-edt` | `8768` | `tests/unit/unit/.codex/config.toml` |
+| `tests/unit/unit` | `unit-edt` | `8768` | `tests/unit/unit/.codex/config.toml` |
+| `tests/unit/yaxunit` | `unit-edt` | `8768` | `tests/unit/unit/.codex/config.toml` |
+
+The three EDT-MCP workspaces use distinct fixed ports so they can run concurrently: `kfk-edt` uses `8765`, `conv-edt` uses `8767`, and `unit-edt` uses `8768`. All conversion-project settings, including the `conversion/КД` route, are owned by `conversion/KFK`; all unit-project settings are owned by `tests/unit/unit`. The server configured inside each EDT workspace and its Codex client URL must use the same assigned port.
+
+The workspace uses these explicit code-index bindings:
+
+| Project scope | code-index alias | Binding |
 |---|---|---|
-| `adapter/adapter` | `kfk-edt` | `adapter/adapter/.codex/config.toml` |
-| `adapter/base` | `kfk-edt` | `adapter/adapter/.codex/config.toml` |
-| `adapter/examples` | `kfk-edt` | `adapter/adapter/.codex/config.toml` |
-| `conversion/KFK` | `conv-edt` | `conversion/KFK/.codex/config.toml` |
-| `tests/unit/unit` | `kfk-unit-edt` | `tests/unit/unit/.codex/config.toml` |
+| `adapter/adapter` | `kfk` | Index only the canonical `adapter/adapter` checkout. |
+| `adapter/base` | `kfk-base` | Index only the canonical `adapter/base` checkout. |
+| `adapter/examples` | `kfk-examples` | Index only the canonical `adapter/examples` checkout. |
+| `conversion/KFK` | `kfk-conv` | Index the Conversion Data extension checkout. |
+| `conversion/КД` | `kfk-conv-kd` | Index the supporting Conversion Data base project. |
+| `tests/unit/base` | `kfk-base`, `kfk` | Reuse the canonical indexes from `adapter/base` and `adapter/adapter`; do not index the assembled project separately. |
+| `tests/unit/examples` | `kfk-examples` | Reuse the canonical index from `adapter/examples`; do not index this checkout separately. |
+| `tests/unit/unit` | `kfk-unit` | Index only this repository checkout. |
+| `tests/unit/yaxunit` | `kfk-yaxunit` | Index only this upstream repository checkout. |
+
+Code-index selection never selects an EDT server. Reused aliases are supplementary read-only evidence only; authoritative live state, platform documentation, diagnostics, and every persistent 1C mutation must use the EDT-MCP assigned to the current project scope.
+
+At the contour level, adapter uses `kfk`, `kfk-base`, and `kfk-examples`; conversion uses `kfk-conv` and `kfk-conv-kd`; unit adds `kfk-unit` and `kfk-yaxunit` while reusing the three adapter aliases for the assembled base and test-data extension.
 
 - Use `$1c-routing` only when the request concerns work with a concrete 1C project or a general question about 1C. Do not load it for unrelated repository, tooling, Git, documentation, or engineering requests merely because the workspace contains 1C.
 - Use the assigned EDT-MCP as the source of truth for the live EDT model, 1C source and metadata, platform-aware navigation, every persistent mutation, and primary diagnostics.
@@ -51,7 +76,8 @@ Before work, identify every affected repository and read its local `AGENTS.md` w
 - Use repository-local BSL LS only for focused BSL diagnostics and semantic navigation when that MCP is explicitly configured. It does not replace EDT diagnostics, metadata, platform documentation, or tests.
 - The `bsl-indexer` daemon may write only its own `.code-index/` data in configured repository roots and coordination/runtime files under managed `CODE_INDEX_HOME`; do not expose daemon/index mutation commands through MCP.
 - `CODE_INDEX_HOME` and its daemon are shared across registered workspaces. Kafka
-  installation may replace only `kafka-*` aliases; it must preserve unrelated
+  installation may replace only its managed `kfk*` aliases and known legacy
+  `kafka-adapter*` aliases; it must preserve unrelated
   `[[paths]]` entries and existing daemon settings.
 - Keep the shared user-level `v8std`/`code-index` block independent from the
   Kafka routing guard so another workspace installer cannot remove Kafka policy.

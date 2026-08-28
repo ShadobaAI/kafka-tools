@@ -9,7 +9,7 @@ Use `$1c-routing` invariants. `code-index` is the preferred eventually-consisten
 
 ## Bind and verify
 
-1. Resolve the exact canonical repository and its configured alias before the first query. Never substitute a neighboring alias because it contains similar sources.
+1. Resolve the exact canonical source repository and its configured alias before the first query. A composed EDT project may intentionally bind to more than one canonical source alias, and a secondary checkout may intentionally reuse a canonical alias; follow only the explicit workspace mapping. Never infer an alias from filesystem proximity or similar source content.
 2. Call `health` when daemon/index status or freshness is not already established for the current task.
 3. If the repository is absent, indexing, stale, or errored, report that state. Do not present incomplete index output as exhaustive.
 

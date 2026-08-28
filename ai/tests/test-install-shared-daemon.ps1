@@ -48,6 +48,16 @@ language = "bsl"
 alias = "crm-yaxunit"
 path = "C:/portable/crm/EDT.YAXUNIT"
 language = "bsl"
+
+[[paths]]
+alias = "kafka-adapter"
+path = "C:/obsolete/kafka-adapter"
+language = "bsl"
+
+[[paths]]
+alias = "kafka-adapter-tests-unit"
+path = "C:/obsolete/kafka-adapter-tests-unit"
+language = "bsl"
 '@
     [System.IO.File]::WriteAllText(
         $daemonConfigPath,
@@ -82,11 +92,13 @@ language = "bsl"
     $expectedAliases = @(
         'crm-production',
         'crm-yaxunit',
-        'kafka-adapter',
-        'kafka-adapter-base',
-        'kafka-adapter-examples',
-        'kafka-adapter-conv',
-        'kafka-adapter-tests-unit'
+        'kfk',
+        'kfk-base',
+        'kfk-examples',
+        'kfk-conv',
+        'kfk-conv-kd',
+        'kfk-unit',
+        'kfk-yaxunit'
     )
     foreach ($alias in $expectedAliases) {
         if ($installedDaemonConfig -notmatch ('(?m)^alias = "' + [regex]::Escape($alias) + '"\r?$')) {
@@ -95,6 +107,11 @@ language = "bsl"
     }
     if ($installedDaemonConfig -notmatch '(?m)^max_concurrent_initial = 3\r?$') {
         throw 'Installer did not preserve existing shared daemon settings.'
+    }
+    foreach ($legacyAlias in @('kafka-adapter', 'kafka-adapter-tests-unit')) {
+        if ($installedDaemonConfig -match ('(?m)^alias = "' + [regex]::Escape($legacyAlias) + '"\r?$')) {
+            throw "Installer preserved legacy Kafka alias '$legacyAlias'."
+        }
     }
 
     & $installer `
@@ -112,7 +129,7 @@ language = "bsl"
         }
     }
 
-    Write-Output 'install-shared-daemon: CRM aliases and daemon settings preserved; Kafka aliases and guard added idempotently'
+    Write-Output 'install-shared-daemon: foreign aliases and daemon settings preserved; current Kafka aliases replaced idempotently'
 }
 finally {
     if (Test-Path -LiteralPath $temporaryCodexHome) {

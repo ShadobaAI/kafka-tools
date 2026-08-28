@@ -271,7 +271,9 @@ Guard — дополнительный enforcement, а не источник б�
    `-WorkspaceRoot`;
 2. проверить наличие всех обязательных repository roots;
 3. проверить Node.js и Java;
-4. определить latest releases через GitHub API или принять явно переданный offline runtime;
+4. принять явно переданный runtime, иначе использовать bundled runtime из
+   `runtime/windows`, а для отсутствующих там компонентов определить latest releases
+   через GitHub API;
 5. скачать assets во временный staging, проверить size, SHA-256, upstream digest,
    ZIP и версию executable JAR, не изменяя persistent configuration;
 6. проверить минимальную версию `bsl-indexer`;
@@ -318,7 +320,9 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File `
   .\<tools-repo>\ai\setup.ps1
 ```
 
-Если runtime доставляется централизованно или установка выполняется без сети:
+Если `runtime/windows` содержит `bsl-indexer.exe` и один файл
+`bsl-language-server-*-exec.jar`, setup автоматически использует их без обращения к
+GitHub. Явные пути имеют приоритет над bundled runtime:
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File `
@@ -387,16 +391,16 @@ Live smoke не должен изменять проект 1С.
 
 Перед использованием в другом проекте обязательно заменить или удалить:
 
-- пути `adapter/adapter`, `adapter/base`, `adapter/examples`, `conversion/KFK`,
-  `tests/unit/unit`;
-- aliases `kafka-*`;
-- имена EDT-MCP `kfk-edt`, `kfk-unit-edt`, `conv-edt`;
+- пути `adapter/adapter`, `adapter/base`, `adapter/examples`, `conversion/KFK`, `conversion/КД`,
+  `tests/unit/base`, `tests/unit/examples`, `tests/unit/unit`, `tests/unit/yaxunit`;
+- управляемые aliases `kfk*` и список удаляемых legacy aliases `kafka-adapter*`;
+- имена EDT-MCP `kfk-edt`, `conv-edt`, `unit-edt`;
 - EDT project names и описания project scope;
 - SonarQube URL и наличие самого SonarQube MCP;
 - список protected source roots;
 - repository-specific команды тестов;
 - правила нескольких Git-репозиториев;
-- локальные ports и service ownership;
+- локальные ports и service ownership, включая раздельные порты трёх EDT-MCP;
 - business-specific standards или corporate policy.
 
 Нужно сохранить сам принцип: общий управляемый read-only/search слой, локальный authoritative
