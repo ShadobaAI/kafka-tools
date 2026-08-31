@@ -1,3 +1,199 @@
+function Invoke-CodeIndexDaemonTest {
+[CmdletBinding()]
+param()
+
+$ErrorActionPreference = 'Stop'
+$launcher = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\mcp\code-index-daemon.ps1'))
+$temporaryRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("code-index-daemon-" + [guid]::NewGuid().ToString('N'))
+$runtimeHome = Join-Path $temporaryRoot 'runtime'
+
+function Invoke-Launcher {
+    param([Parameter(Mandatory)][string[]]$LauncherArguments)
+
+    $previousErrorAction = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    try {
+        $output = & powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass `
+            -File $launcher @LauncherArguments 2>&1
+        $exitCode = $LASTEXITCODE
+    }
+    finally {
+        $ErrorActionPreference = $previousErrorAction
+    }
+    return [pscustomobject]@{
+        exit_code = $exitCode
+        output = @($output) -join [Environment]::NewLine
+    }
+}
+
+try {
+    New-Item -ItemType Directory -Path $runtimeHome -Force | Out-Null
+    [System.IO.File]::WriteAllText(
+        (Join-Path $runtimeHome 'daemon.toml'),
+        "[daemon]`r`nhttp_port = 0`r`n",
+        [System.Text.UTF8Encoding]::new($false)
+    )
+    $fakeIndexer = Join-Path $runtimeHome 'bsl-indexer.exe'
+    [System.IO.File]::WriteAllBytes($fakeIndexer, [byte[]](0))
+    [System.IO.File]::WriteAllText(
+        (Join-Path $runtimeHome 'daemon.json'),
+        '{"pid":2147483647,"version":"test","http_host":"127.0.0.1","http_port":9,"started_at":"test"}',
+        [System.Text.UTF8Encoding]::new($false)
+    )
+
+    $status = Invoke-Launcher -LauncherArguments @(
+        '-Action', 'status',
+        '-CodeIndexHome', $runtimeHome,
+        '-BslIndexerPath', $fakeIndexer,
+        '-Json'
+    )
+    $statusJson = $status.output | ConvertFrom-Json
+    if (
+        $status.exit_code -eq 0 -or
+        $statusJson.status -ne 'stale_runtime_info' -or
+        $statusJson.process_alive -ne $false
+    ) {
+        throw 'Managed daemon status trusted stale daemon.json without a live PID and endpoint.'
+    }
+
+    $source = Get-Content -LiteralPath $launcher -Raw
+    foreach ($requiredFragment in @(
+        "`$env:CODE_INDEX_DAEMON_DETACHED = '1'",
+        'Start-DetachedDaemonProcess',
+        'New-StartupMutex',
+        'Refusing to start a competing daemon',
+        'bInheritHandles=false',
+        'Get-DaemonProbe -RuntimePath $runtimePath',
+        'did not become healthy within',
+        'did not exit within 10 seconds after a successful stop command'
+    )) {
+        if (-not $source.Contains($requiredFragment)) {
+            throw "Managed daemon launcher is missing required lifecycle guard: $requiredFragment"
+        }
+    }
+
+    [System.IO.File]::WriteAllText(
+        (Join-Path $runtimeHome 'daemon.json'),
+        "{`"pid`":$PID,`"version`":`"test`",`"http_host`":`"127.0.0.1`",`"http_port`":9,`"started_at`":`"test`"}",
+        [System.Text.UTF8Encoding]::new($false)
+    )
+    $unhealthy = Invoke-Launcher -LauncherArguments @(
+        '-Action', 'run',
+        '-CodeIndexHome', $runtimeHome,
+        '-BslIndexerPath', $fakeIndexer,
+        '-StartupTimeoutSeconds', '1'
+    )
+    if ($unhealthy.exit_code -eq 0 -or $unhealthy.output -notmatch 'Refusing to start a competing daemon') {
+        throw 'Managed daemon launcher attempted to compete with an unhealthy live daemon process.'
+    }
+
+    Write-Output 'code-index-daemon: stale runtime, serialized startup, unhealthy-process refusal, and durable launch guards passed'
+    $global:LASTEXITCODE = 0
+}
+finally {
+    if (Test-Path -LiteralPath $temporaryRoot) {
+        Remove-Item -LiteralPath $temporaryRoot -Recurse -Force
+    }
+}
+}
+
+function Invoke-CodeIndexLauncherTest {
+[CmdletBinding()]
+param()
+
+$ErrorActionPreference = 'Stop'
+$launcher = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\mcp\code-index-mcp.ps1'))
+$temporaryRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("code-index-launcher-" + [guid]::NewGuid().ToString('N'))
+$codeIndexHome = Join-Path $temporaryRoot 'runtime'
+$capturePath = Join-Path $temporaryRoot 'capture.txt'
+
+try {
+    New-Item -ItemType Directory -Path $codeIndexHome -Force | Out-Null
+    $daemonConfig = Join-Path $codeIndexHome 'daemon.toml'
+    [System.IO.File]::WriteAllText(
+        $daemonConfig,
+        "[daemon]`r`nhttp_port = 0`r`n",
+        [System.Text.UTF8Encoding]::new($false)
+    )
+
+    $fakeIndexer = Join-Path $temporaryRoot 'fake-bsl-indexer.cmd'
+    $fakeIndexerCommand = @'
+@echo off
+if "%1"=="--version" echo bsl-indexer 0.69.0
+exit /b 0
+'@
+    [System.IO.File]::WriteAllText(
+        $fakeIndexer,
+        $fakeIndexerCommand,
+        [System.Text.Encoding]::ASCII
+    )
+    $fakeNode = Join-Path $temporaryRoot 'fake-node.cmd'
+    $fakeCommand = @'
+@echo off
+if "%1"=="--version" (
+  echo v18.0.0
+  exit /b 0
+)
+echo CODE_INDEX_HOME=%CODE_INDEX_HOME%>"%CODE_INDEX_CAPTURE%"
+echo ARGS=%*>>"%CODE_INDEX_CAPTURE%"
+exit /b 0
+'@
+    [System.IO.File]::WriteAllText($fakeNode, $fakeCommand, [System.Text.Encoding]::ASCII)
+
+    $previousCapture = $env:CODE_INDEX_CAPTURE
+    $env:CODE_INDEX_CAPTURE = $capturePath
+    try {
+        & $launcher `
+            -CodeIndexHome $codeIndexHome `
+            -BslIndexerPath $fakeIndexer `
+            -NodePath $fakeNode `
+            -SkipDaemonBootstrap
+    }
+    finally {
+        $env:CODE_INDEX_CAPTURE = $previousCapture
+    }
+
+    $capture = Get-Content -LiteralPath $capturePath -Raw
+    if ($capture -notmatch [regex]::Escape("CODE_INDEX_HOME=$codeIndexHome")) {
+        throw 'Launcher did not bind CODE_INDEX_HOME for bsl-indexer serve.'
+    }
+    $proxyPath = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\mcp\code-index-proxy.mjs'))
+    $expectedArguments = "ARGS=$proxyPath --indexer $fakeIndexer --config $daemonConfig"
+    if ($capture -notmatch [regex]::Escape($expectedArguments)) {
+        throw 'Launcher did not bind the compatibility proxy, bsl-indexer, and managed daemon.toml.'
+    }
+
+    $unsupportedNodeCommand = @'
+@echo off
+if "%1"=="--version" echo v17.9.0
+exit /b 0
+'@
+    [System.IO.File]::WriteAllText($fakeNode, $unsupportedNodeCommand, [System.Text.Encoding]::ASCII)
+    $unsupportedRejected = $false
+    try {
+        & $launcher `
+            -CodeIndexHome $codeIndexHome `
+            -BslIndexerPath $fakeIndexer `
+            -NodePath $fakeNode `
+            -SkipDaemonBootstrap
+    }
+    catch {
+        $unsupportedRejected = $_.Exception.Message -match 'Node.js 17.9.0 is unsupported'
+    }
+    if (-not $unsupportedRejected) {
+        throw 'Launcher did not reject an unsupported Node.js version.'
+    }
+
+    Write-Output 'code-index-launcher: versions, proxy, executable, CODE_INDEX_HOME, and managed daemon.toml passed'
+}
+finally {
+    if (Test-Path -LiteralPath $temporaryRoot) {
+        Remove-Item -LiteralPath $temporaryRoot -Recurse -Force
+    }
+}
+}
+
+function Invoke-CodeIndexProxyTest {
 [CmdletBinding()]
 param()
 
@@ -188,3 +384,76 @@ finally {
         Remove-Item -LiteralPath $temporaryRoot -Recurse -Force
     }
 }
+}
+
+function Invoke-CodeIndexProxyLifecycleTest {
+[CmdletBinding()]
+param()
+
+$ErrorActionPreference = 'Stop'
+$proxy = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\mcp\code-index-proxy.mjs'))
+$node = (Get-Command 'node' -CommandType Application -ErrorAction Stop).Source
+$temporaryRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("code-index-proxy-lifecycle-" + [guid]::NewGuid().ToString('N'))
+$process = $null
+
+try {
+    New-Item -ItemType Directory -Path $temporaryRoot -Force | Out-Null
+    $daemonConfig = Join-Path $temporaryRoot 'daemon.toml'
+    [System.IO.File]::WriteAllText(
+        $daemonConfig,
+        "[daemon]`r`nhttp_port = 0`r`n",
+        [System.Text.UTF8Encoding]::new($false)
+    )
+    $exitingServer = Join-Path $temporaryRoot 'exiting-server.mjs'
+    [System.IO.File]::WriteAllText(
+        $exitingServer,
+        'process.exit(7);',
+        [System.Text.UTF8Encoding]::new($false)
+    )
+
+    $startInfo = [System.Diagnostics.ProcessStartInfo]::new()
+    $startInfo.FileName = $node
+    $startInfo.UseShellExecute = $false
+    $startInfo.RedirectStandardInput = $true
+    $startInfo.RedirectStandardOutput = $true
+    $startInfo.RedirectStandardError = $true
+    $startInfo.CreateNoWindow = $true
+    $arguments = @(
+        $proxy,
+        '--indexer', $node,
+        '--indexer-arg', $exitingServer,
+        '--config', $daemonConfig
+    )
+    $startInfo.Arguments = ($arguments | ForEach-Object {
+        '"' + ([string]$_).Replace('"', '\"') + '"'
+    }) -join ' '
+
+    $process = [System.Diagnostics.Process]::new()
+    $process.StartInfo = $startInfo
+    if (-not $process.Start()) {
+        throw 'Could not start code-index proxy lifecycle test process.'
+    }
+    if (-not $process.WaitForExit(5000)) {
+        throw 'Code-index proxy stayed alive after its child exited while client stdin remained open.'
+    }
+    if ($process.ExitCode -ne 7) {
+        throw "Code-index proxy did not propagate the child exit code; got $($process.ExitCode)."
+    }
+
+    Write-Output 'code-index-proxy-lifecycle: child exit terminates proxy with open client stdin'
+}
+finally {
+    if ($null -ne $process -and -not $process.HasExited) {
+        $process.Kill($true)
+    }
+    if (Test-Path -LiteralPath $temporaryRoot) {
+        Remove-Item -LiteralPath $temporaryRoot -Recurse -Force
+    }
+}
+}
+
+Invoke-CodeIndexDaemonTest
+Invoke-CodeIndexLauncherTest
+Invoke-CodeIndexProxyTest
+Invoke-CodeIndexProxyLifecycleTest
+

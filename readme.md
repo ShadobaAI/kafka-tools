@@ -48,13 +48,13 @@ Codex не загружает `.codex` из соседнего репозито�
 
 Bootstrap не запускается автоматически при открытии workspace. Его нужно выполнить один раз на каждой машине и повторять после обновления `ai/`. Пользователь может запустить команду самостоятельно; модель также может выполнить её по явному запросу, при необходимости запросив разрешение на запись в `CODEX_HOME`.
 
-Внутренний поставочный комплект должен содержать неизменённые runtime-артефакты `tools/ai/runtime/windows/bsl-indexer.exe` версии `0.69.0` или новее и `tools/ai/runtime/windows/bsl-language-server-exec.jar`. После создания полной структуры `Kafka` установка выполняется одной командой из её корня:
+Внутренний поставочный комплект должен содержать неизменённые runtime-артефакты `tools/ai/runtime/windows/bsl-indexer.exe` версии `0.69.0` или новее и один `tools/ai/runtime/windows/bsl-language-server-*-exec.jar`. После создания полной структуры `Kafka` установка выполняется одной командой из её корня:
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\tools\ai\setup.ps1
 ```
 
-Bootstrap проверяет Node.js 18+, Java, версию `bsl-indexer` и наличие обязательных каталогов workspace; копирует runtime в `%CODEX_HOME%`; вызывает идемпотентный installer; заменяет полный набор Kafka aliases в общем `daemon.toml`, сохраняя aliases других workspace и настройки daemon; перезапускает общий daemon и подтверждает его HTTP health. Если локальные пути runtime не переданы явно, bootstrap загружает и проверяет release-артефакты `bsl-indexer` и BSL Language Server с GitHub. Регистрация и readiness repository paths выполняются `bsl-indexer serve` после перезапуска Codex и проверяются инструментом `code-index.health`.
+Bootstrap проверяет Node.js 18+, Java, версию `bsl-indexer` и наличие обязательных каталогов workspace; копирует runtime в `%CODEX_HOME%`; вызывает идемпотентный installer; заменяет полный набор Kafka aliases в общем `daemon.toml`, сохраняя aliases других workspace и настройки daemon; перезапускает общий daemon и подтверждает его HTTP health. Если локальные пути runtime не переданы явно и bundled-файлы отсутствуют, bootstrap загружает и проверяет release-артефакты `bsl-indexer` и BSL Language Server с GitHub, сохраняет их в `tools/ai/runtime/windows` и использует при следующих установках. Регистрация и readiness repository paths выполняются `bsl-indexer serve` после перезапуска Codex и проверяются инструментом `code-index.health`.
 
 Если артефакты доставляются отдельно, их пути можно передать явно:
 
@@ -81,6 +81,17 @@ Installer:
 - подставляет абсолютные пути workspace и hook в установленную конфигурацию;
 - сохраняет заменяемые файлы под `%CODEX_HOME%\backups\workspace-ai`;
 - не читает и не копирует credentials, `.env` или `auth.json`.
+
+Автономные проверки собраны в три suite: `test-project.ps1`,
+`test-installation.ps1` и `test-code-index.ps1`. Запустить их можно одной командой:
+
+```powershell
+Get-ChildItem -LiteralPath .\ai\tests -Filter 'test-*.ps1' |
+  ForEach-Object { powershell.exe -NoProfile -ExecutionPolicy Bypass -File $_.FullName }
+```
+
+`ai/tests/smoke-code-index-runtime.ps1` остаётся отдельной параметризованной
+проверкой установленного runtime и в автономный набор не входит.
 
 Для переноса в другой workspace скопируйте каталог `ai/`, настройте его `AGENTS.md` и `workspace-policy.json`, добавьте runtime-артефакты, затем выполните:
 

@@ -81,11 +81,11 @@ function Resolve-CommandPath {
     if (-not [string]::IsNullOrWhiteSpace($RequestedPath)) {
         return Resolve-ExistingFile -Path $RequestedPath -Description $Description
     }
-    $command = Get-Command $CommandName -CommandType Application -ErrorAction SilentlyContinue
-    if ($null -eq $command) {
+    $commands = @(Get-Command $CommandName -CommandType Application -ErrorAction SilentlyContinue)
+    if ($commands.Count -eq 0) {
         throw "$Description is missing. Install it or pass its executable path to setup.ps1."
     }
-    return $command.Source
+    return Resolve-ExistingFile -Path ([string]$commands[0].Source) -Description $Description
 }
 
 function Assert-MinimumVersion {
@@ -213,6 +213,35 @@ function Save-GitHubReleaseAsset {
         }
     }
     return $hash
+}
+
+function Save-VerifiedRuntimeFile {
+    param(
+        [Parameter(Mandatory)][string]$Source,
+        [Parameter(Mandatory)][string]$Destination
+    )
+
+    $sourcePath = Resolve-ExistingFile -Path $Source -Description 'Validated runtime source'
+    $destinationPath = [System.IO.Path]::GetFullPath($Destination)
+    $destinationRoot = Split-Path -Parent $destinationPath
+    New-Item -ItemType Directory -Path $destinationRoot -Force | Out-Null
+    $stagedPath = Join-Path $destinationRoot ('.{0}.{1}.tmp' -f (Split-Path -Leaf $destinationPath), [guid]::NewGuid().ToString('N'))
+
+    try {
+        Copy-Item -LiteralPath $sourcePath -Destination $stagedPath -Force
+        $sourceHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $sourcePath).Hash
+        $stagedHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $stagedPath).Hash
+        if ($sourceHash -ne $stagedHash) {
+            throw "Runtime cache copy failed SHA-256 verification for '$destinationPath'."
+        }
+        Move-Item -LiteralPath $stagedPath -Destination $destinationPath -Force
+        return Resolve-ExistingFile -Path $destinationPath -Description 'Cached runtime file'
+    }
+    finally {
+        if (Test-Path -LiteralPath $stagedPath -PathType Leaf) {
+            Remove-Item -LiteralPath $stagedPath -Force
+        }
+    }
 }
 
 function Install-ManagedFile {
@@ -388,8 +417,10 @@ if (-not $ConfigurationOnly) {
         New-Item -ItemType Directory -Path $downloadRoot -Force | Out-Null
     }
 
-    $indexer = if (-not [string]::IsNullOrWhiteSpace($BslIndexerPath)) {
-        Resolve-ExistingFile -Path $BslIndexerPath -Description 'bsl-indexer executable'
+    $downloadedIndexer = $null
+    $downloadedIndexerMessage = $null
+    if (-not [string]::IsNullOrWhiteSpace($BslIndexerPath)) {
+        $indexer = Resolve-ExistingFile -Path $BslIndexerPath -Description 'bsl-indexer executable'
     }
     else {
         $release = Get-GitHubLatestRelease -Repository 'Regsorm/code-index-mcp'
@@ -401,16 +432,25 @@ if (-not $ConfigurationOnly) {
         $archiveHash = Save-GitHubReleaseAsset -Asset $asset -Destination $archive
         $extractRoot = Join-Path $downloadRoot 'bsl-indexer'
         Expand-Archive -LiteralPath $archive -DestinationPath $extractRoot -Force
-        $downloadedIndexer = Join-Path $extractRoot 'bsl-indexer.exe'
-        Resolve-ExistingFile -Path $downloadedIndexer -Description 'Downloaded bsl-indexer executable'
+        $downloadedIndexer = Resolve-ExistingFile `
+            -Path (Join-Path $extractRoot 'bsl-indexer.exe') `
+            -Description 'Downloaded bsl-indexer executable'
         $executableHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $downloadedIndexer).Hash
-        Write-Output "Downloaded bsl-indexer $($release.tag_name): asset SHA-256 $archiveHash; executable SHA-256 $executableHash."
-        $downloadedIndexer
+        $downloadedIndexerMessage = "Downloaded bsl-indexer $($release.tag_name): asset SHA-256 $archiveHash; executable SHA-256 $executableHash."
+        $indexer = $downloadedIndexer
     }
     $indexerVersion = Assert-MinimumVersion -Executable $indexer -MinimumVersion ([version]'0.69.0') -Description 'bsl-indexer'
+    if ($null -ne $downloadedIndexer) {
+        $indexer = Save-VerifiedRuntimeFile `
+            -Source $downloadedIndexer `
+            -Destination (Join-Path $bundledRuntimeRoot 'bsl-indexer.exe')
+        Write-Output "$downloadedIndexerMessage Cached executable in '$indexer'."
+    }
 
-    $jar = if (-not [string]::IsNullOrWhiteSpace($BslLanguageServerJar)) {
-        Resolve-ExistingFile -Path $BslLanguageServerJar -Description 'BSL Language Server executable JAR'
+    $downloadedJar = $null
+    $downloadedJarMessage = $null
+    if (-not [string]::IsNullOrWhiteSpace($BslLanguageServerJar)) {
+        $jar = Resolve-ExistingFile -Path $BslLanguageServerJar -Description 'BSL Language Server executable JAR'
     }
     else {
         $release = Get-GitHubLatestRelease `
@@ -436,11 +476,17 @@ if (-not $ConfigurationOnly) {
         ) {
             throw "Downloaded BSL Language Server JAR did not report release version '$expectedJarVersion': $jarVersionOutput"
         }
-        Write-Output "Downloaded stable BSL Language Server $($release.tag_name), SHA-256 $jarHash."
-        $downloadedJar
+        $downloadedJarMessage = "Downloaded stable BSL Language Server $($release.tag_name), SHA-256 $jarHash."
+        $jar = $downloadedJar
     }
     if ([System.IO.Path]::GetExtension($jar) -ne '.jar' -or (Get-Item -LiteralPath $jar).Length -eq 0) {
         throw "BSL Language Server artifact is not a non-empty JAR file: '$jar'."
+    }
+    if ($null -ne $downloadedJar) {
+        $jar = Save-VerifiedRuntimeFile `
+            -Source $downloadedJar `
+            -Destination (Join-Path $bundledRuntimeRoot (Split-Path -Leaf $downloadedJar))
+        Write-Output "$downloadedJarMessage Cached JAR in '$jar'."
     }
 }
 

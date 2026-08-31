@@ -1,6 +1,8 @@
 # Runtime-артефакты
 
-`setup.ps1` сам получает runtime с GitHub:
+`setup.ps1` сначала использует runtime из `runtime/windows`, если там находятся
+`bsl-indexer.exe` и один `bsl-language-server-*-exec.jar`. Недостающие компоненты
+он получает с GitHub:
 
 - последний опубликованный GitHub release `Regsorm/code-index-mcp` (включая
   prerelease), asset `bsl-indexer-windows-x64.zip`;
@@ -14,10 +16,10 @@
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\tools\ai\setup.ps1
 ```
 
-При каждом запуске версия определяется через GitHub Releases API. Runtime сначала
-скачивается и проверяется во временном staging: размер, SHA-256, upstream digest
-при наличии, ZIP и версия executable JAR. Только после этого setup изменяет
-persistent configuration.
+Для bundled runtime обращения к GitHub не выполняются. После сетевой загрузки
+скрипт проверяет размер, SHA-256, upstream digest при наличии, ZIP и версию
+executable JAR, сохраняет проверенные файлы в `runtime/windows`, затем изменяет
+persistent configuration. Следующая установка использует локальные файлы.
 
 Для закрытого контура можно отключить сеть, передав оба проверенных файла явно:
 
@@ -27,4 +29,5 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\tools\ai\setup.ps1 `
   -BslLanguageServerJar D:\distribution\bsl-language-server-exec.jar
 ```
 
-Каталог `runtime/windows` намеренно не хранит third-party бинарники.
+Явно переданные пути имеют приоритет над файлами в `runtime/windows`; GitHub
+используется только как fallback для отсутствующих компонентов.
