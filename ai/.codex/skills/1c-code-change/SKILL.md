@@ -33,6 +33,14 @@ When creating or materially restructuring a module, apply the stable std455 stru
 
 Do not query v8std merely to reconfirm an already established module-kind template. Use `$1c-standards` when the applicable module kind or section mapping is unclear, the user requests the exact standard, a diagnostic cites a rule, or another standard needs interpretation.
 
+## Method-extraction gate
+
+Do not extract a code fragment into a separate method merely because it is a visually distinct block, is used once, or makes the original method shorter. Keep it inline when the local flow remains clearer and the fragment has no stable responsibility of its own.
+
+Extract only when the new method has a cohesive nameable responsibility and a concrete benefit, such as reuse of non-trivial logic, isolation of a meaningful algorithm or interaction boundary, removal of repeated invariant handling, or a material reduction in cognitive load without hiding the business flow. Before extracting, define its inputs, result, side effects, error behavior, execution context, transaction implications, and ownership; preserve those semantics at the call site.
+
+If the responsibility and benefit cannot be stated precisely, do not add the method. Prefer a local variable or direct structured code over a forwarding wrapper, a one-expression micro-method, a method used only as a section label, or a public/exported method introduced solely for convenient reuse. After extraction, the call site must read more clearly and the method name must convey domain/technical intent rather than generic mechanics.
+
 ## Mutation and validation
 
 - Form the complete logically atomic change before writing. "Atomic" means semantically atomic, not a whole-module textual replacement. When several edits belong to one method or target fragment, prefer one guarded method-level EDT mutation over multiple micro-mutations. When several independent methods need similar edits, prefer guarded method-level mutations over reconstructing the module through model-side regex/string rewriting. Do not read or rebuild a whole common module for a local method change. Avoid full-module replacement or syntax-check bypass unless required and justified.

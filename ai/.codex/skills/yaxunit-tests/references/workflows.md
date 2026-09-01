@@ -31,11 +31,11 @@ Static index results do not prove absence of dynamic string/reflection calls. Re
 
 Before declaring newly created or materially changed tests ready, review only the changed test module/fragment:
 
-- **Structure:** std455/project top-level structure is respected; there are no arbitrary top-level functional regions; `ИсполняемыеСценарии()` remains declarative.
+- **Structure and naming:** std455/project top-level structure is respected; there are no arbitrary top-level functional regions; the common-module name identifies the tested object type, checked object, and applicable module type after the `кфк_т_` namespace; `ИсполняемыеСценарии()` remains declarative.
 - **Assertions:** each check uses the most specific YAxUnit assertion; no query exists only to inspect/count table rows; assertions target observable state rather than an avoidable intermediate value.
-- **Test data:** shared semantic fixtures are used where appropriate; scenario-local data uses the suitable public `ЮТест.Данные()` creator, constructor, fixture method, or random-value generator; low-level setup has an evidence-backed reason; explicit values are deterministic and valid for the behavior/type/domain contract, while incidental fields are generated rather than filled with arbitrary literals.
+- **Test data:** shared semantic fixtures are used where appropriate; object attributes, references, and table-part rows form one coherent scenario with intentional cardinality, order, relationships, and dependent values; a negative case breaks only its target invariant; scenario-local data uses the suitable public `ЮТест.Данные()` operation; a `КонструкторОбъекта` chain has the required terminal/result semantics and is not unintentionally reused with retained data; only truly incidental fields are generated, and low-level setup has an evidence-backed reason.
 - **Isolation:** the test is independent; transaction/cleanup scopes match the side effects; order, collisions, and pre-existing data cannot silently determine the result.
-- **Maintainability:** helpers do not duplicate YAxUnit behavior; setup is minimal; names/report labels explain behavior; each test covers one coherent behavior.
+- **Maintainability:** every helper satisfies the general `$1c-code-change` method-extraction gate; tested actions and decisive expectations remain visible; setup is minimal, names/report labels explain behavior, and each test covers one coherent behavior.
 
 A green YAxUnit run does not replace this authoring review.
 

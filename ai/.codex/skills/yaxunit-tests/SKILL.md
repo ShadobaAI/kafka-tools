@@ -27,7 +27,7 @@ YAxUnit permits test modules to live either with the YAxUnit core or in a separa
 
 - Read [references/workflows.md](references/workflows.md) only when the workflow is not already established, test architecture is being created or substantially changed, execution/debugging is unfamiliar, test ownership/layout is unresolved, or its detailed procedure is needed for the next decision.
 - Read [references/authoring-basics.md](references/authoring-basics.md) once when creating a new YAxUnit test module or substantially rewriting test-data setup or database assertions, unless its stable defaults are already established in this session.
-- Read [references/yaxunit-patterns.md](references/yaxunit-patterns.md) only when an unfamiliar choice about registration, naming, assertions, parameters, data isolation, hooks, contexts, or predicates affects the test.
+- Read [references/yaxunit-patterns.md](references/yaxunit-patterns.md) when creating or materially changing a `КонструкторОбъекта` chain, choosing its terminal/result semantics, or when an unfamiliar choice about registration, naming, assertions, parameters, data isolation, hooks, contexts, or predicates affects the test.
 - Read [references/testability.md](references/testability.md) only after a real testability obstacle appears: inaccessible meaningful logic, an uncontrollable dependency, heavy external infrastructure, nondeterminism, excessive cost, or a proposed product-only seam/unsupported conclusion.
 - Do not reread a skill/reference merely because a new module or substep began while its content remains available in the session.
 
