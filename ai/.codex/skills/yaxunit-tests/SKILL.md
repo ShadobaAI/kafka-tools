@@ -7,10 +7,11 @@ description: Create, change, find, analyze, review, run, and debug 1C modular te
 
 Use `$1c-routing` invariants. For any persistent 1C test mutation, also use `$1c-code-change`; the assigned EDT-MCP is the only writer and the primary validation gate.
 
-## Sources of truth
+## Establish once per session
 
-- Resolve the exact YAxUnit core, tested product, and test owner from workspace instructions before searching or changing anything.
-- The YAxUnit core implementation is the API truth. Use its live project through the assigned EDT-MCP and its canonical read-only code-index alias for definitions, implementations, and real usages. In the Kafka unit workspace these are `unit-edt` on port `8768` and `kfk-yaxunit`.
+- Resolve the YAxUnit core, tested product, test owner, launch configuration, application/infobase, and known fixtures from workspace instructions and live evidence only when not already established.
+- Reuse these facts, confirmed API signatures/semantics, and project conventions across substeps. Recheck only after a relevant failure, restart/resync/reindex/update, user-reported change, conflicting evidence, or a genuinely volatile fact.
+- The installed YAxUnit core implementation is the exact API truth; its documentation supplies conceptual guidance. Use the live core through the assigned EDT-MCP and its canonical read-only code-index alias for definitions, implementations, and real usages. In Kafka these are `unit-edt` on port `8768` and `kfk-yaxunit`.
 - The live EDT model wins on current source, metadata, diagnostics, and platform-aware behavior. If EDT and the index disagree, EDT wins and index freshness must be checked.
 - Assume only the YAxUnit core, tested product, and test owner are available. Do not require external manuals, role files, templates, downloaded examples, or auxiliary projects. Derive uncertain API behavior from the available core itself.
 
@@ -20,16 +21,19 @@ YAxUnit permits test modules to live either with the YAxUnit core or in a separa
 
 - When tests are owned by the core, keep test mutations in the core test scope selected by the workspace.
 - When tests are owned by a separate extension, keep product tests in that extension and treat the YAxUnit project as a read-only framework dependency unless the user explicitly requests a core change.
-- In the Kafka workspace, product modular tests are owned by the separate `unit` extension. Use `unit-edt` for live changes and `kfk-unit` for supplementary read-only search; do not place Kafka product tests in the YAxUnit core.
+- In Kafka, product modular tests are owned by the separate `unit` extension. It is both the test-module owner and an allowed white-box test harness over the base configuration. Use `unit-edt` for live changes and `kfk-unit` for supplementary read-only search; do not place Kafka product tests in the YAxUnit core.
 
-## Route the request
+## Load detail only when needed
 
-- For discovery, impact analysis, or locating examples, read [references/workflows.md](references/workflows.md) and use the exact repository aliases defined by the workspace.
-- For creating, changing, reviewing, or debugging tests, read [references/workflows.md](references/workflows.md).
-- When choosing registration, naming, assertions, parameters, data isolation, hooks, predicates, or mocks, read [references/yaxunit-patterns.md](references/yaxunit-patterns.md).
+- Read [references/workflows.md](references/workflows.md) only when the workflow is not already established, test architecture is being created or substantially changed, execution/debugging is unfamiliar, test ownership/layout is unresolved, or its detailed procedure is needed for the next decision.
+- Read [references/yaxunit-patterns.md](references/yaxunit-patterns.md) only when an unfamiliar choice about registration, naming, assertions, parameters, data isolation, hooks, contexts, or predicates affects the test.
+- Read [references/testability.md](references/testability.md) only after a real testability obstacle appears: inaccessible meaningful logic, an uncontrollable dependency, heavy external infrastructure, nondeterminism, excessive cost, or a proposed product-only seam/unsupported conclusion.
+- Do not reread a skill/reference merely because a new module or substep began while its content remains available in the session.
+
+When a YAxUnit API was confirmed in the installed core or used successfully in a focused runtime test in this session, reuse that contract. Reinspect it only for a new API/semantic question, a context difference, an unexpected failure, disputed evidence, or suspected incompatibility.
 
 Keep changes in the resolved test owner. Do not change the tested product or YAxUnit core unless the user explicitly grants that additional repository scope.
 
 ## Completion gate
 
-After every 1C mutation, run focused EDT diagnostics for the affected objects and inspect the findings. Run the narrowest relevant YAxUnit tests when the configured environment supports execution. Report the logical test objects changed, checks actually run, relevant findings, test result, and any verification gap; never claim a test or diagnostic run that did not occur.
+After every actual 1C mutation, run focused EDT diagnostics for the affected objects and inspect the findings. Then run the narrowest relevant YAxUnit runtime test supported by the configured environment; runtime behavior is the primary proof for tested code. Broaden only at an acceptance checkpoint. Report changed logical objects, material diagnostics/tests, results, and verification gaps; never claim an unperformed run.

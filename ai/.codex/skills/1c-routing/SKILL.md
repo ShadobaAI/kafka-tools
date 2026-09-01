@@ -16,6 +16,15 @@ Choose the source by the kind of fact or operation, not by which tool looks shor
 | Focused BSL symbols, references, types, diagnostics | repository BSL LS | EDT for authoritative confirmation |
 | General or corporate development policy | v8std | EDT project evidence when applicable |
 
+## Session discipline
+
+- If a skill or reference was already read in this session and its content remains available, reuse it across substeps. Read it again only when a different reference is needed, the file may have changed, or the retained context cannot support the next decision.
+- Reuse established project-to-alias mappings, MCP availability, index health, test ownership, launch/infobase identity, API semantics, fixtures, and project conventions. Recheck only after a relevant error, restart, resync, reindex/update, user-reported change, conflicting evidence, or when the fact is genuinely live-state dependent.
+- Treat an explicit user clarification about project convention or test environment as a session constraint unless authoritative live evidence conflicts with it. Do not ask for it again, search merely to reconfirm it, or add excluded defensive checks without a technical reason.
+- Use a known route and tool directly. Do not repeat tool discovery or schema inspection when the tool and required argument variant are already known or worked earlier in the session. Use `get_tool_guide` only for genuinely unknown, ambiguous, or version-sensitive semantics.
+- Before each additional lookup, identify the unresolved question and whether its answer can change the next mutation, test, or decision. Stop when sufficient authoritative evidence exists; do not collect context for reassurance.
+- Narrate only meaningful results, risks, strategy changes, or a long-running phase; do not comment on every routine tool call or repeat the plan and established constraints after each substep.
+
 ## Invariants
 
 - Never list, search, read, parse, patch, create, move, rename, or delete files in configuration/extension `src/**` through filesystem, shell, generic file, or patch tools.
@@ -38,6 +47,8 @@ Choose the source by the kind of fact or operation, not by which tool looks shor
 - For creating, changing, finding, reviewing, running, or debugging modular tests built on YAxUnit, use `$yaxunit-tests` together with the route required for any underlying 1C mutation or analysis.
 - Use EDT for a read-only lookup only when the task requires authoritative live state, platform truth, primary diagnostics, mutation preparation, or a fact that code-index cannot represent.
 
-Establish server status and project identity only when not already known. Enable only the EDT toolset needed for the current decision. Use `get_tool_guide` for unclear or version-sensitive tool semantics rather than inventing arguments.
+Do not duplicate a sufficient code-index result with equivalent EDT search. Use EDT confirmation when a fact controls a mutation, depends on current live state or platform semantics, is a primary diagnostic conclusion, is absent or doubtful in the index, or has material staleness risk.
+
+Establish server status and project identity only when not already known. Enable only the EDT toolset needed for the current decision.
 
 Read [references/tool-policy.md](references/tool-policy.md) only when exact code-index/BSL LS allowlist membership, EDT high-risk classification, or update auditing is relevant.

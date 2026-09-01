@@ -2,6 +2,8 @@
 
 These are stable decision rules, not a substitute for checking the installed core when an API detail is uncertain.
 
+Reuse an API signature or behavior already confirmed in the installed core or by a successful focused runtime test in this session. Do not search for its implementation again unless a new semantic/context question or incompatible failure appears.
+
 ## Module and registration
 
 - Put tests in non-borrowed common modules of the resolved test owner. The owner may be the YAxUnit core or a separate test extension; in Kafka it is the separate `unit` extension. Prefer one test module for one tested module or coherent behavior area.
@@ -62,14 +64,6 @@ Keep preparation and application calls out of this procedure.
 - Use test, set, or module contexts only for data whose lifetime matches that level. Context state is not automatically synchronized between client and server.
 - Prefer per-test preparation and cleanup. Promote state to a broader context only when the performance benefit is real and isolation remains deterministic.
 
-## Mockito and stubs
-
-- Mock external services or expensive/unstable boundaries, not the behavior being asserted.
-- Training follows `Мокито.Обучение(Объект)` -> `Когда(...)` -> a reaction such as `Вернуть`, `ВыброситьИсключение`, `Пропустить`, or `ВыполнитьМетод` -> `Прогон`.
-- Parameter matches have different specificity; exact values outrank predicates, types, and catch-all conditions. When priorities are equal, earlier training can win, so avoid ambiguous rules.
-- Core Mockito changes configuration methods through replacement/borrowed methods. Do not assume it can mock platform methods, arbitrary extension methods, or every external object.
-- Restore or scope mock behavior through the YAxUnit lifecycle and verify calls only when interaction itself is part of the requirement.
-
 ## Common failure patterns
 
 - Registration contains setup or application logic.
@@ -77,6 +71,5 @@ Keep preparation and application calls out of this procedure.
 - Generic equality is used where a database or collection assertion would explain the failure better.
 - A copied example calls an outdated or internal YAxUnit API.
 - Transaction or tracked deletion is treated as complete rollback of all side effects.
-- A mocked method is the actual unit under test.
 - A client/server test assumes context values are synchronized automatically.
 - Tests are edited through filesystem tools instead of the assigned EDT-MCP.

@@ -9,11 +9,11 @@ Use the assigned EDT-MCP and `$1c-routing` invariants.
 
 ## Workflow
 
-1. Establish the exact EDT project and obtain its configuration/platform properties when not already known.
+1. Reuse the established EDT project, platform context, and API facts from this session. Re-establish them only after a relevant state change, conflicting evidence, or when the needed fact is live-state dependent.
 2. Call EDT `get_platform_documentation` with `projectName` and the narrowest relevant symbol or topic.
-3. Use EDT content assist or semantic symbol information when signatures, context availability, overloads, or client/server placement remain uncertain.
-4. If the answer drives an implementation, verify it through the normal EDT mutation and focused validation workflow; documentation alone does not prove project correctness.
+3. Stop when that authoritative result answers the question. Use EDT content assist or semantic symbol information only when signatures, context availability, overloads, client/server placement, or a missing member remain unresolved.
+4. If the answer drives an implementation, verify the resulting change through the normal EDT mutation and focused validation workflow; documentation alone does not prove project correctness.
 
-code-index and BSL LS may provide supplementary symbol context but are not authoritative for current live state or platform compatibility. v8std explains recommended practice, not whether an API exists. Do not infer version independence or invent unavailable signatures.
+Do not corroborate a sufficient platform-documentation result with code-index, BSL LS, web search, or content assist merely for confidence. Those routes may add project symbol context but are not authoritative for platform compatibility. v8std explains recommended practice, not whether an API exists. Do not infer version independence or invent unavailable signatures.
 
-Report the verified project/platform context, relevant API fact, and any remaining compatibility uncertainty.
+Report the relevant API fact and remaining compatibility uncertainty; omit already established project/platform context unless it affects the conclusion.

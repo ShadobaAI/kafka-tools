@@ -10,30 +10,30 @@ Use `$1c-routing` invariants. EDT-MCP assigned by workspace instructions is the 
 ## Pipeline
 
 ```text
-inspect current EDT object/source
--> inspect semantic references and affected contracts
--> optionally add read-only code-index or BSL LS evidence
--> mutate through EDT-MCP
--> run focused EDT validation
--> inspect and classify relevant project errors
--> run behavior-specific tests when required
+read exact current method/object through EDT
+-> inspect only directly affected contracts
+-> one logical EDT mutation
+-> focused EDT validation and finding classification
+-> focused behavior test when required
 ```
 
 ## Work narrowly
 
-- Resolve the exact project, logical object, module, and method through EDT. Never inspect `src/**` through filesystem tools.
-- Read only the source or metadata needed for the next decision. Use EDT definition, references, call hierarchy, outgoing structures, content assist, and query validation when they materially affect the change.
+- Reuse session-established routing and facts. Resolve the exact project, logical object, module, and method through EDT only when not already established. Never inspect `src/**` through filesystem tools.
+- Read the smallest current symbol or metadata fragment needed for the planned change. For a local change, normally inspect only that body, directly affected signatures/contracts, and one existing usage for an unfamiliar API.
+- Perform broad impact analysis only for a public API or signature, shared contract, metadata structure, mass refactoring, behavior with many callers, or an explicit user request.
 - Use code-index only for allowed read-only search, graph, structure, or impact evidence. Use BSL LS only for focused read-only BSL diagnostics or semantics in a configured repository.
-- Before a non-trivial writer, obtain current metadata/source and use `get_tool_guide` when its contract is unclear or version-sensitive.
+- Before a non-trivial writer, obtain current metadata/source and use `get_tool_guide` only when the writer contract is genuinely unclear or version-sensitive.
 
 ## Mutation and validation
 
-- Prefer a narrow semantic mutation and supported revision/hash guard. Avoid full-module replacement or syntax-check bypass unless required and justified.
-- After every mutation, run focused EDT revalidation for affected objects and inspect EDT project errors. Validate changed queries, XDTO, forms, templates, or tests with the specialized EDT capability when applicable.
+- Form the complete logically atomic change before writing. When several edits belong to one method or target fragment, prefer one guarded EDT mutation over multiple micro-mutations. Avoid full-module replacement or syntax-check bypass unless required and justified.
+- After every actual mutation, run focused EDT revalidation for affected objects and inspect EDT project errors. Validate changed queries, XDTO, forms, templates, or tests with the specialized EDT capability when applicable. Reducing writer calls never permits combining or skipping the validation required after a writer.
+- Do not reread source merely to confirm a successful writer. Reread only after an ambiguous result, when a new revision/hash is needed for a separate mutation, when a diagnostic points to the text, when EDT may have structurally transformed it, or when the next decision depends on the persisted text.
 - Do not disable, suppress, filter out, or hide EDT diagnostics.
 - Verify each relevant EDT finding against the current source and metadata context before treating it as a confirmed defect.
 - Leave a finding unfixed only when relevant evidence such as platform documentation, content assist, a focused test, code-index context, or focused BSL LS diagnostics supports classifying it as a false positive. Otherwise keep it unresolved. Report its code, message, location, classification, evidence, and remaining uncertainty; do not claim a clean result while relevant findings remain unresolved.
 - `update_database`, imports, deletes, `clean_project`, credential changes, runtime state changes, and branch operations are separate high-risk actions; do not infer them from a code-change request.
 - Do not run `clean_project` after an EDT write. Use `resync_to_disk` only to reconcile authoritative EDT model state to disk.
 
-Stop when the requested change and required focused verification are complete. Report changed logical objects, checks actually run, relevant findings, and verification gaps.
+When static validation is sufficient to run a safe focused behavior test, prefer that feedback over broader speculative research. Stop when the requested change and focused verification are complete. Report the outcome, material checks/findings, and verification gaps rather than tool-call chronology.
