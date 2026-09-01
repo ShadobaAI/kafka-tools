@@ -6,21 +6,26 @@ $ErrorActionPreference = 'Stop'
 $workspaceRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..\..'))
 $installer = Join-Path $workspaceRoot 'tools\ai\setup.ps1'
 $temporaryCodexHome = Join-Path ([System.IO.Path]::GetTempPath()) ("kafka-ai-shared-daemon-" + [guid]::NewGuid().ToString('N'))
+$temporaryWorkspaceRoot = Join-Path $temporaryCodexHome 'workspace'
 
 try {
     New-Item -ItemType Directory -Path $temporaryCodexHome -Force | Out-Null
-    $legacyConfig = @'
+    New-Item -ItemType Directory -Path $temporaryWorkspaceRoot -Force | Out-Null
+    foreach ($relativePath in @(
+        'adapter\adapter',
+        'adapter\base',
+        'adapter\examples',
+        'conversion\KFK',
+        ('conversion\' + [string][char]0x041A + [string][char]0x0414),
+        'tests\unit\base',
+        'tests\unit\examples',
+        'tests\unit\unit',
+        'tests\unit\yaxunit'
+    )) {
+        New-Item -ItemType Directory -Path (Join-Path $temporaryWorkspaceRoot $relativePath) -Force | Out-Null
+    }
+    $existingConfig = @'
 #:schema https://developers.openai.com/codex/config-schema.json
-
-# BEGIN CRM-AI MANAGED
-[mcp_servers.v8std]
-url = "http://127.0.0.1:8766/mcp"
-bearer_token_env_var = "V8STD_TOKEN"
-
-[mcp_servers.code-index]
-command = "powershell.exe"
-args = ["C:\legacy-crm\code-index-mcp.ps1"]
-# END CRM-AI MANAGED
 
 [mcp_servers.unrelated]
 url = "http://127.0.0.1:9999/mcp"
@@ -28,7 +33,7 @@ url = "http://127.0.0.1:9999/mcp"
     $configPath = Join-Path $temporaryCodexHome 'config.toml'
     [System.IO.File]::WriteAllText(
         $configPath,
-        $legacyConfig,
+        $existingConfig,
         [System.Text.UTF8Encoding]::new($false)
     )
 
@@ -41,23 +46,13 @@ http_port = 0
 max_concurrent_initial = 3
 
 [[paths]]
-alias = "crm-production"
-path = "C:/portable/crm/src"
+alias = "external-primary"
+path = "C:/portable/external/primary"
 language = "bsl"
 
 [[paths]]
-alias = "crm-yaxunit"
-path = "C:/portable/crm/EDT.YAXUNIT"
-language = "bsl"
-
-[[paths]]
-alias = "kafka-adapter"
-path = "C:/obsolete/kafka-adapter"
-language = "bsl"
-
-[[paths]]
-alias = "kafka-adapter-tests-unit"
-path = "C:/obsolete/kafka-adapter-tests-unit"
+alias = "external-tests"
+path = "C:/portable/external/tests"
 language = "bsl"
 '@
     [System.IO.File]::WriteAllText(
@@ -67,7 +62,7 @@ language = "bsl"
     )
 
     & $installer `
-        -WorkspaceRoot $workspaceRoot `
+        -WorkspaceRoot $temporaryWorkspaceRoot `
         -CodexHome $temporaryCodexHome `
         -ConfigurationOnly | Out-Null
 
@@ -76,23 +71,16 @@ language = "bsl"
         'BEGIN SHARED-1C-AI MANAGED',
         'BEGIN KAFKA-AI GUARD',
         'url = "http://127.0.0.1:8766/mcp"',
-        'bearer_token_env_var = "V8STD_TOKEN"',
         '[mcp_servers.unrelated]'
     )) {
         if (-not $installedConfig.Contains($required)) {
             throw "Installer did not preserve or install required config content '$required'."
         }
     }
-    foreach ($forbidden in @('BEGIN CRM-AI MANAGED', 'legacy-crm')) {
-        if ($installedConfig.Contains($forbidden)) {
-            throw "Installer left legacy CRM managed content '$forbidden'."
-        }
-    }
-
     $installedDaemonConfig = Get-Content -LiteralPath $daemonConfigPath -Raw
     $expectedAliases = @(
-        'crm-production',
-        'crm-yaxunit',
+        'external-primary',
+        'external-tests',
         'kfk',
         'kfk-base',
         'kfk-examples',
@@ -109,14 +97,8 @@ language = "bsl"
     if ($installedDaemonConfig -notmatch '(?m)^max_concurrent_initial = 3\r?$') {
         throw 'Installer did not preserve existing shared daemon settings.'
     }
-    foreach ($legacyAlias in @('kafka-adapter', 'kafka-adapter-tests-unit')) {
-        if ($installedDaemonConfig -match ('(?m)^alias = "' + [regex]::Escape($legacyAlias) + '"\r?$')) {
-            throw "Installer preserved legacy Kafka alias '$legacyAlias'."
-        }
-    }
-
     & $installer `
-        -WorkspaceRoot $workspaceRoot `
+        -WorkspaceRoot $temporaryWorkspaceRoot `
         -CodexHome $temporaryCodexHome `
         -ConfigurationOnly | Out-Null
     $reinstalledDaemonConfig = Get-Content -LiteralPath $daemonConfigPath -Raw
@@ -544,107 +526,51 @@ $ErrorActionPreference = 'Stop'
 $workspaceRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..\..'))
 $installer = Join-Path $workspaceRoot 'tools\ai\setup.ps1'
 $temporaryCodexHome = Join-Path ([System.IO.Path]::GetTempPath()) ("kafka-ai-v8std-" + [guid]::NewGuid().ToString('N'))
+$temporaryWorkspaceRoot = Join-Path $temporaryCodexHome 'workspace'
+$defaultUrl = 'http://127.0.0.1:8766/mcp'
 $publicUrl = 'https://ai.v8std.ru/mcp'
-$localUrl = 'http://127.0.0.1:8766/mcp'
 
 try {
-    & $installer -WorkspaceRoot $workspaceRoot -CodexHome $temporaryCodexHome -ConfigurationOnly | Out-Null
+    foreach ($relativePath in @(
+        'adapter\adapter',
+        'adapter\base',
+        'adapter\examples',
+        'conversion\KFK',
+        ('conversion\' + [string][char]0x041A + [string][char]0x0414),
+        'tests\unit\base',
+        'tests\unit\examples',
+        'tests\unit\unit',
+        'tests\unit\yaxunit'
+    )) {
+        New-Item -ItemType Directory -Path (Join-Path $temporaryWorkspaceRoot $relativePath) -Force | Out-Null
+    }
+    & $installer -WorkspaceRoot $temporaryWorkspaceRoot -CodexHome $temporaryCodexHome -ConfigurationOnly | Out-Null
     $configPath = Join-Path $temporaryCodexHome 'config.toml'
     $config = Get-Content -LiteralPath $configPath -Raw
 
-    if ($config -notmatch [regex]::Escape("url = `"$publicUrl`"")) {
-        throw 'Fresh install did not configure the public v8std URL.'
+    if ($config -notmatch [regex]::Escape("url = `"$defaultUrl`"")) {
+        throw 'Fresh install did not configure the local v8std URL.'
     }
     if ($config -notmatch '"v8std_explain_snippet"') {
         throw 'Fresh install did not expose v8std_explain_snippet.'
     }
-    $config = $config.Replace("url = `"$publicUrl`"", "url = `"$localUrl`"")
+    $config = $config.Replace("url = `"$defaultUrl`"", "url = `"$publicUrl`"")
     [System.IO.File]::WriteAllText(
         $configPath,
         $config,
         [System.Text.UTF8Encoding]::new($false)
     )
 
-    & $installer -WorkspaceRoot $workspaceRoot -CodexHome $temporaryCodexHome -ConfigurationOnly | Out-Null
+    & $installer -WorkspaceRoot $temporaryWorkspaceRoot -CodexHome $temporaryCodexHome -ConfigurationOnly | Out-Null
     $reinstalledConfig = Get-Content -LiteralPath $configPath -Raw
-    if ($reinstalledConfig -notmatch [regex]::Escape("url = `"$localUrl`"")) {
+    if ($reinstalledConfig -notmatch [regex]::Escape("url = `"$publicUrl`"")) {
         throw 'Installer did not preserve the user-selected v8std URL.'
     }
-    if ($reinstalledConfig -match [regex]::Escape("url = `"$publicUrl`"")) {
-        throw 'Installer restored the default public URL over the user-selected URL.'
+    if ($reinstalledConfig -match [regex]::Escape("url = `"$defaultUrl`"")) {
+        throw 'Installer restored the default local URL over the user-selected URL.'
     }
 
-    Write-Output 'install-v8std-url: default public URL and user override preservation passed'
-}
-finally {
-    if (Test-Path -LiteralPath $temporaryCodexHome) {
-        Remove-Item -LiteralPath $temporaryCodexHome -Recurse -Force
-    }
-}
-}
-
-function Invoke-InstallUnicaMigrationTest {
-[CmdletBinding()]
-param()
-
-$ErrorActionPreference = 'Stop'
-$workspaceRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..\..'))
-$installer = Join-Path $workspaceRoot 'tools\ai\setup.ps1'
-$temporaryCodexHome = Join-Path ([System.IO.Path]::GetTempPath()) ("kafka-ai-unica-migration-" + [guid]::NewGuid().ToString('N'))
-
-try {
-    New-Item -ItemType Directory -Path $temporaryCodexHome -Force | Out-Null
-    foreach ($skill in @('edt-mcp', '1c-engineering', 'v8std-mcp', 'user-owned-skill')) {
-        $skillRoot = Join-Path $temporaryCodexHome "skills\$skill"
-        New-Item -ItemType Directory -Path $skillRoot -Force | Out-Null
-        [System.IO.File]::WriteAllText(
-            (Join-Path $skillRoot 'SKILL.md'),
-            "# $skill",
-            [System.Text.UTF8Encoding]::new($false)
-        )
-    }
-    $legacyConfig = @'
-[marketplaces.unica]
-source_type = "git"
-source = "https://github.com/IngvarConsulting/unica-marketplace.git"
-
-[plugins."unica@unica"]
-enabled = true
-
-[plugins."unica@unica".mcp_servers.unica]
-enabled = true
-enabled_tools = ["unica.code.search"]
-
-[mcp_servers.unrelated]
-url = "http://127.0.0.1:9999/mcp"
-'@
-    [System.IO.File]::WriteAllText(
-        (Join-Path $temporaryCodexHome 'config.toml'),
-        $legacyConfig,
-        [System.Text.UTF8Encoding]::new($false)
-    )
-
-    & $installer -WorkspaceRoot $workspaceRoot -CodexHome $temporaryCodexHome -ConfigurationOnly | Out-Null
-    $installedConfig = Get-Content -LiteralPath (Join-Path $temporaryCodexHome 'config.toml') -Raw
-    if ($installedConfig -match '(?im)^\[(?:marketplaces\.unica|plugins\."unica@unica"(?:\.mcp_servers\.unica)?)\]') {
-        throw 'Installer left a legacy Unica registration or MCP table in active config.'
-    }
-    if ($installedConfig -notmatch '\[mcp_servers\.code-index\]') {
-        throw 'Installer did not install the managed code-index MCP table.'
-    }
-    if ($installedConfig -notmatch '\[mcp_servers\.unrelated\]') {
-        throw 'Installer removed an unrelated MCP table during migration.'
-    }
-    foreach ($legacySkill in @('edt-mcp', '1c-engineering', 'v8std-mcp')) {
-        if (Test-Path -LiteralPath (Join-Path $temporaryCodexHome "skills\$legacySkill")) {
-            throw "Installer left legacy managed skill '$legacySkill'."
-        }
-    }
-    if (-not (Test-Path -LiteralPath (Join-Path $temporaryCodexHome 'skills\user-owned-skill\SKILL.md'))) {
-        throw 'Installer removed an unrelated user-owned skill.'
-    }
-
-    Write-Output 'install-unica-migration: legacy Unica and managed skills removed; unrelated config and skill preserved'
+    Write-Output 'install-v8std-url: default local URL and public override preservation passed'
 }
 finally {
     if (Test-Path -LiteralPath $temporaryCodexHome) {
@@ -657,4 +583,3 @@ Invoke-SetupDaemonPolicyTest
 Invoke-InstallPortableTest
 Invoke-SetupPortableTest
 Invoke-InstallV8stdUrlTest
-Invoke-InstallUnicaMigrationTest

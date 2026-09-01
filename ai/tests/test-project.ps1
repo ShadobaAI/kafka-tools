@@ -54,20 +54,16 @@ foreach ($entry in $expectedCodeIndexPaths.GetEnumerator()) {
         throw "Missing code-index binding '$($entry.Key)' -> '$($entry.Value)'."
     }
 }
+$actualAliasCount = [regex]::Matches($daemonTemplate, '(?m)^alias = "').Count
+if ($actualAliasCount -ne $expectedCodeIndexPaths.Count) {
+    throw "Expected $($expectedCodeIndexPaths.Count) code-index bindings, got $actualAliasCount."
+}
 foreach ($forbidden in @(
-    'alias = "kafka-adapter"',
-    'alias = "kafka-adapter-base"',
-    'alias = "kafka-adapter-examples"',
-    'alias = "kafka-adapter-conv"',
-    'alias = "kafka-adapter-conv-kd"',
-    'alias = "kafka-adapter-unit"',
-    'alias = "kafka-adapter-yaxunit"',
-    'kafka-adapter-tests-unit',
     '__WORKSPACE_ROOT_FORWARD__/tests/unit/base',
     '__WORKSPACE_ROOT_FORWARD__/tests/unit/examples'
 )) {
     if ($daemonTemplate.Contains($forbidden)) {
-        throw "Forbidden obsolete or duplicate code-index binding '$forbidden' is present."
+        throw "Forbidden duplicate code-index binding '$forbidden' is present."
     }
 }
 
@@ -180,4 +176,3 @@ Write-Output 'guard-1c-routing: 13 cases passed'
 
 Invoke-KafkaRoutingTest
 Invoke-RoutingGuardTest
-

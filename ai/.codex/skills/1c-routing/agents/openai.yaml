@@ -2,14 +2,3 @@ interface:
   display_name: "1C Routing"
   short_description: "Route 1C work through EDT and read-only analysis"
   default_prompt: "Use $1c-routing to choose the authoritative tools and safety policy for this 1C task."
-
-dependencies:
-  tools:
-    - type: "mcp"
-      value: "code-index"
-      description: "Read-only indexed search, structure, and graph analysis"
-      transport: "stdio"
-    - type: "mcp"
-      value: "v8std"
-      description: "User-configured standards and diagnostic corpus"
-      transport: "streamable_http"

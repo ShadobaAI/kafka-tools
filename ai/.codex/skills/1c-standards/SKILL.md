@@ -1,26 +1,22 @@
 ---
 name: 1c-standards
-description: Retrieve and apply 1C development standards, corporate policy, patterns, and analyzer diagnostic explanations through v8std. Use for standards questions, architecture or security decisions governed by policy, compliance review, diagnostic interpretation, or short snippet rule matching; do not use merely because a task involves 1C.
+description: Retrieve and apply general 1C standards through v8std. Use for every Kafka 1C design, implementation, change review, standards question, diagnostic interpretation, or short snippet analysis; do not use for project source, platform APIs, or YAxUnit facts.
 ---
 
 # 1C Standards
 
-Use `$1c-routing` invariants.
+Use only the configured `v8std` MCP. It supplies standards, not live project or platform truth. Never query or apply the `corporate` collection.
 
-Use v8std as a read-only policy corpus. It does not inspect the live project, establish API availability, or replace EDT diagnostics.
+For design, implementation, or change review, make one narrow search for the affected behavior with `collections=["v8std"]`, unless sufficient relevant evidence is already in context.
 
 ## Route evidence
 
 | Input | Route |
 |---|---|
-| Unknown rule or topic | `v8std_search` then `v8std_get_page` for material decisions |
+| General 1C rule or topic | `v8std_search` with `collections=["v8std"]` |
 | Known page ID, alias, path, or URL | `v8std_get_page` |
-| Analyzer diagnostic codes | `v8std_explain_diagnostics`, then relevant pages |
-| Related requirements may change the conclusion | `v8std_get_related` |
-| Short BSL/SDBL fragment | configured `v8std` `v8std_explain_snippet` |
+| Analyzer diagnostic codes | `v8std_explain_diagnostics` filtered to `v8std` |
+| Related requirements may change the conclusion | `v8std_get_related` within `v8std` |
+| Short BSL/SDBL fragment | `v8std_explain_snippet` filtered to `v8std` |
 
-Use the MCP named `v8std` for all routes above. Its endpoint is selected by the user in Codex config and defaults to `https://ai.v8std.ru/mcp`; the user may replace its `url` with a local endpoint. Do not apply agent-side source classification, endpoint switching, or code-transfer restrictions beyond the configured MCP.
-
-Apply policy in this order: explicit project/corporate standard, general 1C standard, related methodology, advisory patterns/principles, agent preference. Confirm actual source and metadata through EDT or allowed read-only code-index/BSL LS evidence, and confirm platform APIs through EDT.
-
-Classify findings as confirmed, possible, not applicable, or pre-existing. Do not invent rule IDs, wording, obligation levels, or API facts, and do not weaken behavior, security, transactions, permissions, or validation to satisfy a rule.
+Never make an unfiltered request. Read every material search result through `v8std_get_page`, stop when the evidence is sufficient, and do not repeat the fact in another MCP. Do not invent rule IDs, wording, obligation levels, or API facts.

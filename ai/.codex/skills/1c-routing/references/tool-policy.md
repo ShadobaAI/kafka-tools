@@ -5,27 +5,12 @@
 Only these tools are permitted. New code-index tools default to deny:
 
 ```text
-search_function
-search_class
 get_function
-get_class
-get_callers
-get_callees
 get_callers_bsl
 get_callees_bsl
-find_path
-get_call_tree
 get_call_tree_bsl
 find_symbol
-get_imports
-get_file_summary
-get_stats
-search_text
-grep_body
-stat_file
-list_files
 read_file
-grep_text
 grep_code
 health
 get_object_structure
@@ -85,5 +70,5 @@ Run focused EDT diagnostics after every 1C mutation. Do not disable, suppress, f
 
 - Compare code-index and BSL LS tool surfaces with these allowlists; classify every new tool before exposing it.
 - Check EDT `list_toolsets` and use live `get_tool_guide` for changed tools.
-- Verify the local v8std indexes and corporate corpus before relying on them.
+- Verify the local v8std general and YAxUnit collections before relying on them; Kafka must not use the corporate collection.
 - Re-run a minimal project-aware platform docs, semantic navigation, mutation, and validation smoke test after platform or EDT upgrades.

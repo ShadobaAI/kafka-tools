@@ -2,3 +2,10 @@ interface:
   display_name: "YAxUnit Tests"
   short_description: "Create and maintain 1C tests with YAxUnit"
   default_prompt: "Use $yaxunit-tests to create or update focused YAxUnit tests and validate them through the assigned EDT workspace."
+
+dependencies:
+  tools:
+    - type: "mcp"
+      value: "v8std"
+      description: "Required YAxUnit API and pattern collection"
+      transport: "streamable_http"

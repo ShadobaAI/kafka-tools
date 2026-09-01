@@ -294,7 +294,7 @@ Daemon health не равен readiness индексов. На чистой ус
 Итоговая operational-проверка выполняется через `code-index.health`: daemon должен быть
 `online/healthy`, endpoint — подтверждён, каждый ожидаемый alias — `ready`.
 
-### Шаг 9. Обеспечить идемпотентность и migration
+### Шаг 9. Обеспечить идемпотентность
 
 Повторный запуск не должен:
 
@@ -310,8 +310,8 @@ Daemon health не равен readiness индексов. На чистой ус
 
 Общий MCP block и workspace-specific guard block в пользовательском `config.toml`
 имеют разные BEGIN/END markers.
-Конфликтующие legacy tables удаляются только с backup и только в рамках новой
-утверждённой архитектуры.
+Посторонняя конфигурация сохраняется; конфликтующие `v8std` и `code-index` tables
+заменяются только с явным параметром и backup.
 
 ## 7. Команда установки для команды
 
@@ -346,7 +346,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File `
 - отсутствие machine-specific absolute paths в repository config;
 - portable install в произвольном временном каталоге;
 - повторную идемпотентную установку;
-- backup и удаление только известных legacy config/skills;
+- backup перед заменой конфликтующей managed-конфигурации;
 - сохранение пользовательского v8std URL;
 - routing guard на разрешённых и запрещённых путях/tools;
 - проверку Node.js и минимальной версии `bsl-indexer`;
@@ -395,7 +395,7 @@ Live smoke не должен изменять проект 1С.
 
 - пути `adapter/adapter`, `adapter/base`, `adapter/examples`, `conversion/KFK`, `conversion/КД`,
   `tests/unit/base`, `tests/unit/examples`, `tests/unit/unit`, `tests/unit/yaxunit`;
-- управляемые aliases `kfk*` и список удаляемых legacy aliases `kafka-adapter*`;
+- управляемые aliases `kfk*`;
 - имена EDT-MCP `kfk-edt`, `conv-edt`, `unit-edt`;
 - EDT project names и описания project scope;
 - SonarQube URL и наличие самого SonarQube MCP;

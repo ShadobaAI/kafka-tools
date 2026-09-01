@@ -4,7 +4,7 @@
 # This block is installed idempotently by tools/ai/install.ps1.
 
 [mcp_servers.v8std]
-url = "https://ai.v8std.ru/mcp"
+url = "http://127.0.0.1:8766/mcp"
 enabled = true
 required = false
 startup_timeout_sec = 5
@@ -16,7 +16,7 @@ enabled_tools = [
   "v8std_explain_snippet",
   "v8std_explain_diagnostics",
 ]
-description = "User-selectable v8std standards, diagnostics, and snippet corpus; public endpoint by default"
+description = "Local filtered 1C standards, YaXUnit, diagnostics, and snippet corpus"
 default_tools_approval_mode = "approve"
 
 [mcp_servers.code-index]
@@ -39,27 +39,12 @@ tool_timeout_sec = 120
 description = "Federated read-only code and 1C metadata index; requires bsl-indexer daemon"
 default_tools_approval_mode = "approve"
 enabled_tools = [
-  "search_function",
-  "search_class",
   "get_function",
-  "get_class",
-  "get_callers",
-  "get_callees",
   "get_callers_bsl",
   "get_callees_bsl",
-  "find_path",
-  "get_call_tree",
   "get_call_tree_bsl",
   "find_symbol",
-  "get_imports",
-  "get_file_summary",
-  "get_stats",
-  "search_text",
-  "grep_body",
-  "stat_file",
-  "list_files",
   "read_file",
-  "grep_text",
   "grep_code",
   "health",
   "get_object_structure",

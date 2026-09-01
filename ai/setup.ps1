@@ -613,27 +613,18 @@ else {
     ''
 }
 
-$preservedV8stdBaseSettings = [ordered]@{}
-$preservedV8stdSettingNames = @(
-    'url',
-    'bearer_token_env_var',
-    'http_headers',
-    'env_http_headers'
-)
 $existingV8stdTable = [regex]::Match(
     $existingConfig,
     '(?ms)^\[mcp_servers\.v8std\]\r?\n.*?(?=^\[|\z)'
 )
-if ($existingV8stdTable.Success) {
-    foreach ($settingName in $preservedV8stdSettingNames) {
-        $existingSetting = [regex]::Match(
-            $existingV8stdTable.Value,
-            "(?m)^[ \t]*$([regex]::Escape($settingName))[ \t]*=[^\r\n]*$"
-        )
-        if ($existingSetting.Success) {
-            $preservedV8stdBaseSettings[$settingName] = $existingSetting.Value.Trim()
-        }
-    }
+$preservedV8stdBaseSettings = if ($existingV8stdTable.Success) {
+    @([regex]::Matches(
+        $existingV8stdTable.Value,
+        '(?m)^[ \t]*(?:url|bearer_token_env_var|http_headers|env_http_headers)[ \t]*=[^\r\n]*\r?$'
+    ) | ForEach-Object { $_.Value.Trim() })
+}
+else {
+    @()
 }
 $preservedV8stdNestedTables = @(
     [regex]::Matches(
@@ -671,28 +662,20 @@ if ($preservedV8stdBaseSettings.Count -gt 0 -or $preservedV8stdNestedTables.Coun
         throw "Managed v8std table is missing from '$sourceConfig'."
     }
     $updatedV8stdTable = $managedV8stdTable.Value
-    foreach ($settingName in $preservedV8stdBaseSettings.Keys) {
-        $managedSetting = [regex]::Match(
-            $updatedV8stdTable,
-            "(?m)^[ \t]*$([regex]::Escape($settingName))[ \t]*=[^\r\n]*$"
-        )
-        if ($managedSetting.Success) {
-            $updatedV8stdTable = $updatedV8stdTable.Remove(
-                $managedSetting.Index,
-                $managedSetting.Length
-            ).Insert($managedSetting.Index, $preservedV8stdBaseSettings[$settingName])
-        }
-        else {
-            $tableHeader = [regex]::Match($updatedV8stdTable, '^\[mcp_servers\.v8std\]\r?\n')
-            if (-not $tableHeader.Success) {
-                throw "Managed v8std table header is invalid in '$sourceConfig'."
-            }
-            $updatedV8stdTable = $updatedV8stdTable.Insert(
-                $tableHeader.Index + $tableHeader.Length,
-                "$($preservedV8stdBaseSettings[$settingName])`r`n"
-            )
-        }
+    $updatedV8stdTable = [regex]::Replace(
+        $updatedV8stdTable,
+        '(?m)^[ \t]*(?:url|bearer_token_env_var|http_headers|env_http_headers)[ \t]*=[^\r\n]*(?:\r?\n|$)',
+        ''
+    )
+    $tableHeader = [regex]::Match($updatedV8stdTable, '^\[mcp_servers\.v8std\]\r?\n')
+    if (-not $tableHeader.Success) {
+        throw "Managed v8std table header is invalid in '$sourceConfig'."
     }
+    $preservedSettings = $preservedV8stdBaseSettings -join "`r`n"
+    $updatedV8stdTable = $updatedV8stdTable.Insert(
+        $tableHeader.Index + $tableHeader.Length,
+        "$preservedSettings`r`n"
+    )
     $managedBlock = $managedBlock.Remove(
         $managedV8stdTable.Index,
         $managedV8stdTable.Length
@@ -713,24 +696,9 @@ if ($preservedV8stdBaseSettings.Count -gt 0 -or $preservedV8stdNestedTables.Coun
 
 $unmanagedConfig = [regex]::Replace($existingConfig, $blockPattern, '').TrimEnd()
 $unmanagedConfig = [regex]::Replace($unmanagedConfig, $guardBlockPattern, '').TrimEnd()
-$legacyManagedBlockPatterns = @(
-    '(?ms)^\# BEGIN CRM-AI MANAGED\r?\n.*?^\# END CRM-AI MANAGED\r?\n?',
-    '(?ms)^\# BEGIN KAFKA-AI MANAGED\r?\n.*?^\# END KAFKA-AI MANAGED\r?\n?'
-)
-foreach ($legacyBlockPattern in $legacyManagedBlockPatterns) {
-    if ([regex]::IsMatch($unmanagedConfig, $legacyBlockPattern)) {
-        if (-not $ReplaceConflictingCommonMcp) {
-            throw "Config '$targetConfig' contains a legacy managed Codex block. Re-run with -ReplaceConflictingCommonMcp to migrate it with backup."
-        }
-        $unmanagedConfig = [regex]::Replace($unmanagedConfig, $legacyBlockPattern, '').TrimEnd()
-    }
-}
 $conflictingGroups = @(
     @{ Header = '[mcp_servers.v8std]'; Pattern = '(?ms)^\[mcp_servers\.v8std(?:\.[^\]]+)?\]\r?\n.*?(?=^\[|\z)' },
-    @{ Header = '[mcp_servers.code-index]'; Pattern = '(?ms)^\[mcp_servers\.code-index(?:\.[^\]]+)?\]\r?\n.*?(?=^\[|\z)' },
-    @{ Header = '[plugins."unica@unica".mcp_servers.unica]'; Pattern = '(?ms)^\[plugins\."unica@unica"\.mcp_servers\.unica(?:\.[^\]]+)?\]\r?\n.*?(?=^\[|\z)' },
-    @{ Header = '[plugins."unica@unica"]'; Pattern = '(?ms)^\[plugins\."unica@unica"\]\r?\n.*?(?=^\[|\z)' },
-    @{ Header = '[marketplaces.unica]'; Pattern = '(?ms)^\[marketplaces\.unica\]\r?\n.*?(?=^\[|\z)' }
+    @{ Header = '[mcp_servers.code-index]'; Pattern = '(?ms)^\[mcp_servers\.code-index(?:\.[^\]]+)?\]\r?\n.*?(?=^\[|\z)' }
 )
 foreach ($group in $conflictingGroups) {
     if ([regex]::IsMatch($unmanagedConfig, $group.Pattern)) {
@@ -817,20 +785,10 @@ $managedPathBlocks = foreach ($pathMatch in $managedPathMatches) {
     $pathMatch.Value.Trim()
 }
 
-$legacyKafkaAliases = @(
-    'kafka-adapter',
-    'kafka-adapter-base',
-    'kafka-adapter-examples',
-    'kafka-adapter-conv',
-    'kafka-adapter-conv-kd',
-    'kafka-adapter-unit',
-    'kafka-adapter-yaxunit',
-    'kafka-adapter-tests-unit'
-)
 $existingPathMatches = Get-CodeIndexPathBlocks -Content $existingCodeIndexConfig
 $preservedPathBlocks = foreach ($pathMatch in $existingPathMatches) {
     $alias = Get-CodeIndexPathAlias -Block $pathMatch.Value
-    if (-not $managedAliases.ContainsKey($alias) -and $alias -notin $legacyKafkaAliases) {
+    if (-not $managedAliases.ContainsKey($alias)) {
         $pathMatch.Value.Trim()
     }
 }
@@ -876,16 +834,6 @@ $managedSkills = @(Get-ChildItem -LiteralPath $sourceSkills -Directory -Force | 
 } | Sort-Object Name)
 if ($managedSkills.Count -eq 0) {
     throw "No managed skills found in '$sourceSkills'."
-}
-
-$legacyManagedSkills = @('edt-mcp', '1c-engineering', 'v8std-mcp')
-foreach ($legacySkill in $legacyManagedSkills) {
-    $legacyTarget = Join-Path $targetSkills $legacySkill
-    if (-not (Test-Path -LiteralPath $legacyTarget)) {
-        continue
-    }
-    Backup-ManagedPath -Path $legacyTarget -RelativeBackupPath (Join-Path 'skills' $legacySkill)
-    Remove-Item -LiteralPath $legacyTarget -Recurse -Force
 }
 
 foreach ($sourceSkillItem in $managedSkills) {

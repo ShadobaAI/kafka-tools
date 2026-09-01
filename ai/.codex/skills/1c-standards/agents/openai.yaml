@@ -1,11 +1,11 @@
 interface:
   display_name: "1C Standards"
-  short_description: "Evidence-backed 1C standards and diagnostics"
-  default_prompt: "Use $1c-standards to retrieve and apply the relevant 1C rule or diagnostic evidence."
+  short_description: "General 1C policy without corporate"
+  default_prompt: "Use $1c-standards to retrieve and apply relevant general 1C evidence without the corporate collection."
 
 dependencies:
   tools:
     - type: "mcp"
       value: "v8std"
-      description: "User-configured standards, diagnostics, and snippet corpus"
+      description: "General 1C, diagnostics, and snippet corpus"
       transport: "streamable_http"

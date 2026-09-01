@@ -1,26 +1,14 @@
 ---
 name: bsl-ls-mcp
-description: Run focused BSL Language Server MCP diagnostics or semantic navigation in a repository where BSL LS is explicitly configured. Use for changed BSL files, focused BSL review, or a specific symbol, reference, call, hover, or type question; do not use for every 1C task, metadata-only work, broad project search, or repositories without this MCP.
+description: Run focused repository-local BSL LS diagnostics and semantic navigation. Use for a changed BSL file or exact symbol, type, reference, hover, or diagnostic question; never for broad search, metadata, platform APIs, writes, or primary validation.
 ---
 
 # BSL Language Server MCP
 
-Use `$1c-routing` invariants. BSL LS complements but does not replace the assigned EDT project model, metadata/query/platform validation, or tests.
+Bind the exact repository-local root. Read only analyzer settings that affect the question; never edit them to expose or silence findings.
 
-## Bind the target
+Analyze only the target symbol or changed BSL files. When a baseline exists, classify findings as new, pre-existing, resolved, not applicable, or coverage-limited. Re-analyze once after a correction; never suppress or loop indefinitely.
 
-- Use the repository-local `bsl-ls` MCP and its exact configured root. Never substitute another checkout or a broad parent workspace.
-- Read only analyzer settings that can affect the current question. Do not edit, bypass, or replace `.bsl-language-server.json` to expose or silence findings.
-- If roots or duplicate symbols can make a result ambiguous, constrain or confirm the result through EDT.
+Stop when BSL LS answers the semantic/diagnostic question. Do not duplicate it in code-index. Use EDT only for a different authority: live state, metadata, platform truth, mutation, or primary validation.
 
-## Focused diagnostics
-
-1. When useful, capture a pre-change baseline for each target file.
-2. After an authorized change is persisted through EDT, analyze only changed BSL files.
-3. Compare diagnostic ID, type, severity, and location; classify findings as new, pre-existing, resolved, not applicable, policy-suppressed, or coverage-limited.
-4. Correct confirmed new findings without changing required behavior or weakening safeguards.
-5. Re-analyze once after a correction. Report ambiguous or likely false-positive remainder instead of adding suppressions or entering an unbounded correction loop.
-
-Absence of findings is not proof of project-wide coverage. Treat inferred types and language-server references as secondary evidence. For current project state, metadata, platform APIs, persistent mutations, and primary validation, use EDT-MCP.
-
-Report analyzed files, material analyzer configuration effects, diagnostics and classifications, the re-analysis result, and coverage limits.
+Report only material diagnostics, classification, configuration effects, and coverage limits.

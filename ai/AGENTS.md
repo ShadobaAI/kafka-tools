@@ -76,12 +76,11 @@ At the contour level, adapter uses `kfk`, `kfk-base`, and `kfk-examples`; conver
 - Use repository-local BSL LS only for focused BSL diagnostics and semantic navigation when that MCP is explicitly configured. It does not replace EDT diagnostics, metadata, platform documentation, or tests.
 - The `bsl-indexer` daemon may write only its own `.code-index/` data in configured repository roots and coordination/runtime files under managed `CODE_INDEX_HOME`; do not expose daemon/index mutation commands through MCP.
 - `CODE_INDEX_HOME` and its daemon are shared across registered workspaces. Kafka
-  installation may replace only its managed `kfk*` aliases and known legacy
-  `kafka-adapter*` aliases; it must preserve unrelated
-  `[[paths]]` entries and existing daemon settings.
+  installation may replace only its managed `kfk*` aliases; it must preserve all
+  other `[[paths]]` entries and existing daemon settings.
 - Keep the shared user-level `v8std`/`code-index` block independent from the
   Kafka routing guard so another workspace installer cannot remove Kafka policy.
-- Use the MCP named `v8std` as the primary standards/policy corpus. Its endpoint is user-owned configuration: the default is `https://ai.v8std.ru/mcp`, and the user may replace its `url` with a local endpoint. Do not apply agent-side source classification, endpoint switching, or code-transfer restrictions beyond the configured MCP.
+- Use the MCP named `v8std` as the primary standards/policy corpus. Its endpoint is user-owned configuration: the default local endpoint is `http://127.0.0.1:8766/mcp`, and the user may replace its `url`. Do not apply agent-side source classification, endpoint switching, or code-transfer restrictions beyond the configured MCP.
 - For platform APIs and version-specific semantics, use EDT `get_platform_documentation` with `projectName`; use content assist and EDT validation when needed.
 - After every 1C mutation, run focused EDT diagnostics for the affected objects and inspect the resulting findings.
 - Do not disable, suppress, filter out, or hide EDT diagnostics.
