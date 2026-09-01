@@ -6,7 +6,8 @@ Read this reference only after a concrete testability obstacle appears. Do not e
 
 ```text
 public production API
--> existing fixture/data
+-> existing shared semantic fixture
+-> suitable `ЮТест.Данные()` builder/generator
 -> YAxUnit Mockito
 -> unit test-extension seam
 -> product seam/refactoring
@@ -18,7 +19,7 @@ Do not claim `requires product refactoring`, `requires product seam`, `cannot un
 ## Choose the seam
 
 - Use the public API when it exposes the behavior through a stable, reasonably small setup.
-- Reuse an existing fixture before adding data infrastructure. A fixture solves setup, not inaccessible code or an uncontrollable dependency.
+- Reuse an existing shared fixture only when it semantically represents the scenario data. Otherwise use the suitable public `ЮТест.Данные()` builder/generator before adding custom data infrastructure or escalating to a test seam. A fixture or builder solves setup, not inaccessible code or an uncontrollable dependency.
 - Use Mockito when the obstacle is the behavior of an external inter-module dependency: return value, exception, skipped execution, observation, or another installed-core reaction. Typical boundaries are Kafka transport, HTTP, external common modules, generators, and costly or unstable services.
 - Use a test-only alias when substantial private logic is inaccessible and the public path requires unrelated setup, external infrastructure, waiting/background execution, many edge cases, or gives poorly localized failures.
 - Use an extension override when the test configuration must replace an implementation that Mockito cannot intercept in the required context, such as a platform call, extension method, wait, or environment/transport boundary.

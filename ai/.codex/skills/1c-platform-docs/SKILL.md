@@ -7,6 +7,8 @@ description: Verify 1C platform APIs, built-in types, methods, properties, signa
 
 Use the assigned EDT-MCP and `$1c-routing` invariants.
 
+Primary exact lookup: `get_platform_documentation`. When the symbol or category is known, call it directly; do not inspect `ALL_TOOLS` to rediscover it.
+
 ## Workflow
 
 1. Reuse the established EDT project, platform context, and API facts from this session. Re-establish them only after a relevant state change, conflicting evidence, or when the needed fact is live-state dependent.
