@@ -12,7 +12,7 @@ Use only for creating, changing, running, or debugging tests.
 
 ## Authoring gate
 
-Before runtime, verify once that registration is declarative, names identify the tested object/behavior, setup is deterministic and isolated, one behavior is exercised, and assertions use the most specific public YAxUnit API. Fix findings and revalidate.
+Before runtime, verify once that registration is declarative, module role and naming satisfy the loaded contract, setup is deterministic and isolated, one behavior is exercised, and assertions satisfy the loaded pattern. Fix findings and revalidate.
 
 ## Run or debug
 
