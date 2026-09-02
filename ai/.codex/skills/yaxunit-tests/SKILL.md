@@ -14,7 +14,7 @@ Before test analysis, authoring, or review, classify the operation and mechanism
 | Change registration or use parameters | `registration-and-parameters` |
 | Assertion-focused or non-trivial assertion change | `assertions` |
 | Assert database/register presence, absence, count, fields, or rows | `assertions`; add `predicates-and-queries` only for a non-trivial predicate |
-| Create objects or persistent records | `test-data`, `data-isolation` |
+| Create or fill test data | `test-data`; add `data-isolation` for persistent records |
 | Configure `ВТранзакции` or `УдалениеТестовыхДанных` | `data-isolation` |
 | Use mocks | `mocking` |
 | Use predicates or query helpers | `predicates-and-queries` |
@@ -23,6 +23,8 @@ Before test analysis, authoring, or review, classify the operation and mechanism
 | Review, debug, or migrate an existing test | `test-analysis-and-migration` |
 
 Unqualified short names in the table use the `yaxunit:patterns:` prefix. Review does not automatically load `authoring-baseline`; add only pages for mechanisms found in the code.
+
+When filling attributes, tabular sections, or other test data, derive values from field semantics rather than primitive type alone: inspect names, metadata, domain formats or units, and relationships. Prefer a matching `ЮТПодражатель` generator or platform API over arbitrary literals, and keep related fields coherent.
 
 Project naming override: a YAxUnit test module follows the object-based scheme from `yaxunit:patterns:naming` without `кфк_т_`. Use `кфк_т_` only for a meaningfully named auxiliary extension module such as an override or testability seam.
 
