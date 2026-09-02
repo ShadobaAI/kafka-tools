@@ -12,9 +12,15 @@ Use only for creating, changing, running, or debugging tests.
 
 ## Authoring gate
 
-Before runtime, verify once that registration is declarative, module role and naming satisfy the loaded contract, setup is deterministic and isolated, one behavior is exercised, and assertions satisfy the loaded pattern. Fix findings and revalidate.
+Before runtime, reject the change until all checks pass:
 
-Format every fluent YAxUnit chain according to the hierarchy of its API receivers/builders, regardless of method names. Align sibling calls made on the same receiver; indent a call one tab further when it operates on a child receiver returned or selected by the preceding API level, and restore the parent's indentation when the chain returns to that receiver. Determine the level from the loaded YAxUnit contract or exact signature, not from the spelling of a method, and do not align every leading dot mechanically.
+- Registration is declarative; module role and naming match the loaded contract.
+- Setup is deterministic and isolated.
+- The test exercises one observable behavior.
+- Assertions match the loaded pattern.
+- Every multiline fluent chain passes the receiver-depth gate in `SKILL.md`.
+
+Fix findings, then revalidate the gate.
 
 ## Run or debug
 

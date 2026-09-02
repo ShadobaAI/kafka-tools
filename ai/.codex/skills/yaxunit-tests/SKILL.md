@@ -1,11 +1,13 @@
 ---
 name: yaxunit-tests
-description: Create, review, run, and debug Kafka YAxUnit tests using the mandatory v8std YAxUnit corpus. Use only for test modules, registration, assertions, data, mocks, fixtures, execution, or reports.
+description: Create, format, review, run, and debug Kafka YAxUnit tests using the mandatory v8std YAxUnit corpus. Use only for test modules, registration, assertions, data, mocks, fixtures, execution, or reports.
 ---
 
 # Kafka YAxUnit Tests
 
-Before test analysis, authoring, or review, classify the operation and mechanisms. Load each matching known pattern ID below exactly once with `v8std_get_page`; reuse it before implementation and during the authoring gate. Search `collections=["yaxunit"]` only when classification cannot determine the relevant pattern or API concept. Never query or apply `corporate`.
+## Pattern routing
+
+Classify the operation and mechanisms first. Load the union of matching pattern IDs once with `v8std_get_page`; reuse those pages for implementation and gates. Search `collections=["yaxunit"]` only when the table cannot resolve the API concept. Never query or apply `corporate`.
 
 | Scenario or mechanism | Required pattern IDs |
 |---|---|
@@ -22,20 +24,36 @@ Before test analysis, authoring, or review, classify the operation and mechanism
 | Use hooks or client/server context state | `lifecycle-and-contexts` |
 | Review, debug, or migrate an existing test | `test-analysis-and-migration` |
 
-Unqualified short names in the table use the `yaxunit:patterns:` prefix. Review does not automatically load `authoring-baseline`; add only pages for mechanisms found in the code.
+Unqualified IDs use the `yaxunit:patterns:` prefix. For review or migration, add pages only for mechanisms present in the code; do not load `authoring-baseline` by default.
+
+## Authoring constraints
 
 When filling attributes, tabular sections, or other test data, derive values from field semantics rather than primitive type alone: inspect names, metadata, domain formats or units, and relationships. Prefer a matching `ЮТПодражатель` generator or platform API over arbitrary literals, and keep related fields coherent.
 
 Project naming override: a YAxUnit test module follows the object-based scheme from `yaxunit:patterns:naming` without `кфк_т_`. Use `кфк_т_` only for a meaningfully named auxiliary extension module such as an override or testability seam.
 
-Keep the three MCP roles disjoint:
+## Authority and scope
 
 - `v8std`: known YAxUnit patterns by direct ID and discovery for unresolved API guidance.
 - `code-index`: read-only definitions and real usages in `kfk-yaxunit`, plus bounded product/test search through their assigned aliases.
 - `unit-edt`: live state, an exact installed-version signature only when unknown or conflicting with v8std, all mutations, diagnostics, and test runs.
 
-Tests belong to the `unit` extension. Do not mutate product code or YAxUnit core without separate authorization. Load `$1c-code-change` only when a mutation is required; its knowledge gate supplies any applicable general 1C standards without searching merely because this is a test task.
+Keep these roles disjoint. Tests belong to the `unit` extension. Do not mutate product code or YAxUnit core without separate authorization. Load `$1c-code-change` only for a mutation; its knowledge gate supplies applicable general 1C standards.
 
-Load [references/workflows.md](references/workflows.md) only when creating/changing/running tests. Load [references/testability.md](references/testability.md) only after a concrete testability obstacle. Do not reread either while its content remains available.
+## Fluent-chain gate
 
-For a change, completion requires focused EDT diagnostics, validation against the same loaded pattern set, the authoring gate, and the narrowest `run_yaxunit_tests`. Unexpected `0` discovered tests is failure. Report only material findings, results, and verification gaps.
+For every multiline fluent YAxUnit chain, derive `(call, input receiver, output receiver, depth)` from the loaded contract or exact installed signature before emitting or accepting it. Then format recursively:
+
+- Calls on the same receiver are siblings and start in the same column.
+- A call on a returned or selected child receiver starts one tab deeper.
+- A call on an ancestor receiver resumes that ancestor's column.
+
+Never infer a transition from a method name, semantic guess, leading dot, or neighboring line. An unknown transition, or mechanically aligned dots without verified sibling receivers, fails the authoring or review gate.
+
+## References and completion
+
+- Load [references/workflows.md](references/workflows.md) for creation, change, execution, or debugging.
+- Load [references/testability.md](references/testability.md) only after a concrete testability obstacle.
+- Do not reread a reference while its content remains available.
+
+A change is complete only after focused EDT diagnostics, validation against the loaded patterns, the authoring gate, and the narrowest `run_yaxunit_tests`. Unexpected `0` discovered tests is failure. Report only material findings, results, and verification gaps.
