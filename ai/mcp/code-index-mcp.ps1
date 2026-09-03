@@ -36,7 +36,10 @@ function Resolve-BslIndexer {
 }
 
 function Resolve-Node {
-    param([string]$RequestedPath)
+    param(
+        [string]$RequestedPath,
+        [string]$ProgramFilesRoot = [Environment]::GetEnvironmentVariable('ProgramFiles')
+    )
 
     if (-not [string]::IsNullOrWhiteSpace($RequestedPath)) {
         $fullPath = [System.IO.Path]::GetFullPath($RequestedPath)
@@ -46,7 +49,15 @@ function Resolve-Node {
         throw "Node executable does not exist: '$fullPath'."
     }
 
-    $command = Get-Command 'node' -CommandType Application -ErrorAction SilentlyContinue
+    if (-not [string]::IsNullOrWhiteSpace($ProgramFilesRoot)) {
+        $systemNode = Join-Path $ProgramFilesRoot 'nodejs\node.exe'
+        if (Test-Path -LiteralPath $systemNode -PathType Leaf) {
+            return [System.IO.Path]::GetFullPath($systemNode)
+        }
+    }
+
+    $command = @(Get-Command 'node' -CommandType Application -ErrorAction SilentlyContinue) |
+        Select-Object -First 1
     if ($null -ne $command) {
         return $command.Source
     }

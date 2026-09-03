@@ -1,5 +1,63 @@
+@echo off
+setlocal
+title Kafka Codex toolkit setup
+
+set "SETUP_EXIT_CODE=1"
+set "WINDOWS_POWERSHELL=%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe"
+set "PSModulePath="
+for %%I in ("%~dp0.") do set "LAUNCHER_DIRECTORY_NAME=%%~nxI"
+for %%I in ("%~dp0..") do set "LAUNCHER_PARENT_NAME=%%~nxI"
+
+if /I not "%LAUNCHER_DIRECTORY_NAME%"=="ai" (
+    echo ERROR: install.cmd must be run from the fixed Kafka tools\ai directory.
+    echo Current directory: %~dp0
+    goto finish
+)
+if /I not "%LAUNCHER_PARENT_NAME%"=="tools" (
+    echo ERROR: install.cmd must be run from the fixed Kafka tools\ai directory.
+    echo Current directory: %~dp0
+    goto finish
+)
+
+if not exist "%WINDOWS_POWERSHELL%" (
+    echo ERROR: Windows PowerShell is not available at:
+    echo %WINDOWS_POWERSHELL%
+    goto finish
+)
+
+:select_embedded_setup
+set "KAFKA_AI_EMBEDDED_SETUP=%TEMP%\kafka-codex-setup-%RANDOM%-%RANDOM%.ps1"
+if exist "%KAFKA_AI_EMBEDDED_SETUP%" goto select_embedded_setup
+set "KAFKA_AI_INSTALLER_PATH=%~f0"
+
+echo Kafka Codex toolkit installer
+echo.
+"%WINDOWS_POWERSHELL%" -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command "$source = [System.IO.File]::ReadAllText($env:KAFKA_AI_INSTALLER_PATH); $marker = '# ' + '__KAFKA_AI_POWERSHELL__'; $markerIndex = $source.IndexOf($marker, [System.StringComparison]::Ordinal); if ($markerIndex -lt 0) { throw 'Embedded PowerShell marker is missing.' }; $body = $source.Substring($markerIndex + $marker.Length).TrimStart([char[]](13, 10)); [System.IO.File]::WriteAllText($env:KAFKA_AI_EMBEDDED_SETUP, $body, [System.Text.UTF8Encoding]::new($true))"
+if errorlevel 1 (
+    echo ERROR: Could not extract the embedded PowerShell installer.
+    goto finish
+)
+
+"%WINDOWS_POWERSHELL%" -NoLogo -NoProfile -ExecutionPolicy Bypass -File "%KAFKA_AI_EMBEDDED_SETUP%" -ToolkitRoot "%~dp0." %*
+set "SETUP_EXIT_CODE=%ERRORLEVEL%"
+
+echo.
+if "%SETUP_EXIT_CODE%"=="0" (
+    echo Installer finished without errors. See the result above.
+) else (
+    echo Installation failed. See the error above. Exit code: %SETUP_EXIT_CODE%.
+)
+
+:finish
+if defined KAFKA_AI_EMBEDDED_SETUP if exist "%KAFKA_AI_EMBEDDED_SETUP%" del /q "%KAFKA_AI_EMBEDDED_SETUP%" >nul 2>&1
+echo.
+if /I not "%KAFKA_AI_NO_PAUSE%"=="1" pause
+exit /b %SETUP_EXIT_CODE%
+
+# __KAFKA_AI_POWERSHELL__
 [CmdletBinding()]
 param(
+    [Parameter(Mandatory)][string]$ToolkitRoot,
     [string]$WorkspaceRoot,
     [string]$CodexHome = $env:CODEX_HOME,
     [string]$BslIndexerPath,
@@ -7,10 +65,18 @@ param(
     [string]$NodePath = $env:CODE_INDEX_NODE,
     [string]$JavaPath = $env:BSL_LANGUAGE_SERVER_JAVA,
     [switch]$ConfigurationOnly,
-    [switch]$SkipDaemonStart
+    [switch]$SkipDaemonStart,
+    [ValidateRange(60, 3600)][int]$IndexReadyTimeoutSeconds = 1800,
+    [ValidateRange(60, 3600)][int]$McpReadyTimeoutSeconds = 600
 )
 
 $ErrorActionPreference = 'Stop'
+
+trap {
+    Write-Output ''
+    Write-Output ("[ERROR] Installation did not complete: {0}" -f $_.Exception.Message)
+    exit 1
+}
 
 function Invoke-NativeCommand {
     param(
@@ -63,7 +129,7 @@ function Resolve-BundledRuntimeFile {
     $candidates = @(Get-ChildItem -LiteralPath $RuntimeRoot -Filter $Filter -File)
     if ($candidates.Count -gt 1) {
         $candidatePaths = ($candidates.FullName | Sort-Object) -join "', '"
-        throw "Multiple bundled $Description files were found: '$candidatePaths'. Pass an explicit path to setup.ps1."
+        throw "Multiple bundled $Description files were found: '$candidatePaths'. Pass an explicit path to install.cmd."
     }
     if ($candidates.Count -eq 1) {
         return $candidates[0].FullName
@@ -83,9 +149,29 @@ function Resolve-CommandPath {
     }
     $commands = @(Get-Command $CommandName -CommandType Application -ErrorAction SilentlyContinue)
     if ($commands.Count -eq 0) {
-        throw "$Description is missing. Install it or pass its executable path to setup.ps1."
+        throw "$Description is missing. Install it or pass its executable path to install.cmd."
     }
     return Resolve-ExistingFile -Path ([string]$commands[0].Source) -Description $Description
+}
+
+function Resolve-NodePath {
+    param(
+        [string]$RequestedPath,
+        [string]$ProgramFilesRoot = [Environment]::GetEnvironmentVariable('ProgramFiles')
+    )
+
+    if (-not [string]::IsNullOrWhiteSpace($RequestedPath)) {
+        return Resolve-ExistingFile -Path $RequestedPath -Description 'Node.js executable'
+    }
+    if (-not [string]::IsNullOrWhiteSpace($ProgramFilesRoot)) {
+        $systemNode = Join-Path $ProgramFilesRoot 'nodejs\node.exe'
+        if (Test-Path -LiteralPath $systemNode -PathType Leaf) {
+            return [System.IO.Path]::GetFullPath($systemNode)
+        }
+    }
+    return Resolve-CommandPath `
+        -CommandName 'node' `
+        -Description 'Node.js executable'
 }
 
 function Assert-MinimumVersion {
@@ -105,6 +191,50 @@ function Assert-MinimumVersion {
         throw "$Description $actualVersion is unsupported; version $MinimumVersion or newer is required."
     }
     return $actualVersion
+}
+
+function Get-SemanticVersion {
+    param(
+        [Parameter(Mandatory)][string]$Value,
+        [Parameter(Mandatory)][string]$Description
+    )
+
+    if ($Value -notmatch '(?<![0-9A-Za-z])v?(?<version>\d+\.\d+\.\d+(?:-[0-9A-Za-z]+(?:\.[0-9A-Za-z]+)*)?)(?![0-9A-Za-z.-])') {
+        throw "$Description does not contain a semantic version: '$Value'."
+    }
+    return $Matches.version
+}
+
+function Get-NativeSemanticVersion {
+    param(
+        [Parameter(Mandatory)][string]$Executable,
+        [string[]]$ArgumentList = @('--version'),
+        [Parameter(Mandatory)][string]$Description,
+        [string]$VersionPattern = '(?<![0-9A-Za-z])(?<version>\d+\.\d+\.\d+(?:-[0-9A-Za-z]+(?:\.[0-9A-Za-z]+)*)?)(?![0-9A-Za-z.-])'
+    )
+
+    $result = Invoke-NativeCommand -Executable $Executable -ArgumentList $ArgumentList
+    $output = $result.Output -join ' '
+    if ($result.ExitCode -ne 0) {
+        throw "$Description version command failed with exit code $($result.ExitCode): $output"
+    }
+    $versionMatch = [regex]::Match($output, $VersionPattern)
+    if (-not $versionMatch.Success -or -not $versionMatch.Groups['version'].Success) {
+        throw "$Description version output does not match the expected format: '$output'."
+    }
+    return $versionMatch.Groups['version'].Value
+}
+
+function Test-RuntimeUpdateRequired {
+    param(
+        [AllowNull()]$InstalledVersion,
+        [Parameter(Mandatory)][string]$AvailableVersion
+    )
+
+    return $null -eq $InstalledVersion -or -not ([string]$InstalledVersion).Equals(
+        $AvailableVersion,
+        [System.StringComparison]::OrdinalIgnoreCase
+    )
 }
 
 function Get-GitHubLatestRelease {
@@ -341,8 +471,12 @@ function Get-CodeIndexPreUpdateAction {
     throw "Managed code-index daemon is in an unsupported pre-update state '$($Probe.status)': $($Probe.error)"
 }
 
+$ToolkitRoot = [System.IO.Path]::GetFullPath($ToolkitRoot)
+if (-not (Test-Path -LiteralPath $ToolkitRoot -PathType Container)) {
+    throw "Toolkit root does not exist: '$ToolkitRoot'."
+}
 if ([string]::IsNullOrWhiteSpace($WorkspaceRoot)) {
-    $WorkspaceRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..'))
+    $WorkspaceRoot = [System.IO.Path]::GetFullPath((Join-Path $ToolkitRoot '..\..'))
 }
 else {
     $WorkspaceRoot = [System.IO.Path]::GetFullPath($WorkspaceRoot)
@@ -379,7 +513,7 @@ foreach ($relativePath in $requiredWorkspacePaths) {
 $downloadRoot = $null
 try {
 if (-not $ConfigurationOnly) {
-    $node = Resolve-CommandPath -RequestedPath $NodePath -CommandName 'node' -Description 'Node.js executable'
+    $node = Resolve-NodePath -RequestedPath $NodePath
     $nodeVersion = Assert-MinimumVersion -Executable $node -MinimumVersion ([version]'18.0.0') -Description 'Node.js'
     $java = Resolve-CommandPath -RequestedPath $JavaPath -CommandName 'java' -Description 'Java executable'
     $javaResult = Invoke-NativeCommand -Executable $java -ArgumentList @('-version')
@@ -390,65 +524,78 @@ if (-not $ConfigurationOnly) {
 
     $managedIndexer = Join-Path $CodexHome 'code-index\bsl-indexer.exe'
     $managedJar = Join-Path $CodexHome 'bsl-ls\bsl-language-server-exec.jar'
-    $bundledRuntimeRoot = Join-Path $PSScriptRoot 'runtime\windows'
-    if ([string]::IsNullOrWhiteSpace($BslIndexerPath)) {
-        $BslIndexerPath = Resolve-BundledRuntimeFile `
-            -RuntimeRoot $bundledRuntimeRoot `
-            -Filter 'bsl-indexer.exe' `
-            -Description 'bsl-indexer executable'
-        if (-not [string]::IsNullOrWhiteSpace($BslIndexerPath)) {
-            Write-Output "Using bundled bsl-indexer executable: '$BslIndexerPath'."
-        }
-    }
-    if ([string]::IsNullOrWhiteSpace($BslLanguageServerJar)) {
-        $BslLanguageServerJar = Resolve-BundledRuntimeFile `
-            -RuntimeRoot $bundledRuntimeRoot `
-            -Filter 'bsl-language-server-*-exec.jar' `
-            -Description 'BSL Language Server JAR'
-        if (-not [string]::IsNullOrWhiteSpace($BslLanguageServerJar)) {
-            Write-Output "Using bundled BSL Language Server JAR: '$BslLanguageServerJar'."
-        }
-    }
-    if (
-        [string]::IsNullOrWhiteSpace($BslIndexerPath) -or
-        [string]::IsNullOrWhiteSpace($BslLanguageServerJar)
-    ) {
-        $downloadRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("kafka-codex-runtime-" + [guid]::NewGuid().ToString('N'))
-        New-Item -ItemType Directory -Path $downloadRoot -Force | Out-Null
+    $bundledRuntimeRoot = Join-Path $ToolkitRoot 'runtime\windows'
+    New-Item -ItemType Directory -Path $bundledRuntimeRoot -Force | Out-Null
+    $bundledIndexer = Resolve-BundledRuntimeFile `
+        -RuntimeRoot $bundledRuntimeRoot `
+        -Filter 'bsl-indexer.exe' `
+        -Description 'bsl-indexer executable'
+    $bundledJars = @(Get-ChildItem -LiteralPath $bundledRuntimeRoot -File | Where-Object {
+        $_.Name -eq 'bsl-language-server-exec.jar' -or
+        $_.Name -match '^bsl-language-server-.*-exec\.jar$'
+    })
+    if ($bundledJars.Count -gt 1) {
+        $candidatePaths = ($bundledJars.FullName | Sort-Object) -join "', '"
+        throw "Multiple bundled BSL Language Server JAR files were found: '$candidatePaths'. Pass an explicit path to install.cmd."
     }
 
-    $downloadedIndexer = $null
-    $downloadedIndexerMessage = $null
     if (-not [string]::IsNullOrWhiteSpace($BslIndexerPath)) {
         $indexer = Resolve-ExistingFile -Path $BslIndexerPath -Description 'bsl-indexer executable'
     }
     else {
         $release = Get-GitHubLatestRelease -Repository 'Regsorm/code-index-mcp'
-        $asset = Get-GitHubReleaseAsset `
-            -Release $release `
-            -NamePattern '^bsl-indexer-windows-x64\.zip$' `
-            -Description 'bsl-indexer for Windows x64'
-        $archive = Join-Path $downloadRoot $asset.name
-        $archiveHash = Save-GitHubReleaseAsset -Asset $asset -Destination $archive
-        $extractRoot = Join-Path $downloadRoot 'bsl-indexer'
-        Expand-Archive -LiteralPath $archive -DestinationPath $extractRoot -Force
-        $downloadedIndexer = Resolve-ExistingFile `
-            -Path (Join-Path $extractRoot 'bsl-indexer.exe') `
-            -Description 'Downloaded bsl-indexer executable'
-        $executableHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $downloadedIndexer).Hash
-        $downloadedIndexerMessage = "Downloaded bsl-indexer $($release.tag_name): asset SHA-256 $archiveHash; executable SHA-256 $executableHash."
-        $indexer = $downloadedIndexer
+        $availableIndexerVersion = Get-SemanticVersion `
+            -Value ([string]$release.tag_name) `
+            -Description 'Latest bsl-indexer release tag'
+        $installedIndexerVersion = $null
+        if (-not [string]::IsNullOrWhiteSpace($bundledIndexer)) {
+            try {
+                $installedIndexerVersion = Get-NativeSemanticVersion `
+                    -Executable $bundledIndexer `
+                    -Description 'Bundled bsl-indexer' `
+                    -VersionPattern '(?i)\b(?:bsl-indexer|code-index)\s+(?<version>\d+\.\d+\.\d+(?:-[0-9a-z]+(?:\.[0-9a-z]+)*)?)'
+            }
+            catch {
+                Write-Warning "Bundled bsl-indexer could not be versioned and will be replaced: $($_.Exception.Message)"
+            }
+        }
+        if (-not (Test-RuntimeUpdateRequired `
+            -InstalledVersion $installedIndexerVersion `
+            -AvailableVersion $availableIndexerVersion)) {
+            $indexer = $bundledIndexer
+            Write-Output "Bundled bsl-indexer $installedIndexerVersion is current (latest release $($release.tag_name))."
+        }
+        else {
+            if ($null -eq $downloadRoot) {
+                $downloadRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("kafka-codex-runtime-" + [guid]::NewGuid().ToString('N'))
+                New-Item -ItemType Directory -Path $downloadRoot -Force | Out-Null
+            }
+            $asset = Get-GitHubReleaseAsset `
+                -Release $release `
+                -NamePattern '^bsl-indexer-windows-x64\.zip$' `
+                -Description 'bsl-indexer for Windows x64'
+            $archive = Join-Path $downloadRoot $asset.name
+            $archiveHash = Save-GitHubReleaseAsset -Asset $asset -Destination $archive
+            $extractRoot = Join-Path $downloadRoot 'bsl-indexer'
+            Expand-Archive -LiteralPath $archive -DestinationPath $extractRoot -Force
+            $downloadedIndexer = Resolve-ExistingFile `
+                -Path (Join-Path $extractRoot 'bsl-indexer.exe') `
+                -Description 'Downloaded bsl-indexer executable'
+            $downloadedIndexerVersion = Get-NativeSemanticVersion `
+                -Executable $downloadedIndexer `
+                -Description 'Downloaded bsl-indexer' `
+                -VersionPattern '(?i)\b(?:bsl-indexer|code-index)\s+(?<version>\d+\.\d+\.\d+(?:-[0-9a-z]+(?:\.[0-9a-z]+)*)?)'
+            if ($downloadedIndexerVersion -ne $availableIndexerVersion) {
+                throw "Downloaded bsl-indexer reports $downloadedIndexerVersion; release '$($release.tag_name)' requires $availableIndexerVersion."
+            }
+            $indexer = Save-VerifiedRuntimeFile `
+                -Source $downloadedIndexer `
+                -Destination (Join-Path $bundledRuntimeRoot 'bsl-indexer.exe')
+            Write-Output "Downloaded bsl-indexer $($release.tag_name), asset SHA-256 $archiveHash. Cached executable in '$indexer'."
+        }
     }
     $indexerVersion = Assert-MinimumVersion -Executable $indexer -MinimumVersion ([version]'0.69.0') -Description 'bsl-indexer'
-    if ($null -ne $downloadedIndexer) {
-        $indexer = Save-VerifiedRuntimeFile `
-            -Source $downloadedIndexer `
-            -Destination (Join-Path $bundledRuntimeRoot 'bsl-indexer.exe')
-        Write-Output "$downloadedIndexerMessage Cached executable in '$indexer'."
-    }
 
-    $downloadedJar = $null
-    $downloadedJarMessage = $null
     if (-not [string]::IsNullOrWhiteSpace($BslLanguageServerJar)) {
         $jar = Resolve-ExistingFile -Path $BslLanguageServerJar -Description 'BSL Language Server executable JAR'
     }
@@ -456,43 +603,65 @@ if (-not $ConfigurationOnly) {
         $release = Get-GitHubLatestRelease `
             -Repository '1c-syntax/bsl-language-server' `
             -RequireStable
-        $asset = Get-GitHubReleaseAsset `
-            -Release $release `
-            -NamePattern '^bsl-language-server-.*-exec\.jar$' `
-            -Description 'BSL Language Server executable JAR'
-        $downloadedJar = Join-Path $downloadRoot $asset.name
-        $jarHash = Save-GitHubReleaseAsset -Asset $asset -Destination $downloadedJar
-        $jarVersionResult = Invoke-NativeCommand `
-            -Executable $java `
-            -ArgumentList @('-jar', $downloadedJar, '--version')
-        $jarVersionOutput = $jarVersionResult.Output -join ' '
-        if ([string]$release.tag_name -notmatch '(?<version>\d+\.\d+\.\d+)') {
-            throw "Stable BSL Language Server release tag has no semantic version: '$($release.tag_name)'."
+        $availableJarVersion = Get-SemanticVersion `
+            -Value ([string]$release.tag_name) `
+            -Description 'Latest BSL Language Server release tag'
+        $installedJarVersion = $null
+        if ($bundledJars.Count -eq 1) {
+            try {
+                $installedJarVersion = Get-NativeSemanticVersion `
+                    -Executable $java `
+                    -ArgumentList @('-jar', $bundledJars[0].FullName, '--version') `
+                    -Description 'Bundled BSL Language Server' `
+                    -VersionPattern '(?i)\bversion\s*:\s*(?<version>\d+\.\d+\.\d+)'
+            }
+            catch {
+                Write-Warning "Bundled BSL Language Server could not be versioned and will be replaced: $($_.Exception.Message)"
+            }
         }
-        $expectedJarVersion = $Matches.version
-        if (
-            $jarVersionResult.ExitCode -ne 0 -or
-            $jarVersionOutput -notmatch ('(?<!\d)' + [regex]::Escape($expectedJarVersion) + '(?!\d)')
-        ) {
-            throw "Downloaded BSL Language Server JAR did not report release version '$expectedJarVersion': $jarVersionOutput"
+        if (-not (Test-RuntimeUpdateRequired `
+            -InstalledVersion $installedJarVersion `
+            -AvailableVersion $availableJarVersion)) {
+            $jar = $bundledJars[0].FullName
+            Write-Output "Bundled BSL Language Server $installedJarVersion is current (latest stable release $($release.tag_name))."
         }
-        $downloadedJarMessage = "Downloaded stable BSL Language Server $($release.tag_name), SHA-256 $jarHash."
-        $jar = $downloadedJar
+        else {
+            if ($null -eq $downloadRoot) {
+                $downloadRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("kafka-codex-runtime-" + [guid]::NewGuid().ToString('N'))
+                New-Item -ItemType Directory -Path $downloadRoot -Force | Out-Null
+            }
+            $asset = Get-GitHubReleaseAsset `
+                -Release $release `
+                -NamePattern '^bsl-language-server-.*-exec\.jar$' `
+                -Description 'BSL Language Server executable JAR'
+            $downloadedJar = Join-Path $downloadRoot $asset.name
+            $jarHash = Save-GitHubReleaseAsset -Asset $asset -Destination $downloadedJar
+            $downloadedJarVersion = Get-NativeSemanticVersion `
+                -Executable $java `
+                -ArgumentList @('-jar', $downloadedJar, '--version') `
+                -Description 'Downloaded BSL Language Server' `
+                -VersionPattern '(?i)\bversion\s*:\s*(?<version>\d+\.\d+\.\d+)'
+            if ($downloadedJarVersion -ne $availableJarVersion) {
+                throw "Downloaded BSL Language Server reports $downloadedJarVersion; release '$($release.tag_name)' requires $availableJarVersion."
+            }
+            $jarDestination = Join-Path $bundledRuntimeRoot $asset.name
+            $jar = Save-VerifiedRuntimeFile -Source $downloadedJar -Destination $jarDestination
+            foreach ($supersededJar in @($bundledJars | Where-Object {
+                -not $_.FullName.Equals($jar, [System.StringComparison]::OrdinalIgnoreCase)
+            })) {
+                Remove-Item -LiteralPath $supersededJar.FullName -Force
+            }
+            Write-Output "Downloaded stable BSL Language Server $($release.tag_name), SHA-256 $jarHash. Cached JAR in '$jar'."
+        }
     }
     if ([System.IO.Path]::GetExtension($jar) -ne '.jar' -or (Get-Item -LiteralPath $jar).Length -eq 0) {
         throw "BSL Language Server artifact is not a non-empty JAR file: '$jar'."
-    }
-    if ($null -ne $downloadedJar) {
-        $jar = Save-VerifiedRuntimeFile `
-            -Source $downloadedJar `
-            -Destination (Join-Path $bundledRuntimeRoot (Split-Path -Leaf $downloadedJar))
-        Write-Output "$downloadedJarMessage Cached JAR in '$jar'."
     }
 }
 
 $ReplaceConflictingCommonMcp = $true
 $SuppressRestartNotice = $true
-$sourceRoot = [System.IO.Path]::GetFullPath($PSScriptRoot)
+$sourceRoot = $ToolkitRoot
 if (-not (Test-Path -LiteralPath $WorkspaceRoot -PathType Container)) {
     throw "Workspace root does not exist: '$WorkspaceRoot'."
 }
@@ -598,6 +767,299 @@ function Get-CodeIndexPathAlias {
         throw "A code-index [[paths]] entry has no simple quoted alias: $Block"
     }
     return $aliasMatch.Groups['alias'].Value
+}
+
+function Get-CodeIndexConfiguredPaths {
+    param([Parameter(Mandatory)][string]$ConfigPath)
+
+    $content = Get-Content -LiteralPath $ConfigPath -Raw -Encoding UTF8
+    $entries = foreach ($pathBlock in Get-CodeIndexPathBlocks -Content $content) {
+        $pathMatch = [regex]::Match(
+            $pathBlock.Value,
+            '(?m)^[ \t]*path[ \t]*=[ \t]*"(?<path>[^"]+)"[ \t]*\r?$'
+        )
+        if (-not $pathMatch.Success) {
+            throw "A code-index [[paths]] entry has no simple quoted path: $($pathBlock.Value)"
+        }
+        [pscustomobject]@{
+            Alias = Get-CodeIndexPathAlias -Block $pathBlock.Value
+            Path = [System.IO.Path]::GetFullPath($pathMatch.Groups['path'].Value.Replace('/', '\'))
+        }
+    }
+    if (@($entries).Count -eq 0) {
+        throw "Code-index configuration has no registered paths: '$ConfigPath'."
+    }
+    return @($entries)
+}
+
+function ConvertTo-NativeArgumentString {
+    param([string[]]$ArgumentList = @())
+
+    return ($ArgumentList | ForEach-Object {
+        '"' + ([string]$_).Replace('"', '\"') + '"'
+    }) -join ' '
+}
+
+function Read-McpResponse {
+    param(
+        [Parameter(Mandatory)][System.Diagnostics.Process]$Process,
+        [Parameter(Mandatory)][int]$RequestId,
+        [Parameter(Mandatory)][int]$TimeoutSeconds,
+        [Parameter(Mandatory)][string]$Description,
+        [Parameter(Mandatory)][string]$RequestName
+    )
+
+    $startedAt = [DateTime]::UtcNow
+    $deadline = $startedAt.AddSeconds($TimeoutSeconds)
+    $lastProgressAt = 0
+    while ([DateTime]::UtcNow -lt $deadline) {
+        $readTask = $Process.StandardOutput.ReadLineAsync()
+        while (-not $readTask.Wait(1000)) {
+            if ($Process.HasExited) {
+                throw "$Description exited before answering MCP $RequestName."
+            }
+            $elapsedSeconds = [int]([DateTime]::UtcNow - $startedAt).TotalSeconds
+            if ($elapsedSeconds -ge $TimeoutSeconds) {
+                throw "$Description did not answer MCP $RequestName within $TimeoutSeconds seconds."
+            }
+            if ($elapsedSeconds -ge ($lastProgressAt + 15)) {
+                [Console]::Out.WriteLine("    Waiting for $Description to answer ${RequestName}: $elapsedSeconds of $TimeoutSeconds seconds...")
+                $lastProgressAt = $elapsedSeconds
+            }
+        }
+        $line = $readTask.Result
+        if ($null -eq $line) {
+            throw "$Description closed its output before answering MCP $RequestName."
+        }
+        if ([string]::IsNullOrWhiteSpace($line)) {
+            continue
+        }
+        try { $message = $line | ConvertFrom-Json } catch { continue }
+        if ($null -ne $message.id -and [int]$message.id -eq $RequestId) {
+            return $message
+        }
+    }
+    throw "$Description did not answer MCP $RequestName within $TimeoutSeconds seconds."
+}
+
+function Test-StdioMcpServer {
+    param(
+        [Parameter(Mandatory)][string]$Executable,
+        [string[]]$ArgumentList = @(),
+        [Parameter(Mandatory)][string]$WorkingDirectory,
+        [Parameter(Mandatory)][string]$Description,
+        [string[]]$RequiredTools = @(),
+        [ValidateRange(5, 3600)][int]$TimeoutSeconds = 60
+    )
+
+    $startInfo = [System.Diagnostics.ProcessStartInfo]::new()
+    $startInfo.FileName = $Executable
+    $startInfo.Arguments = ConvertTo-NativeArgumentString -ArgumentList $ArgumentList
+    $startInfo.WorkingDirectory = $WorkingDirectory
+    $startInfo.UseShellExecute = $false
+    $startInfo.CreateNoWindow = $true
+    $startInfo.RedirectStandardInput = $true
+    $startInfo.RedirectStandardOutput = $true
+    $startInfo.RedirectStandardError = $true
+    $process = [System.Diagnostics.Process]::new()
+    $process.StartInfo = $startInfo
+    $processStarted = $false
+    $stderrTask = $null
+    $stderrText = ''
+    $failure = $null
+    $toolCount = $null
+    try {
+        if (-not $process.Start()) {
+            throw "$Description process could not be started."
+        }
+        $processStarted = $true
+        $stderrTask = $process.StandardError.ReadToEndAsync()
+        $initializeRequest = @{
+            jsonrpc = '2.0'; id = 1; method = 'initialize'
+            params = @{
+                protocolVersion = '2025-06-18'; capabilities = @{}
+                clientInfo = @{ name = 'kafka-codex-installer'; version = '1.0.0' }
+            }
+        }
+        $process.StandardInput.WriteLine(($initializeRequest | ConvertTo-Json -Depth 10 -Compress))
+        $initializeResponse = Read-McpResponse -Process $process -RequestId 1 `
+            -TimeoutSeconds $TimeoutSeconds -Description $Description -RequestName 'initialize'
+        if ($null -ne $initializeResponse.error -or $null -eq $initializeResponse.result) {
+            throw "$Description rejected MCP initialize: $($initializeResponse | ConvertTo-Json -Depth 10 -Compress)"
+        }
+        $process.StandardInput.WriteLine((@{
+            jsonrpc = '2.0'; method = 'notifications/initialized'; params = @{}
+        } | ConvertTo-Json -Depth 5 -Compress))
+        $process.StandardInput.WriteLine((@{
+            jsonrpc = '2.0'; id = 2; method = 'tools/list'; params = @{}
+        } | ConvertTo-Json -Depth 5 -Compress))
+        $toolsResponse = Read-McpResponse -Process $process -RequestId 2 `
+            -TimeoutSeconds $TimeoutSeconds -Description $Description -RequestName 'tools/list'
+        if ($null -ne $toolsResponse.error -or $null -eq $toolsResponse.result.tools) {
+            throw "$Description did not return an MCP tool list: $($toolsResponse | ConvertTo-Json -Depth 10 -Compress)"
+        }
+        $toolNames = @($toolsResponse.result.tools | ForEach-Object { [string]$_.name })
+        foreach ($requiredTool in $RequiredTools) {
+            if ($requiredTool -notin $toolNames) {
+                throw "$Description is missing required MCP tool '$requiredTool'."
+            }
+        }
+        $toolCount = $toolNames.Count
+    }
+    catch { $failure = $_.Exception }
+    finally {
+        if ($processStarted) { try { $process.StandardInput.Close() } catch {} }
+        if ($processStarted -and -not $process.HasExited) {
+            if (-not $process.WaitForExit(5000)) {
+                $process.Kill()
+                $process.WaitForExit(5000) | Out-Null
+            }
+        }
+        if ($null -ne $stderrTask -and $stderrTask.Wait(2000)) {
+            $stderrText = $stderrTask.Result.Trim()
+        }
+        $process.Dispose()
+    }
+    if ($null -ne $failure) {
+        $detail = if ([string]::IsNullOrWhiteSpace($stderrText)) { '' } else {
+            " Server log: $(@($stderrText -split "`r?`n" | Select-Object -Last 20) -join ' | ')"
+        }
+        throw "$($failure.Message)$detail"
+    }
+    return $toolCount
+}
+
+function Get-DaemonProbeFromOutput {
+    param(
+        [Parameter(Mandatory)]$CommandResult,
+        [Parameter(Mandatory)][string]$Description
+    )
+
+    foreach ($line in @($CommandResult.Output | Select-Object -Last 20)) {
+        try {
+            $probe = $line | ConvertFrom-Json
+            if ($null -ne $probe.status) { return $probe }
+        }
+        catch {}
+    }
+    throw "$Description did not return a readable daemon status: $($CommandResult.Output -join ' ')"
+}
+
+function ConvertTo-ComparablePath {
+    param([Parameter(Mandatory)][string]$Path)
+
+    $value = $Path
+    if ($value.StartsWith('\\?\', [System.StringComparison]::Ordinal)) {
+        $value = $value.Substring(4)
+    }
+    return [System.IO.Path]::GetFullPath($value).TrimEnd('\')
+}
+
+function Wait-CodeIndexReady {
+    param(
+        [Parameter(Mandatory)][string]$Launcher,
+        [Parameter(Mandatory)][string]$RuntimeHome,
+        [Parameter(Mandatory)][string]$Indexer,
+        [Parameter(Mandatory)][string]$ConfigPath,
+        [Parameter(Mandatory)][int]$TimeoutSeconds
+    )
+
+    $expected = @(Get-CodeIndexConfiguredPaths -ConfigPath $ConfigPath)
+    $deadline = [DateTime]::UtcNow.AddSeconds($TimeoutSeconds)
+    $lastSummary = $null
+    do {
+        $status = Invoke-ManagedDaemon -Launcher $Launcher -Action status -RuntimeHome $RuntimeHome -Indexer $Indexer -Json
+        $probe = Get-DaemonProbeFromOutput -CommandResult $status -Description 'Code-index readiness check'
+        if ($probe.status -ne 'online' -or $null -eq $probe.health) {
+            throw "Code-index daemon is not healthy: $($probe.status): $($probe.error)"
+        }
+        $states = foreach ($entry in $expected) {
+            $expectedPath = ConvertTo-ComparablePath -Path $entry.Path
+            $pathState = @($probe.health.paths | Where-Object {
+                (ConvertTo-ComparablePath -Path ([string]$_.path)).Equals($expectedPath, [System.StringComparison]::OrdinalIgnoreCase)
+            }) | Select-Object -First 1
+            if ($null -eq $pathState) {
+                [pscustomobject]@{ Alias = $entry.Alias; Path = $entry.Path; Status = 'not reported'; Error = $null }
+            }
+            else {
+                [pscustomobject]@{ Alias = $entry.Alias; Path = $entry.Path; Status = ([string]$pathState.status).ToLowerInvariant(); Error = $pathState.error }
+            }
+        }
+        $failed = @($states | Where-Object { $_.Status -in @('error', 'stale', 'incomplete', 'degraded') })
+        if ($failed.Count -gt 0) {
+            throw "Code-index path '$($failed[0].Alias)' is $($failed[0].Status): $($failed[0].Error)"
+        }
+        if (@($states | Where-Object { $_.Status -ne 'ready' }).Count -eq 0) {
+            return $states.Count
+        }
+        $summary = ($states | ForEach-Object { "$($_.Alias)=$($_.Status)" }) -join ', '
+        if ($summary -ne $lastSummary) {
+            [Console]::Out.WriteLine("    Indexing: $summary")
+            $lastSummary = $summary
+        }
+        Start-Sleep -Seconds 1
+    } while ([DateTime]::UtcNow -lt $deadline)
+
+    throw "Code-index did not make all $($expected.Count) registered paths ready within $TimeoutSeconds seconds. Last state: $lastSummary"
+}
+
+function Get-McpServerUrl {
+    param(
+        [Parameter(Mandatory)][string]$ConfigPath,
+        [Parameter(Mandatory)][string]$ServerName
+    )
+
+    $config = Get-Content -LiteralPath $ConfigPath -Raw -Encoding UTF8
+    $table = [regex]::Match($config, "(?ms)^\[mcp_servers\.$([regex]::Escape($ServerName))\]\r?\n.*?(?=^\[|\z)")
+    if (-not $table.Success) {
+        throw "MCP server '$ServerName' is missing from '$ConfigPath'."
+    }
+    $urlMatch = [regex]::Match($table.Value, '(?m)^[ \t]*url[ \t]*=[ \t]*"(?<url>[^"]+)"[ \t]*\r?$')
+    if (-not $urlMatch.Success) {
+        throw "MCP server '$ServerName' has no simple quoted URL in '$ConfigPath'."
+    }
+    return $urlMatch.Groups['url'].Value
+}
+
+function Wait-HttpMcpServer {
+    param(
+        [Parameter(Mandatory)][string]$Uri,
+        [Parameter(Mandatory)][string]$Description,
+        [Parameter(Mandatory)][int]$TimeoutSeconds
+    )
+
+    $deadline = [DateTime]::UtcNow.AddSeconds($TimeoutSeconds)
+    $lastError = $null
+    $startedAt = [DateTime]::UtcNow
+    $lastProgressAt = 0
+    do {
+        try {
+            $body = @{
+                jsonrpc = '2.0'; id = 1; method = 'initialize'
+                params = @{
+                    protocolVersion = '2025-06-18'; capabilities = @{}
+                    clientInfo = @{ name = 'kafka-codex-installer'; version = '1.0.0' }
+                }
+            } | ConvertTo-Json -Depth 10 -Compress
+            $response = Invoke-WebRequest -Method Post -Uri $Uri -UseBasicParsing -TimeoutSec 5 `
+                -ContentType 'application/json' -Headers @{ Accept = 'application/json, text/event-stream' } -Body $body
+            $content = [string]$response.Content
+            $json = $content
+            if ($content -match '(?m)^data:\s*(\{.+\})\s*$') { $json = $Matches[1] }
+            $message = $json | ConvertFrom-Json
+            if ($null -eq $message.error -and $null -ne $message.result) { return }
+            $lastError = 'initialize returned no successful result'
+        }
+        catch { $lastError = $_.Exception.Message }
+        $elapsedSeconds = [int]([DateTime]::UtcNow - $startedAt).TotalSeconds
+        if ($elapsedSeconds -ge ($lastProgressAt + 15)) {
+            [Console]::Out.WriteLine("    Waiting for ${Description}: $elapsedSeconds of $TimeoutSeconds seconds...")
+            $lastProgressAt = $elapsedSeconds
+        }
+        Start-Sleep -Seconds 2
+    } while ([DateTime]::UtcNow -lt $deadline)
+
+    throw "$Description did not answer MCP initialize within $TimeoutSeconds seconds: $lastError"
 }
 
 New-Item -ItemType Directory -Path $CodexHome -Force | Out-Null
@@ -873,12 +1335,12 @@ if (-not $SuppressRestartNotice) {
 }
 
 if ($ConfigurationOnly) {
-    Write-Output 'Configuration-only setup complete. Restart Codex to reload managed configuration.'
+    Write-Output 'Configuration-only setup complete. MCP readiness was not checked. Restart Codex to reload managed configuration.'
     return
 }
 
 $codeIndexHome = Join-Path $CodexHome 'code-index'
-$daemonLauncher = Join-Path $PSScriptRoot 'mcp\code-index-daemon.ps1'
+$daemonLauncher = Join-Path $ToolkitRoot 'mcp\code-index-daemon.ps1'
 $daemonControlIndexer = if (Test-Path -LiteralPath $managedIndexer -PathType Leaf) {
     $managedIndexer
 }
@@ -921,6 +1383,10 @@ $indexerExistedBefore = Test-Path -LiteralPath $managedIndexer -PathType Leaf
 $jarExistedBefore = Test-Path -LiteralPath $managedJar -PathType Leaf
 $indexerInstalled = $false
 $jarInstalled = $false
+$daemonStartedBySetup = $false
+$readyIndexCount = 0
+$codeIndexToolCount = 0
+$bslLsToolCount = 0
 try {
     $indexerInstalled = Install-ManagedFile -Source $indexer -Destination $managedIndexer -BackupRoot $runtimeBackup
     $jarInstalled = Install-ManagedFile -Source $jar -Destination $managedJar -BackupRoot $runtimeBackup
@@ -936,11 +1402,82 @@ try {
         if ($daemonStart.ExitCode -ne 0) {
             throw "Managed code-index daemon startup failed: $($daemonStart.Output -join ' ')"
         }
+        $daemonStartedBySetup = $true
+
+        Write-Output "Waiting up to $IndexReadyTimeoutSeconds seconds for every path registered in '$targetCodeIndexConfig'."
+        $readyIndexCount = Wait-CodeIndexReady `
+            -Launcher $daemonLauncher `
+            -RuntimeHome $codeIndexHome `
+            -Indexer $managedIndexer `
+            -ConfigPath $targetCodeIndexConfig `
+            -TimeoutSeconds $IndexReadyTimeoutSeconds
+        Write-Output "All registered code-index paths are ready: $readyIndexCount."
+
+        $codeIndexToolCount = Test-StdioMcpServer `
+            -Executable (Join-Path $PSHOME 'powershell.exe') `
+            -ArgumentList @(
+                '-NoLogo', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass',
+                '-File', (Join-Path $ToolkitRoot 'mcp\code-index-mcp.ps1'),
+                '-CodeIndexHome', $codeIndexHome,
+                '-BslIndexerPath', $managedIndexer,
+                '-NodePath', $node,
+                '-SkipDaemonBootstrap'
+            ) `
+            -WorkingDirectory $WorkspaceRoot `
+            -Description 'code-index MCP' `
+            -RequiredTools @('health', 'get_function', 'get_object_structure') `
+            -TimeoutSeconds $McpReadyTimeoutSeconds
+        Write-Output "code-index MCP is ready ($codeIndexToolCount tools)."
+
+        $adapterRoot = Join-Path $WorkspaceRoot 'adapter\adapter'
+        $bslLsProxy = Join-Path $adapterRoot '.codex\mcp\bsl-ls-proxy.mjs'
+        $bslLsConfiguration = Join-Path $adapterRoot '.bsl-language-server.json'
+        foreach ($requiredBslLsPath in @($bslLsProxy, $bslLsConfiguration)) {
+            if (-not (Test-Path -LiteralPath $requiredBslLsPath -PathType Leaf)) {
+                throw "Required BSL LS source is missing: '$requiredBslLsPath'."
+            }
+        }
+        $bslLsToolCount = Test-StdioMcpServer `
+            -Executable $node `
+            -ArgumentList @(
+                $bslLsProxy,
+                '--root', $adapterRoot,
+                '--configuration', $bslLsConfiguration,
+                '--jar', $managedJar,
+                '--java', $java
+            ) `
+            -WorkingDirectory $adapterRoot `
+            -Description 'BSL LS MCP' `
+            -RequiredTools @('analyze_file', 'document_symbols') `
+            -TimeoutSeconds $McpReadyTimeoutSeconds
+        Write-Output "BSL LS MCP is ready ($bslLsToolCount tools)."
+
+        $v8stdUrl = Get-McpServerUrl -ConfigPath $targetConfig -ServerName 'v8std'
+        Wait-HttpMcpServer -Uri $v8stdUrl -Description 'v8std MCP' -TimeoutSeconds $McpReadyTimeoutSeconds
+        Write-Output 'v8std MCP is ready.'
+    }
+    else {
+        Write-Output 'MCP readiness was not checked because daemon startup was skipped (-SkipDaemonStart).'
     }
 }
 catch {
     $setupFailure = $_.Exception.Message
     $rollbackErrors = @()
+    if ($daemonStartedBySetup) {
+        try {
+            $daemonStop = Invoke-ManagedDaemon `
+                -Launcher $daemonLauncher `
+                -Action stop `
+                -RuntimeHome $codeIndexHome `
+                -Indexer $managedIndexer
+            if ($daemonStop.ExitCode -ne 0) {
+                $rollbackErrors += "Could not stop the new daemon before rollback: $($daemonStop.Output -join ' ')"
+            }
+        }
+        catch {
+            $rollbackErrors += "Could not stop the new daemon before rollback: $($_.Exception.Message)"
+        }
+    }
     foreach ($runtimeState in @(
         @{ Destination = $managedIndexer; ExistedBefore = $indexerExistedBefore },
         @{ Destination = $managedJar; ExistedBefore = $jarExistedBefore }
@@ -1005,6 +1542,9 @@ Write-Output "Managed bsl-indexer: '$managedIndexer' (updated: $indexerInstalled
 Write-Output "Managed BSL LS JAR: '$managedJar' (updated: $jarInstalled)."
 if ($SkipDaemonStart) {
     Write-Output 'Daemon startup was skipped by request.'
+}
+else {
+    Write-Output "Readiness confirmed: $readyIndexCount code-index paths, $codeIndexToolCount code-index tools, $bslLsToolCount BSL LS tools, v8std available."
 }
 Write-Output 'Restart Codex and open the required repository as the project root.'
 }

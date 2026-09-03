@@ -1,11 +1,11 @@
 interface:
   display_name: "1C Standards"
-  short_description: "General 1C policy without corporate"
-  default_prompt: "Use $1c-standards to retrieve and apply relevant general 1C evidence without the corporate collection."
+  short_description: "Work policy and general 1C standards"
+  default_prompt: "Use $1c-standards to apply mandatory additional work policy and relevant general 1C standards."
 
 dependencies:
   tools:
     - type: "mcp"
       value: "v8std"
-      description: "General 1C, diagnostics, and snippet corpus"
+      description: "Required additional work policy, general 1C, diagnostics, and snippet corpus"
       transport: "streamable_http"

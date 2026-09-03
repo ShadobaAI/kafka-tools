@@ -1,16 +1,83 @@
+function Get-EmbeddedPowerShellSource {
+    param([Parameter(Mandatory)][string]$InstallerPath)
+
+    $installerSource = Get-Content -LiteralPath $InstallerPath -Raw
+    $marker = '# __KAFKA_AI_POWERSHELL__'
+    $markerIndex = $installerSource.LastIndexOf($marker, [System.StringComparison]::Ordinal)
+    if ($markerIndex -lt 0) {
+        throw 'install.cmd does not contain the embedded PowerShell marker.'
+    }
+    return $installerSource.Substring($markerIndex + $marker.Length).TrimStart([char[]](13, 10))
+}
+
+function Write-EmbeddedPowerShellScript {
+    param(
+        [Parameter(Mandatory)][string]$InstallerPath,
+        [Parameter(Mandatory)][string]$Destination
+    )
+
+    [System.IO.File]::WriteAllText(
+        $Destination,
+        (Get-EmbeddedPowerShellSource -InstallerPath $InstallerPath),
+        [System.Text.UTF8Encoding]::new($true)
+    )
+}
+
+function Invoke-InstallerLauncherTest {
+    $sourcePackage = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
+    $installer = Join-Path $sourcePackage 'install.cmd'
+    $source = Get-Content -LiteralPath $installer -Raw
+    foreach ($requiredFragment in @(
+        '# __KAFKA_AI_POWERSHELL__',
+        '-File "%KAFKA_AI_EMBEDDED_SETUP%"',
+        '-ToolkitRoot "%~dp0."',
+        'LAUNCHER_DIRECTORY_NAME',
+        'LAUNCHER_PARENT_NAME',
+        'KAFKA_AI_NO_PAUSE'
+    )) {
+        if (-not $source.Contains($requiredFragment)) {
+            throw "install.cmd is missing required launcher fragment: $requiredFragment"
+        }
+    }
+
+    $temporaryRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("kafka-ai-invalid-launcher-" + [guid]::NewGuid().ToString('N'))
+    try {
+        New-Item -ItemType Directory -Path $temporaryRoot -Force | Out-Null
+        $invalidInstaller = Join-Path $temporaryRoot 'install.cmd'
+        Copy-Item -LiteralPath $installer -Destination $invalidInstaller -Force
+        $output = @(& $invalidInstaller 2>&1 | ForEach-Object { $_.ToString() })
+        $exitCode = $LASTEXITCODE
+        if ($exitCode -eq 0) {
+            throw 'install.cmd accepted a launcher outside the fixed tools\ai directory.'
+        }
+        if (($output -join ' ') -notmatch 'fixed Kafka tools\\ai directory') {
+            throw "install.cmd did not explain the invalid directory: $($output -join ' ')"
+        }
+    }
+    finally {
+        if (Test-Path -LiteralPath $temporaryRoot) {
+            Remove-Item -LiteralPath $temporaryRoot -Recurse -Force
+        }
+    }
+
+    Write-Output 'install-launcher: embedded PowerShell and fixed tools\ai location passed'
+}
+
 function Invoke-SetupDaemonPolicyTest {
 [CmdletBinding()]
 param()
 
 $ErrorActionPreference = 'Stop'
 $workspaceRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..\..'))
-$installer = Join-Path $workspaceRoot 'tools\ai\setup.ps1'
+$installer = Join-Path $workspaceRoot 'tools\ai\install.cmd'
 $temporaryCodexHome = Join-Path ([System.IO.Path]::GetTempPath()) ("kafka-ai-shared-daemon-" + [guid]::NewGuid().ToString('N'))
 $temporaryWorkspaceRoot = Join-Path $temporaryCodexHome 'workspace'
 
 try {
     New-Item -ItemType Directory -Path $temporaryCodexHome -Force | Out-Null
     New-Item -ItemType Directory -Path $temporaryWorkspaceRoot -Force | Out-Null
+    $embeddedInstaller = Join-Path $temporaryCodexHome 'embedded-setup.ps1'
+    Write-EmbeddedPowerShellScript -InstallerPath $installer -Destination $embeddedInstaller
     foreach ($relativePath in @(
         'adapter\adapter',
         'adapter\base',
@@ -61,7 +128,8 @@ language = "bsl"
         [System.Text.UTF8Encoding]::new($false)
     )
 
-    & $installer `
+    & $embeddedInstaller `
+        -ToolkitRoot (Split-Path -Parent $installer) `
         -WorkspaceRoot $temporaryWorkspaceRoot `
         -CodexHome $temporaryCodexHome `
         -ConfigurationOnly | Out-Null
@@ -97,7 +165,8 @@ language = "bsl"
     if ($installedDaemonConfig -notmatch '(?m)^max_concurrent_initial = 3\r?$') {
         throw 'Installer did not preserve existing shared daemon settings.'
     }
-    & $installer `
+    & $embeddedInstaller `
+        -ToolkitRoot (Split-Path -Parent $installer) `
         -WorkspaceRoot $temporaryWorkspaceRoot `
         -CodexHome $temporaryCodexHome `
         -ConfigurationOnly | Out-Null
@@ -128,7 +197,7 @@ param()
 $ErrorActionPreference = 'Stop'
 $sourcePackage = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $temporaryRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("codex-ai-portable-" + [guid]::NewGuid().ToString('N'))
-$portablePackage = Join-Path $temporaryRoot 'support\agent-kit'
+$portablePackage = Join-Path $temporaryRoot 'tools\ai'
 $temporaryCodexHome = Join-Path $temporaryRoot 'codex-home'
 
 try {
@@ -149,9 +218,8 @@ try {
         New-Item -ItemType Directory -Path (Join-Path $temporaryRoot $relativePath) -Force | Out-Null
     }
 
-    $portableInstaller = Join-Path $portablePackage 'setup.ps1'
+    $portableInstaller = Join-Path $portablePackage 'install.cmd'
     & $portableInstaller `
-        -WorkspaceRoot $temporaryRoot `
         -CodexHome $temporaryCodexHome `
         -ConfigurationOnly | Out-Null
 
@@ -224,7 +292,7 @@ param()
 $ErrorActionPreference = 'Stop'
 $sourcePackage = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $temporaryRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("codex-ai-setup-" + [guid]::NewGuid().ToString('N'))
-$portablePackage = Join-Path $temporaryRoot 'support\agent-kit'
+$portablePackage = Join-Path $temporaryRoot 'tools\ai'
 $temporaryCodexHome = Join-Path $temporaryRoot 'codex-home'
 
 try {
@@ -266,8 +334,11 @@ try {
     $fakeJar = Join-Path $temporaryRoot 'bsl-language-server-exec.jar'
     [System.IO.File]::WriteAllBytes($fakeJar, [byte[]](0x50, 0x4b, 0x03, 0x04))
 
-    $output = @(& (Join-Path $portablePackage 'setup.ps1') `
-        -WorkspaceRoot $temporaryRoot `
+    $portableInstaller = Join-Path $portablePackage 'install.cmd'
+    $embeddedInstaller = Join-Path $temporaryRoot 'embedded-setup.ps1'
+    Write-EmbeddedPowerShellScript -InstallerPath $portableInstaller -Destination $embeddedInstaller
+
+    $output = @(& $portableInstaller `
         -CodexHome $temporaryCodexHome `
         -BslIndexerPath $fakeIndexer `
         -BslLanguageServerJar $fakeJar `
@@ -295,8 +366,7 @@ try {
         throw 'Setup did not report the explicitly skipped daemon startup.'
     }
 
-    $secondOutput = @(& (Join-Path $portablePackage 'setup.ps1') `
-        -WorkspaceRoot $temporaryRoot `
+    $secondOutput = @(& $portableInstaller `
         -CodexHome $temporaryCodexHome `
         -BslIndexerPath $fakeIndexer `
         -BslLanguageServerJar $fakeJar `
@@ -310,8 +380,8 @@ try {
         throw "Repeated setup was not idempotent: $secondOutput"
     }
 
-    $setupSource = Get-Content -LiteralPath (Join-Path $portablePackage 'setup.ps1') -Raw
-    $bundledRuntimeIndex = $setupSource.IndexOf('$bundledRuntimeRoot = Join-Path $PSScriptRoot ''runtime\windows''')
+    $setupSource = Get-EmbeddedPowerShellSource -InstallerPath $portableInstaller
+    $bundledRuntimeIndex = $setupSource.IndexOf('$bundledRuntimeRoot = Join-Path $ToolkitRoot ''runtime\windows''')
     $runtimeStagingIndex = $setupSource.IndexOf("Get-GitHubLatestRelease -Repository 'Regsorm/code-index-mcp'")
     if (
         $bundledRuntimeIndex -lt 0 -or
@@ -322,9 +392,10 @@ try {
     }
     foreach ($bundledRuntimeFragment in @(
         "-Filter 'bsl-indexer.exe'",
-        "-Filter 'bsl-language-server-*-exec.jar'",
-        'Using bundled bsl-indexer executable',
-        'Using bundled BSL Language Server JAR'
+        '$bundledJars = @(Get-ChildItem -LiteralPath $bundledRuntimeRoot -File',
+        'Test-RuntimeUpdateRequired',
+        'Bundled bsl-indexer $installedIndexerVersion is current',
+        'Bundled BSL Language Server $installedJarVersion is current'
     )) {
         if (-not $setupSource.Contains($bundledRuntimeFragment)) {
             throw "Setup is missing bundled runtime selection fragment: $bundledRuntimeFragment"
@@ -342,6 +413,17 @@ try {
             throw "Setup is missing GitHub release policy fragment: $releasePolicyFragment"
         }
     }
+    foreach ($readinessFragment in @(
+        '-ConfigPath $targetCodeIndexConfig',
+        "Where-Object { `$_.Status -ne 'ready' }",
+        "-RequiredTools @('health', 'get_function', 'get_object_structure')",
+        "-RequiredTools @('analyze_file', 'document_symbols')",
+        'Wait-HttpMcpServer -Uri $v8stdUrl'
+    )) {
+        if (-not $setupSource.Contains($readinessFragment)) {
+            throw "Setup is missing post-install readiness fragment: $readinessFragment"
+        }
+    }
     $persistentConfigIndex = $setupSource.IndexOf('$targetConfig = Join-Path $CodexHome')
     if (
         $runtimeStagingIndex -lt 0 -or
@@ -351,7 +433,8 @@ try {
         throw 'Setup does not stage and validate runtime before persistent configuration changes.'
     }
 
-    . (Join-Path $portablePackage 'setup.ps1') `
+    . $embeddedInstaller `
+        -ToolkitRoot $portablePackage `
         -WorkspaceRoot $temporaryRoot `
         -CodexHome $temporaryCodexHome `
         -ConfigurationOnly | Out-Null
@@ -376,6 +459,19 @@ try {
     }
     finally {
         $env:PATH = $previousPath
+    }
+
+    $programFilesRoot = Join-Path $temporaryRoot 'Program Files'
+    $systemNode = Join-Path $programFilesRoot 'nodejs\node.exe'
+    $explicitNode = Join-Path $temporaryRoot 'explicit-node.exe'
+    New-Item -ItemType Directory -Path (Split-Path -Parent $systemNode) -Force | Out-Null
+    [System.IO.File]::WriteAllBytes($systemNode, [byte[]](1))
+    [System.IO.File]::WriteAllBytes($explicitNode, [byte[]](2))
+    if ((Resolve-NodePath -ProgramFilesRoot $programFilesRoot) -ne $systemNode) {
+        throw 'Node resolution did not prefer Program Files over PATH.'
+    }
+    if ((Resolve-NodePath -RequestedPath $explicitNode -ProgramFilesRoot $programFilesRoot) -ne $explicitNode) {
+        throw 'Explicit NodePath did not override the Program Files candidate.'
     }
 
     $runtimeCacheTestRoot = Join-Path $temporaryRoot 'runtime-cache-test'
@@ -524,13 +620,16 @@ param()
 
 $ErrorActionPreference = 'Stop'
 $workspaceRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..\..'))
-$installer = Join-Path $workspaceRoot 'tools\ai\setup.ps1'
+$installer = Join-Path $workspaceRoot 'tools\ai\install.cmd'
 $temporaryCodexHome = Join-Path ([System.IO.Path]::GetTempPath()) ("kafka-ai-v8std-" + [guid]::NewGuid().ToString('N'))
 $temporaryWorkspaceRoot = Join-Path $temporaryCodexHome 'workspace'
 $defaultUrl = 'http://127.0.0.1:8766/mcp'
 $publicUrl = 'https://ai.v8std.ru/mcp'
 
 try {
+    New-Item -ItemType Directory -Path $temporaryCodexHome -Force | Out-Null
+    $embeddedInstaller = Join-Path $temporaryCodexHome 'embedded-setup.ps1'
+    Write-EmbeddedPowerShellScript -InstallerPath $installer -Destination $embeddedInstaller
     foreach ($relativePath in @(
         'adapter\adapter',
         'adapter\base',
@@ -544,7 +643,7 @@ try {
     )) {
         New-Item -ItemType Directory -Path (Join-Path $temporaryWorkspaceRoot $relativePath) -Force | Out-Null
     }
-    & $installer -WorkspaceRoot $temporaryWorkspaceRoot -CodexHome $temporaryCodexHome -ConfigurationOnly | Out-Null
+    & $embeddedInstaller -ToolkitRoot (Split-Path -Parent $installer) -WorkspaceRoot $temporaryWorkspaceRoot -CodexHome $temporaryCodexHome -ConfigurationOnly | Out-Null
     $configPath = Join-Path $temporaryCodexHome 'config.toml'
     $config = Get-Content -LiteralPath $configPath -Raw
 
@@ -561,7 +660,7 @@ try {
         [System.Text.UTF8Encoding]::new($false)
     )
 
-    & $installer -WorkspaceRoot $temporaryWorkspaceRoot -CodexHome $temporaryCodexHome -ConfigurationOnly | Out-Null
+    & $embeddedInstaller -ToolkitRoot (Split-Path -Parent $installer) -WorkspaceRoot $temporaryWorkspaceRoot -CodexHome $temporaryCodexHome -ConfigurationOnly | Out-Null
     $reinstalledConfig = Get-Content -LiteralPath $configPath -Raw
     if ($reinstalledConfig -notmatch [regex]::Escape("url = `"$publicUrl`"")) {
         throw 'Installer did not preserve the user-selected v8std URL.'
@@ -579,7 +678,20 @@ finally {
 }
 }
 
-Invoke-SetupDaemonPolicyTest
-Invoke-InstallPortableTest
-Invoke-SetupPortableTest
-Invoke-InstallV8stdUrlTest
+$previousNoPause = $env:KAFKA_AI_NO_PAUSE
+try {
+    $env:KAFKA_AI_NO_PAUSE = '1'
+    Invoke-InstallerLauncherTest
+    Invoke-SetupDaemonPolicyTest
+    Invoke-InstallPortableTest
+    Invoke-SetupPortableTest
+    Invoke-InstallV8stdUrlTest
+}
+finally {
+    if ($null -eq $previousNoPause) {
+        Remove-Item Env:KAFKA_AI_NO_PAUSE -ErrorAction SilentlyContinue
+    }
+    else {
+        $env:KAFKA_AI_NO_PAUSE = $previousNoPause
+    }
+}

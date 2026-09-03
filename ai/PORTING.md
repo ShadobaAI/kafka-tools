@@ -34,7 +34,7 @@ EDT остаётся источником истины. Остальные ко�
 - управление единым Windows daemon `bsl-indexer`;
 - hook, запрещающий обход правил доступа к проектам 1С;
 - декларативный список репозиториев и aliases индекса;
-- единый идемпотентный `setup.ps1`;
+- единый идемпотентный `install.cmd` со встроенной PowerShell-частью;
 - regression-тесты установки и lifecycle.
 
 Этот слой устанавливает общие MCP и skills в `%CODEX_HOME%`, потому что Codex не обязан
@@ -99,7 +99,7 @@ code-index: быстро сузить область
 └── <tools-repo>/ai/
     ├── AGENTS.md
     ├── PORTING.md
-    ├── setup.ps1                     # единая команда установки
+    ├── install.cmd                   # единый CMD + embedded PowerShell установщик
     ├── workspace-policy.json
     ├── .codex/
     │   ├── config.toml               # managed user-level block
@@ -116,7 +116,7 @@ code-index: быстро сузить область
     └── tests/
 ```
 
-Runtime-файлы являются неизменёнными сторонними артефактами. `setup.ps1` получает
+Runtime-файлы являются неизменёнными сторонними артефактами. `install.cmd` получает
 последний опубликованный Windows x64 release `bsl-indexer`, включая prerelease,
 и последний стабильный BSL LS release из canonical GitHub repositories. Файлы
 проверяются во временном staging до persistent writes. Для закрытого контура
@@ -235,6 +235,12 @@ Proxy должен:
 фрагментов кода remote endpoint. Agent-side скрытое переключение endpoint или
 эвристическая классификация кода не добавляются.
 
+Для Kafka принято то же правило дополнительной рабочей политики, что и для CRM:
+коллекция `corporate` и стабильные идентификаторы `corporate:work:*` обязательны для
+классификации, реализации и проверки изменений BSL. Применимые страницы загружаются
+полностью до mutation; недоступная, неполная или неразрешённая обязательная политика
+блокирует изменение.
+
 ### Шаг 6. Адаптировать routing skills
 
 Минимальный набор skills:
@@ -267,15 +273,16 @@ Guard — дополнительный enforcement, а не источник б�
 
 ### Шаг 8. Настроить установку
 
-`setup.ps1` должен выполнять один воспроизводимый workflow:
+Встроенная PowerShell-часть `install.cmd` должна выполнять один воспроизводимый workflow:
 
 1. вычислить workspace root относительно собственного расположения либо принять
    `-WorkspaceRoot`;
 2. проверить наличие всех обязательных repository roots;
 3. проверить Node.js и Java;
-4. принять явно переданный runtime, иначе использовать bundled runtime из
-   `runtime/windows`, а для отсутствующих там компонентов определить latest releases
-   через GitHub API;
+4. определить опубликованные версии `bsl-indexer` и BSL LS, автоматически сравнить их
+   с установленными версиями и обновлять runtime только при различии; явно переданный
+   runtime имеет приоритет, bundled runtime из `runtime/windows` используется как
+   проверенный локальный источник подходящей версии;
 5. скачать assets во временный staging, проверить size, SHA-256, upstream digest,
    ZIP и версию executable JAR, не изменяя persistent configuration;
 6. проверить минимальную версию `bsl-indexer`;
@@ -285,14 +292,20 @@ Guard — дополнительный enforcement, а не источник б�
    и дождаться завершения PID до замены executable;
 9. сделать backup и установить runtime под стабильными managed-именами;
 10. запустить daemon и подтвердить реальный `GET /health` с совпадающим PID;
-11. при ошибке замены runtime или запуска восстановить прежние runtime/daemon
+11. дождаться readiness всех `[[paths]]`, зарегистрированных в итоговом
+    `%CODEX_HOME%\code-index\daemon.toml`, включая сохранённые aliases других workspace;
+12. выполнить post-install проверки stdio MCP `code-index`, BSL LS и обязательного
+    `v8std`; timeout, неполный ответ или неготовый зарегистрированный проект считаются
+    ошибкой установки;
+13. при ошибке замены runtime, запуска или readiness-проверки восстановить прежние runtime/daemon
    config и перезапустить прежний daemon;
-12. сообщить о необходимости перезапуска Codex.
+14. сообщить о необходимости перезапуска Codex.
 
-Daemon health не равен readiness индексов. На чистой установке configured paths появляются
-в daemon health после подключения `bsl-indexer serve`, то есть после запуска MCP в Codex.
-Итоговая operational-проверка выполняется через `code-index.health`: daemon должен быть
-`online/healthy`, endpoint — подтверждён, каждый ожидаемый alias — `ready`.
+Daemon health не равен readiness индексов. Установка считается успешной только после
+проверки `code-index.health`: daemon должен быть `online/healthy`, endpoint — подтверждён,
+а каждый проект из фактически установленного `daemon.toml` — `ready`. Проверка не
+ограничивается Kafka-owned aliases и не может игнорировать сохранённые записи других
+workspace.
 
 Managed proxy применяет тот же gate автоматически перед первым corpus-запросом,
 кеширует подтверждённую readiness на MCP-сессию и инвалидирует её после upstream error.
@@ -330,21 +343,22 @@ Managed proxy применяет тот же gate автоматически п�
 
 ## 7. Команда установки для команды
 
-После подготовки полной структуры workspace:
+После подготовки полной структуры workspace запустите из корня Kafka или двойным
+щелчком по `tools\ai\install.cmd`. Установщик вычисляет корень Kafka относительно
+своего фиксированного расположения `tools\ai`; при переносе меняется только абсолютный
+путь всего корня Kafka.
 
-```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File `
-  .\<tools-repo>\ai\setup.ps1
+```bat
+.\tools\ai\install.cmd
 ```
 
 Если `runtime/windows` содержит `bsl-indexer.exe` и один файл
-`bsl-language-server-*-exec.jar`, setup автоматически использует их без обращения к
+`bsl-language-server-*-exec.jar`, установщик автоматически использует их без обращения к
 GitHub. Явные пути имеют приоритет над bundled runtime:
 
-```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File `
-  .\<tools-repo>\ai\setup.ps1 `
-  -BslIndexerPath D:\distribution\bsl-indexer.exe `
+```bat
+.\tools\ai\install.cmd ^
+  -BslIndexerPath D:\distribution\bsl-indexer.exe ^
   -BslLanguageServerJar D:\distribution\bsl-language-server-exec.jar
 ```
 
@@ -375,7 +389,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File `
 
 На реальных, но неизменённых runtime-артефактах в изолированном временном workspace:
 
-1. выполнить полный `setup.ps1`;
+1. выполнить полный `install.cmd`;
 2. проверить установленные managed-файлы;
 3. подтвердить daemon `GET /health` и PID;
 4. остановить daemon штатным launcher;

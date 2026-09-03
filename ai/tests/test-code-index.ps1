@@ -103,6 +103,16 @@ param()
 
 $ErrorActionPreference = 'Stop'
 $launcher = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\mcp\code-index-mcp.ps1'))
+$launcherSource = Get-Content -LiteralPath $launcher -Raw
+foreach ($requiredNodeResolutionFragment in @(
+    "GetEnvironmentVariable('ProgramFiles')",
+    "Join-Path `$ProgramFilesRoot 'nodejs\node.exe'",
+    'Select-Object -First 1'
+)) {
+    if (-not $launcherSource.Contains($requiredNodeResolutionFragment)) {
+        throw "Code-index launcher is missing system Node.js priority fragment: $requiredNodeResolutionFragment"
+    }
+}
 $temporaryRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("code-index-launcher-" + [guid]::NewGuid().ToString('N'))
 $codeIndexHome = Join-Path $temporaryRoot 'runtime'
 $capturePath = Join-Path $temporaryRoot 'capture.txt'

@@ -7,7 +7,7 @@ description: Create, format, review, run, and debug Kafka YAxUnit tests using th
 
 ## Pattern routing
 
-Classify the operation and mechanisms first. Load the union of matching pattern IDs once with `v8std_get_page`; reuse those pages for implementation and gates. Search `collections=["yaxunit"]` only when the table cannot resolve the API concept. Never query or apply `corporate`.
+Classify the operation and mechanisms first. Load the union of matching pattern IDs once with `v8std_get_page`; reuse those pages for implementation and gates. Search `collections=["yaxunit"]` only when the table cannot resolve the API concept.
 
 | Scenario or mechanism | Required pattern IDs |
 |---|---|
@@ -38,7 +38,7 @@ Project naming override: a YAxUnit test module follows the object-based scheme f
 - `code-index`: read-only definitions and real usages in `kfk-yaxunit`, plus bounded product/test search through their assigned aliases.
 - `unit-edt`: live state, an exact installed-version signature only when unknown or conflicting with v8std, all mutations, diagnostics, and test runs.
 
-Keep these roles disjoint. Tests belong to the `unit` extension. Do not mutate product code or YAxUnit core without separate authorization. Load `$1c-code-change` only for a mutation; its knowledge gate supplies applicable general 1C standards.
+Keep these roles disjoint. Tests belong to the `unit` extension. Do not mutate product code or YAxUnit core without separate authorization. Load `$1c-code-change` only for a mutation; its knowledge gate supplies applicable general 1C standards and project policy.
 
 ## Fluent-chain gate
 
