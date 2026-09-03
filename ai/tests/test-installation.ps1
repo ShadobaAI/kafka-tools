@@ -114,7 +114,7 @@ max_concurrent_initial = 3
 
 [[paths]]
 alias = "external-primary"
-path = "C:/portable/external/primary"
+path = "C:\\portable\\external\\primary"
 language = "bsl"
 
 [[paths]]
@@ -128,11 +128,20 @@ language = "bsl"
         [System.Text.UTF8Encoding]::new($false)
     )
 
-    & $embeddedInstaller `
+    $configurationOnlyOutput = @(& $embeddedInstaller `
         -ToolkitRoot (Split-Path -Parent $installer) `
         -WorkspaceRoot $temporaryWorkspaceRoot `
         -CodexHome $temporaryCodexHome `
-        -ConfigurationOnly | Out-Null
+        -ConfigurationOnly) -join "`n"
+    foreach ($expectedOutput in @(
+        '==> 1/2. Checking workspace layout and installation destinations',
+        '==> 2/2. Installing Codex configuration, policy, hooks, and skills',
+        'RESULT: configuration-only setup completed successfully.'
+    )) {
+        if (-not $configurationOnlyOutput.Contains($expectedOutput)) {
+            throw "Configuration-only setup did not report expected progress '$expectedOutput': $configurationOnlyOutput"
+        }
+    }
 
     $installedConfig = Get-Content -LiteralPath $configPath -Raw
     foreach ($required in @(
@@ -164,6 +173,108 @@ language = "bsl"
     }
     if ($installedDaemonConfig -notmatch '(?m)^max_concurrent_initial = 3\r?$') {
         throw 'Installer did not preserve existing shared daemon settings.'
+    }
+    $setupSource = Get-EmbeddedPowerShellSource -InstallerPath $installer
+    $pathParserStart = $setupSource.IndexOf('function Get-CodeIndexPathBlocks')
+    $pathParserEnd = $setupSource.IndexOf('function ConvertTo-NativeArgumentString', $pathParserStart)
+    if ($pathParserStart -lt 0 -or $pathParserEnd -le $pathParserStart) {
+        throw 'Could not locate the installer code-index path parser.'
+    }
+    Invoke-Expression $setupSource.Substring($pathParserStart, $pathParserEnd - $pathParserStart)
+    $configuredPaths = @(Get-CodeIndexConfiguredPaths -ConfigPath $daemonConfigPath)
+    $externalPrimary = $configuredPaths | Where-Object { $_.Alias -eq 'external-primary' } | Select-Object -First 1
+    if ($null -eq $externalPrimary -or $externalPrimary.Path -ne 'C:\portable\external\primary') {
+        throw "Installer did not decode a TOML-escaped Windows path: '$($externalPrimary.Path)'."
+    }
+    $readinessFunctionsStart = $setupSource.IndexOf('function Get-DaemonProbeFromOutput')
+    $readinessFunctionsEnd = $setupSource.IndexOf('function Get-McpServerUrl', $readinessFunctionsStart)
+    if ($readinessFunctionsStart -lt 0 -or $readinessFunctionsEnd -le $readinessFunctionsStart) {
+        throw 'Could not locate the installer code-index readiness functions.'
+    }
+    Invoke-Expression $setupSource.Substring($readinessFunctionsStart, $readinessFunctionsEnd - $readinessFunctionsStart)
+    function Invoke-ManagedDaemon {
+        return [pscustomobject]@{ Output = @($fakeDaemonStatusJson) }
+    }
+    function Get-CodeIndexDaemonPathStatus {
+        param(
+            [Parameter(Mandatory)][string]$Endpoint,
+            [Parameter(Mandatory)][string]$Path
+        )
+        $pathStatusProbe.Count++
+        if ($Path -eq 'C:\portable\external\primary') {
+            return $externalPathStatus
+        }
+        return [pscustomobject]@{ path = $Path; status = 'ready'; error = $null }
+    }
+    $pathStatusProbe = [pscustomobject]@{ Count = 0 }
+    $externalPathStatus = [pscustomobject]@{
+        path = 'C:\portable\external\folder\..\primary'
+        status = 'ready'
+        error = $null
+    }
+    $fakeDaemonStatusJson = @{
+        status = 'online'
+        endpoint = 'http://127.0.0.1:1'
+        health = @{ paths = @([pscustomobject]@{ path = 'ignored|health-path'; status = 'ready' }) }
+    } | ConvertTo-Json -Depth 10 -Compress
+    $readyCount = Wait-CodeIndexReady `
+        -Launcher 'unused' `
+        -RuntimeHome 'unused' `
+        -Indexer 'unused' `
+        -ConfigPath $daemonConfigPath `
+        -TimeoutSeconds 1
+    if ($readyCount -ne $configuredPaths.Count) {
+        throw "Installer readiness check returned $readyCount paths; expected $($configuredPaths.Count)."
+    }
+    if ($pathStatusProbe.Count -ne $configuredPaths.Count) {
+        throw "Installer requested $($pathStatusProbe.Count) path statuses; expected $($configuredPaths.Count)."
+    }
+
+    $externalPathStatus = [pscustomobject]@{
+        path = 'C:\portable\external\primary'
+        status = 'error'
+        error = 'fake indexing failure'
+    }
+    $pathFailureReported = $false
+    try {
+        Wait-CodeIndexReady `
+            -Launcher 'unused' `
+            -RuntimeHome 'unused' `
+            -Indexer 'unused' `
+            -ConfigPath $daemonConfigPath `
+            -TimeoutSeconds 1 | Out-Null
+    }
+    catch {
+        $pathFailureReported = $_.Exception.Message -match "path 'external-primary' is error: fake indexing failure"
+    }
+    if (-not $pathFailureReported) {
+        throw 'Installer did not report a path-specific daemon indexing failure.'
+    }
+
+    $externalPathStatus = [pscustomobject]@{
+        path = 'C:\portable\external\primary'
+        status = 'ready'
+        error = $null
+    }
+    $fakeDaemonStatusJson = @{
+        status = 'online'
+        endpoint = $null
+        health = @{ paths = @() }
+    } | ConvertTo-Json -Depth 10 -Compress
+    $missingEndpointRejected = $false
+    try {
+        Wait-CodeIndexReady `
+            -Launcher 'unused' `
+            -RuntimeHome 'unused' `
+            -Indexer 'unused' `
+            -ConfigPath $daemonConfigPath `
+            -TimeoutSeconds 1 | Out-Null
+    }
+    catch {
+        $missingEndpointRejected = $_.Exception.Message -match 'status did not include its HTTP endpoint'
+    }
+    if (-not $missingEndpointRejected) {
+        throw 'Installer did not reject daemon status without an HTTP endpoint.'
     }
     & $embeddedInstaller `
         -ToolkitRoot (Split-Path -Parent $installer) `
@@ -202,6 +313,15 @@ $temporaryCodexHome = Join-Path $temporaryRoot 'codex-home'
 
 try {
     $conversionDataBaseRelativePath = 'conversion\' + [string][char]0x041A + [string][char]0x0414
+    $managedIndexRelativePaths = @(
+        'adapter\adapter',
+        'adapter\base',
+        'adapter\examples',
+        'conversion\KFK',
+        $conversionDataBaseRelativePath,
+        'tests\unit\unit',
+        'tests\unit\yaxunit'
+    )
     New-Item -ItemType Directory -Path (Split-Path -Parent $portablePackage) -Force | Out-Null
     Copy-Item -LiteralPath $sourcePackage -Destination $portablePackage -Recurse -Force
     foreach ($relativePath in @(
@@ -217,11 +337,27 @@ try {
     )) {
         New-Item -ItemType Directory -Path (Join-Path $temporaryRoot $relativePath) -Force | Out-Null
     }
+    foreach ($relativePath in $managedIndexRelativePaths) {
+        $oldIndexRoot = Join-Path (Join-Path $temporaryRoot $relativePath) '.code-index'
+        New-Item -ItemType Directory -Path $oldIndexRoot -Force | Out-Null
+        [System.IO.File]::WriteAllText(
+            (Join-Path $oldIndexRoot 'old-index.marker'),
+            'old index',
+            [System.Text.Encoding]::ASCII
+        )
+    }
 
     $portableInstaller = Join-Path $portablePackage 'install.cmd'
     & $portableInstaller `
         -CodexHome $temporaryCodexHome `
         -ConfigurationOnly | Out-Null
+
+    foreach ($relativePath in $managedIndexRelativePaths) {
+        $oldIndexRoot = Join-Path (Join-Path $temporaryRoot $relativePath) '.code-index'
+        if (-not (Test-Path -LiteralPath (Join-Path $oldIndexRoot 'old-index.marker') -PathType Leaf)) {
+            throw "Configuration-only setup modified managed code-index data '$oldIndexRoot'."
+        }
+    }
 
     $installedConfigPath = Join-Path $temporaryCodexHome 'config.toml'
     $installedConfig = Get-Content -LiteralPath $installedConfigPath -Raw
@@ -297,6 +433,15 @@ $temporaryCodexHome = Join-Path $temporaryRoot 'codex-home'
 
 try {
     $conversionDataBaseRelativePath = 'conversion\' + [string][char]0x041A + [string][char]0x0414
+    $managedIndexRelativePaths = @(
+        'adapter\adapter',
+        'adapter\base',
+        'adapter\examples',
+        'conversion\KFK',
+        $conversionDataBaseRelativePath,
+        'tests\unit\unit',
+        'tests\unit\yaxunit'
+    )
     New-Item -ItemType Directory -Path (Split-Path -Parent $portablePackage) -Force | Out-Null
     Copy-Item -LiteralPath $sourcePackage -Destination $portablePackage -Recurse -Force
     foreach ($relativePath in @(
@@ -311,6 +456,15 @@ try {
         'tests\unit\yaxunit'
     )) {
         New-Item -ItemType Directory -Path (Join-Path $temporaryRoot $relativePath) -Force | Out-Null
+    }
+    foreach ($relativePath in $managedIndexRelativePaths) {
+        $oldIndexRoot = Join-Path (Join-Path $temporaryRoot $relativePath) '.code-index'
+        New-Item -ItemType Directory -Path $oldIndexRoot -Force | Out-Null
+        [System.IO.File]::WriteAllText(
+            (Join-Path $oldIndexRoot 'old-index.marker'),
+            'old index',
+            [System.Text.Encoding]::ASCII
+        )
     }
 
     $fakeNode = Join-Path $temporaryRoot 'node.cmd'
@@ -364,6 +518,27 @@ try {
     }
     if ($output -notmatch 'Daemon startup was skipped by request') {
         throw 'Setup did not report the explicitly skipped daemon startup.'
+    }
+    foreach ($relativePath in $managedIndexRelativePaths) {
+        $oldIndexRoot = Join-Path (Join-Path $temporaryRoot $relativePath) '.code-index'
+        if (Test-Path -LiteralPath $oldIndexRoot) {
+            throw "Setup did not remove managed code-index data '$oldIndexRoot'."
+        }
+    }
+    foreach ($expectedOutput in @(
+        '==> 1/6. Checking workspace layout and installation destinations',
+        '==> 2/6. Checking Node.js and Java',
+        '==> 3/6. Preparing bsl-indexer and BSL Language Server',
+        '==> 4/6. Installing Codex configuration, policy, hooks, and skills',
+        '==> 5/6. Rebuilding Kafka code-index data and waiting for registered paths',
+        '[OK] Node.js 18.20.0 is ready.',
+        'Old Kafka indexes removed: 7 of 7 managed paths',
+        '[WARNING] Daemon startup and MCP readiness were skipped (-SkipDaemonStart).',
+        'RESULT: installation completed successfully.'
+    )) {
+        if (-not $output.Contains($expectedOutput)) {
+            throw "Setup did not report expected progress '$expectedOutput': $output"
+        }
     }
 
     $secondOutput = @(& $portableInstaller `

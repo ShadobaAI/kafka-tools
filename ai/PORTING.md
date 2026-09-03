@@ -290,16 +290,19 @@ Guard — дополнительный enforcement, а не источник б�
    aliases и MCP launchers;
 8. проверить общий daemon в `CODE_INDEX_HOME`; если он запущен, остановить его
    и дождаться завершения PID до замены executable;
-9. сделать backup и установить runtime под стабильными managed-именами;
-10. запустить daemon и подтвердить реальный `GET /health` с совпадающим PID;
-11. дождаться readiness всех `[[paths]]`, зарегистрированных в итоговом
+9. удалить `.code-index` только у путей, объявленных installer-owned
+   `daemon.toml.template`; сохранённые пути других workspace не затрагивать;
+10. сделать backup и установить runtime под стабильными managed-именами;
+11. запустить daemon и подтвердить реальный `GET /health` с совпадающим PID;
+12. дождаться readiness всех `[[paths]]`, зарегистрированных в итоговом
     `%CODEX_HOME%\code-index\daemon.toml`, включая сохранённые aliases других workspace;
-12. выполнить post-install проверки stdio MCP `code-index`, BSL LS и обязательного
+13. выполнить post-install проверки stdio MCP `code-index`, BSL LS и обязательного
     `v8std`; timeout, неполный ответ или неготовый зарегистрированный проект считаются
     ошибкой установки;
-13. при ошибке замены runtime, запуска или readiness-проверки восстановить прежние runtime/daemon
-   config и перезапустить прежний daemon;
-14. сообщить о необходимости перезапуска Codex.
+14. при ошибке замены runtime, запуска или readiness-проверки восстановить прежние runtime/daemon
+   config и перезапустить прежний daemon; удалённые `.code-index` не восстанавливаются
+   и должны быть перестроены daemon;
+15. сообщить о необходимости перезапуска Codex.
 
 Daemon health не равен readiness индексов. Установка считается успешной только после
 проверки `code-index.health`: daemon должен быть `online/healthy`, endpoint — подтверждён,

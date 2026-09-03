@@ -78,6 +78,25 @@ trap {
     exit 1
 }
 
+function Write-SetupStep {
+    param([Parameter(Mandatory)][string]$Message)
+
+    Write-Output ''
+    Write-Output ("==> {0}" -f $Message)
+}
+
+function Write-SetupOk {
+    param([Parameter(Mandatory)][string]$Message)
+
+    Write-Output ("[OK] {0}" -f $Message)
+}
+
+function Write-SetupWarning {
+    param([Parameter(Mandatory)][string]$Message)
+
+    Write-Output ("[WARNING] {0}" -f $Message)
+}
+
 function Invoke-NativeCommand {
     param(
         [Parameter(Mandatory)][string]$Executable,
@@ -489,6 +508,7 @@ else {
 }
 
 $conversionDataBaseRelativePath = 'conversion\' + [string][char]0x041A + [string][char]0x0414
+$setupStepCount = if ($ConfigurationOnly) { 2 } else { 6 }
 $requiredWorkspacePaths = @(
     'adapter\adapter',
     'adapter\base',
@@ -500,6 +520,7 @@ $requiredWorkspacePaths = @(
     'tests\unit\unit',
     'tests\unit\yaxunit'
 )
+Write-SetupStep "1/$setupStepCount. Checking workspace layout and installation destinations"
 if (-not (Test-Path -LiteralPath $WorkspaceRoot -PathType Container)) {
     throw "Workspace root does not exist: '$WorkspaceRoot'."
 }
@@ -509,10 +530,13 @@ foreach ($relativePath in $requiredWorkspacePaths) {
         throw "Required workspace path is missing: '$workspacePath'. Create the complete Kafka workspace structure before setup."
     }
 }
+Write-SetupOk "Kafka workspace is complete: $WorkspaceRoot"
+Write-SetupOk "Codex home is ready for installation: $CodexHome"
 
 $downloadRoot = $null
 try {
 if (-not $ConfigurationOnly) {
+    Write-SetupStep '2/6. Checking Node.js and Java'
     $node = Resolve-NodePath -RequestedPath $NodePath
     $nodeVersion = Assert-MinimumVersion -Executable $node -MinimumVersion ([version]'18.0.0') -Description 'Node.js'
     $java = Resolve-CommandPath -RequestedPath $JavaPath -CommandName 'java' -Description 'Java executable'
@@ -521,7 +545,10 @@ if (-not $ConfigurationOnly) {
     if ($javaResult.ExitCode -ne 0) {
         throw "Java runtime check failed for '$java': $javaOutput"
     }
+    Write-SetupOk "Node.js $nodeVersion is ready."
+    Write-SetupOk 'Java is ready.'
 
+    Write-SetupStep '3/6. Preparing bsl-indexer and BSL Language Server'
     $managedIndexer = Join-Path $CodexHome 'code-index\bsl-indexer.exe'
     $managedJar = Join-Path $CodexHome 'bsl-ls\bsl-language-server-exec.jar'
     $bundledRuntimeRoot = Join-Path $ToolkitRoot 'runtime\windows'
@@ -556,7 +583,7 @@ if (-not $ConfigurationOnly) {
                     -VersionPattern '(?i)\b(?:bsl-indexer|code-index)\s+(?<version>\d+\.\d+\.\d+(?:-[0-9a-z]+(?:\.[0-9a-z]+)*)?)'
             }
             catch {
-                Write-Warning "Bundled bsl-indexer could not be versioned and will be replaced: $($_.Exception.Message)"
+                Write-SetupWarning "Bundled bsl-indexer could not be versioned and will be replaced: $($_.Exception.Message)"
             }
         }
         if (-not (Test-RuntimeUpdateRequired `
@@ -595,6 +622,7 @@ if (-not $ConfigurationOnly) {
         }
     }
     $indexerVersion = Assert-MinimumVersion -Executable $indexer -MinimumVersion ([version]'0.69.0') -Description 'bsl-indexer'
+    Write-SetupOk "bsl-indexer $indexerVersion is ready."
 
     if (-not [string]::IsNullOrWhiteSpace($BslLanguageServerJar)) {
         $jar = Resolve-ExistingFile -Path $BslLanguageServerJar -Description 'BSL Language Server executable JAR'
@@ -616,7 +644,7 @@ if (-not $ConfigurationOnly) {
                     -VersionPattern '(?i)\bversion\s*:\s*(?<version>\d+\.\d+\.\d+)'
             }
             catch {
-                Write-Warning "Bundled BSL Language Server could not be versioned and will be replaced: $($_.Exception.Message)"
+                Write-SetupWarning "Bundled BSL Language Server could not be versioned and will be replaced: $($_.Exception.Message)"
             }
         }
         if (-not (Test-RuntimeUpdateRequired `
@@ -657,8 +685,11 @@ if (-not $ConfigurationOnly) {
     if ([System.IO.Path]::GetExtension($jar) -ne '.jar' -or (Get-Item -LiteralPath $jar).Length -eq 0) {
         throw "BSL Language Server artifact is not a non-empty JAR file: '$jar'."
     }
+    Write-SetupOk 'BSL Language Server is ready.'
 }
 
+$configurationStepNumber = if ($ConfigurationOnly) { 2 } else { 4 }
+Write-SetupStep "$configurationStepNumber/$setupStepCount. Installing Codex configuration, policy, hooks, and skills"
 $ReplaceConflictingCommonMcp = $true
 $SuppressRestartNotice = $true
 $sourceRoot = $ToolkitRoot
@@ -761,12 +792,17 @@ function Get-CodeIndexPathAlias {
 
     $aliasMatch = [regex]::Match(
         $Block,
-        '(?m)^[ \t]*alias[ \t]*=[ \t]*"(?<alias>[^"]+)"[ \t]*\r?$'
+        '(?m)^[ \t]*alias[ \t]*=[ \t]*(?<value>"(?:\\.|[^"\\])*")[ \t]*\r?$'
     )
     if (-not $aliasMatch.Success) {
         throw "A code-index [[paths]] entry has no simple quoted alias: $Block"
     }
-    return $aliasMatch.Groups['alias'].Value
+    try {
+        return $aliasMatch.Groups['value'].Value | ConvertFrom-Json
+    }
+    catch {
+        throw "A code-index [[paths]] entry has an invalid quoted alias: $Block"
+    }
 }
 
 function Get-CodeIndexConfiguredPaths {
@@ -776,20 +812,82 @@ function Get-CodeIndexConfiguredPaths {
     $entries = foreach ($pathBlock in Get-CodeIndexPathBlocks -Content $content) {
         $pathMatch = [regex]::Match(
             $pathBlock.Value,
-            '(?m)^[ \t]*path[ \t]*=[ \t]*"(?<path>[^"]+)"[ \t]*\r?$'
+            '(?m)^[ \t]*path[ \t]*=[ \t]*(?<value>"(?:\\.|[^"\\])*")[ \t]*\r?$'
         )
         if (-not $pathMatch.Success) {
             throw "A code-index [[paths]] entry has no simple quoted path: $($pathBlock.Value)"
         }
+        try {
+            $configuredPath = $pathMatch.Groups['value'].Value | ConvertFrom-Json
+        }
+        catch {
+            throw "A code-index [[paths]] entry has an invalid quoted path: $($pathBlock.Value)"
+        }
+        $configuredAlias = Get-CodeIndexPathAlias -Block $pathBlock.Value
+        try {
+            $fullConfiguredPath = [System.IO.Path]::GetFullPath($configuredPath.Replace('/', '\'))
+        }
+        catch {
+            throw "Code-index path '$configuredAlias' is not a valid filesystem path: $($_.Exception.Message)"
+        }
         [pscustomobject]@{
-            Alias = Get-CodeIndexPathAlias -Block $pathBlock.Value
-            Path = [System.IO.Path]::GetFullPath($pathMatch.Groups['path'].Value.Replace('/', '\'))
+            Alias = $configuredAlias
+            Path = $fullConfiguredPath
         }
     }
     if (@($entries).Count -eq 0) {
         throw "Code-index configuration has no registered paths: '$ConfigPath'."
     }
     return @($entries)
+}
+
+function Remove-ManagedCodeIndexDirectories {
+    param(
+        [Parameter(Mandatory)][string]$ConfigPath,
+        [Parameter(Mandatory)][hashtable]$ManagedAliases,
+        [Parameter(Mandatory)][string]$WorkspaceRoot
+    )
+
+    $workspacePath = [System.IO.Path]::GetFullPath($WorkspaceRoot).TrimEnd('\')
+    $workspacePrefix = $workspacePath + '\'
+    $managedEntries = @(Get-CodeIndexConfiguredPaths -ConfigPath $ConfigPath | Where-Object {
+        $ManagedAliases.ContainsKey($_.Alias)
+    })
+    if ($managedEntries.Count -ne $ManagedAliases.Count) {
+        throw "Code-index cleanup resolved $($managedEntries.Count) managed paths; expected $($ManagedAliases.Count)."
+    }
+
+    $removed = @()
+    foreach ($entry in $managedEntries) {
+        $projectRoot = [System.IO.Path]::GetFullPath($entry.Path).TrimEnd('\')
+        if (-not $projectRoot.StartsWith($workspacePrefix, [System.StringComparison]::OrdinalIgnoreCase)) {
+            throw "Refusing to clean code-index alias '$($entry.Alias)' outside the Kafka workspace."
+        }
+        $target = [System.IO.Path]::GetFullPath((Join-Path $projectRoot '.code-index')).TrimEnd('\')
+        if (
+            -not (Split-Path -Parent $target).Equals($projectRoot, [System.StringComparison]::OrdinalIgnoreCase) -or
+            -not (Split-Path -Leaf $target).Equals('.code-index', [System.StringComparison]::OrdinalIgnoreCase)
+        ) {
+            throw "Refusing to remove an unsafe code-index path for alias '$($entry.Alias)'."
+        }
+        $targetItem = Get-Item -LiteralPath $target -Force -ErrorAction SilentlyContinue
+        if ($null -eq $targetItem) {
+            continue
+        }
+        if (
+            -not $targetItem.PSIsContainer -or
+            ($targetItem.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0
+        ) {
+            throw "Refusing to remove code-index alias '$($entry.Alias)': its .code-index target is not a regular directory."
+        }
+        Remove-Item -LiteralPath $target -Recurse -Force
+        $removed += [pscustomobject]@{ Alias = $entry.Alias; Path = $target }
+    }
+
+    return [pscustomobject]@{
+        RegisteredCount = $managedEntries.Count
+        Removed = @($removed)
+    }
 }
 
 function ConvertTo-NativeArgumentString {
@@ -945,14 +1043,17 @@ function Get-DaemonProbeFromOutput {
     throw "$Description did not return a readable daemon status: $($CommandResult.Output -join ' ')"
 }
 
-function ConvertTo-ComparablePath {
-    param([Parameter(Mandatory)][string]$Path)
+function Get-CodeIndexDaemonPathStatus {
+    param(
+        [Parameter(Mandatory)][string]$Endpoint,
+        [Parameter(Mandatory)][string]$Path
+    )
 
-    $value = $Path
-    if ($value.StartsWith('\\?\', [System.StringComparison]::Ordinal)) {
-        $value = $value.Substring(4)
-    }
-    return [System.IO.Path]::GetFullPath($value).TrimEnd('\')
+    $encodedPath = [System.Uri]::EscapeDataString($Path)
+    return Invoke-RestMethod `
+        -Method Get `
+        -Uri "$Endpoint/path-status?path=$encodedPath" `
+        -TimeoutSec 5
 }
 
 function Wait-CodeIndexReady {
@@ -973,16 +1074,21 @@ function Wait-CodeIndexReady {
         if ($probe.status -ne 'online' -or $null -eq $probe.health) {
             throw "Code-index daemon is not healthy: $($probe.status): $($probe.error)"
         }
+        if ([string]::IsNullOrWhiteSpace([string]$probe.endpoint)) {
+            throw 'Code-index daemon status did not include its HTTP endpoint.'
+        }
         $states = foreach ($entry in $expected) {
-            $expectedPath = ConvertTo-ComparablePath -Path $entry.Path
-            $pathState = @($probe.health.paths | Where-Object {
-                (ConvertTo-ComparablePath -Path ([string]$_.path)).Equals($expectedPath, [System.StringComparison]::OrdinalIgnoreCase)
-            }) | Select-Object -First 1
-            if ($null -eq $pathState) {
-                [pscustomobject]@{ Alias = $entry.Alias; Path = $entry.Path; Status = 'not reported'; Error = $null }
+            try {
+                $pathState = Get-CodeIndexDaemonPathStatus -Endpoint ([string]$probe.endpoint) -Path $entry.Path
             }
-            else {
-                [pscustomobject]@{ Alias = $entry.Alias; Path = $entry.Path; Status = ([string]$pathState.status).ToLowerInvariant(); Error = $pathState.error }
+            catch {
+                throw "Code-index daemon did not return status for path '$($entry.Alias)': $($_.Exception.Message)"
+            }
+            [pscustomobject]@{
+                Alias = $entry.Alias
+                Path = $entry.Path
+                Status = ([string]$pathState.status).ToLowerInvariant()
+                Error = $pathState.error
             }
         }
         $failed = @($states | Where-Object { $_.Status -in @('error', 'stale', 'incomplete', 'degraded') })
@@ -1326,19 +1432,24 @@ else {
     Copy-Item -LiteralPath $sourceAgents -Destination $targetWorkspaceAgents -Force
 }
 
-Write-Output "Installed Codex workspace policy into '$CodexHome'."
+Write-SetupOk "Codex workspace policy is installed in '$CodexHome'."
 if ($backupCreated) {
-    Write-Output "Previous managed files were backed up to '$backupRoot'."
+    Write-SetupOk "Previous managed files were backed up to '$backupRoot'."
 }
 if (-not $SuppressRestartNotice) {
     Write-Output 'Restart Codex so MCP configuration, hooks, skills, and AGENTS instructions are reloaded.'
 }
 
 if ($ConfigurationOnly) {
-    Write-Output 'Configuration-only setup complete. MCP readiness was not checked. Restart Codex to reload managed configuration.'
+    Write-Output ''
+    Write-Output 'RESULT: configuration-only setup completed successfully.'
+    Write-Output '  - Codex configuration, policy, hooks, and skills: ready'
+    Write-Output '  - Runtime and MCP readiness: not checked (-ConfigurationOnly)'
+    Write-Output 'Restart Codex to reload managed configuration.'
     return
 }
 
+Write-SetupStep '5/6. Rebuilding Kafka code-index data and waiting for registered paths'
 $codeIndexHome = Join-Path $CodexHome 'code-index'
 $daemonLauncher = Join-Path $ToolkitRoot 'mcp\code-index-daemon.ps1'
 $daemonControlIndexer = if (Test-Path -LiteralPath $managedIndexer -PathType Leaf) {
@@ -1374,7 +1485,7 @@ if ($preUpdateAction -eq 'stop') {
         throw "Managed code-index daemon could not be stopped before setup: $($daemonStop.Output -join ' ')"
     }
     $daemonWasStopped = $true
-    Write-Output 'Stopped the existing managed code-index daemon before applying runtime/configuration updates.'
+    Write-SetupOk 'Stopped the existing managed code-index daemon before applying runtime/configuration updates.'
 }
 
 $runtimeBackupId = '{0}-{1}' -f (Get-Date -Format 'yyyyMMdd-HHmmss-fff'), [guid]::NewGuid().ToString('N')
@@ -1387,7 +1498,22 @@ $daemonStartedBySetup = $false
 $readyIndexCount = 0
 $codeIndexToolCount = 0
 $bslLsToolCount = 0
+$removedIndexCount = 0
+$managedIndexCount = 0
 try {
+    $indexCleanup = Remove-ManagedCodeIndexDirectories `
+        -ConfigPath $targetCodeIndexConfig `
+        -ManagedAliases $managedAliases `
+        -WorkspaceRoot $WorkspaceRoot
+    $managedIndexCount = $indexCleanup.RegisteredCount
+    $removedIndexCount = @($indexCleanup.Removed).Count
+    foreach ($removedIndex in @($indexCleanup.Removed)) {
+        Write-SetupOk "Removed old code-index data for alias '$($removedIndex.Alias)': $($removedIndex.Path)"
+    }
+    if ($removedIndexCount -eq 0) {
+        Write-SetupOk "No old Kafka .code-index directories were found ($managedIndexCount paths checked)."
+    }
+
     $indexerInstalled = Install-ManagedFile -Source $indexer -Destination $managedIndexer -BackupRoot $runtimeBackup
     $jarInstalled = Install-ManagedFile -Source $jar -Destination $managedJar -BackupRoot $runtimeBackup
 
@@ -1404,15 +1530,16 @@ try {
         }
         $daemonStartedBySetup = $true
 
-        Write-Output "Waiting up to $IndexReadyTimeoutSeconds seconds for every path registered in '$targetCodeIndexConfig'."
+        Write-Output "    Waiting up to $IndexReadyTimeoutSeconds seconds for every registered code-index path..."
         $readyIndexCount = Wait-CodeIndexReady `
             -Launcher $daemonLauncher `
             -RuntimeHome $codeIndexHome `
             -Indexer $managedIndexer `
             -ConfigPath $targetCodeIndexConfig `
             -TimeoutSeconds $IndexReadyTimeoutSeconds
-        Write-Output "All registered code-index paths are ready: $readyIndexCount."
+        Write-SetupOk "All registered code-index paths are ready: $readyIndexCount."
 
+        Write-SetupStep '6/6. Checking required MCP servers'
         $codeIndexToolCount = Test-StdioMcpServer `
             -Executable (Join-Path $PSHOME 'powershell.exe') `
             -ArgumentList @(
@@ -1427,7 +1554,7 @@ try {
             -Description 'code-index MCP' `
             -RequiredTools @('health', 'get_function', 'get_object_structure') `
             -TimeoutSeconds $McpReadyTimeoutSeconds
-        Write-Output "code-index MCP is ready ($codeIndexToolCount tools)."
+        Write-SetupOk "code-index MCP is ready ($codeIndexToolCount tools)."
 
         $adapterRoot = Join-Path $WorkspaceRoot 'adapter\adapter'
         $bslLsProxy = Join-Path $adapterRoot '.codex\mcp\bsl-ls-proxy.mjs'
@@ -1450,19 +1577,21 @@ try {
             -Description 'BSL LS MCP' `
             -RequiredTools @('analyze_file', 'document_symbols') `
             -TimeoutSeconds $McpReadyTimeoutSeconds
-        Write-Output "BSL LS MCP is ready ($bslLsToolCount tools)."
+        Write-SetupOk "BSL LS MCP is ready ($bslLsToolCount tools)."
 
         $v8stdUrl = Get-McpServerUrl -ConfigPath $targetConfig -ServerName 'v8std'
         Wait-HttpMcpServer -Uri $v8stdUrl -Description 'v8std MCP' -TimeoutSeconds $McpReadyTimeoutSeconds
-        Write-Output 'v8std MCP is ready.'
+        Write-SetupOk 'v8std MCP is ready.'
     }
     else {
-        Write-Output 'MCP readiness was not checked because daemon startup was skipped (-SkipDaemonStart).'
+        Write-SetupWarning 'Daemon startup and MCP readiness were skipped (-SkipDaemonStart).'
     }
 }
 catch {
     $setupFailure = $_.Exception.Message
     $rollbackErrors = @()
+    Write-Output ''
+    Write-Output '[ROLLBACK] Restoring the previous runtime and shared code-index configuration.'
     if ($daemonStartedBySetup) {
         try {
             $daemonStop = Invoke-ManagedDaemon `
@@ -1534,17 +1663,25 @@ catch {
     if ($rollbackErrors.Count -gt 0) {
         throw "Setup failed: $setupFailure Rollback errors: $($rollbackErrors -join ' | ')"
     }
+    Write-Output '[ROLLBACK] Previous runtime and shared configuration were restored successfully.'
+    if ($removedIndexCount -gt 0) {
+        throw "Setup failed; runtime/configuration were restored, but $removedIndexCount removed Kafka indexes must be rebuilt: $setupFailure"
+    }
     throw "Setup failed; previous runtime state was restored: $setupFailure"
 }
 
-Write-Output "Setup complete: Node.js $nodeVersion, bsl-indexer $indexerVersion, Java available."
-Write-Output "Managed bsl-indexer: '$managedIndexer' (updated: $indexerInstalled)."
-Write-Output "Managed BSL LS JAR: '$managedJar' (updated: $jarInstalled)."
+Write-Output ''
+Write-Output 'RESULT: installation completed successfully.'
+Write-Output "  - Setup complete: Node.js $nodeVersion, bsl-indexer $indexerVersion, Java available"
+Write-Output "  - Codex configuration, policy, hooks, and skills: ready"
+Write-Output "  - Managed bsl-indexer: '$managedIndexer' (updated: $indexerInstalled)"
+Write-Output "  - Managed BSL LS JAR: '$managedJar' (updated: $jarInstalled)"
+Write-Output "  - Old Kafka indexes removed: $removedIndexCount of $managedIndexCount managed paths"
 if ($SkipDaemonStart) {
-    Write-Output 'Daemon startup was skipped by request.'
+    Write-Output '  - Daemon startup was skipped by request; MCP readiness was not checked'
 }
 else {
-    Write-Output "Readiness confirmed: $readyIndexCount code-index paths, $codeIndexToolCount code-index tools, $bslLsToolCount BSL LS tools, v8std available."
+    Write-Output "  - Readiness confirmed: $readyIndexCount code-index paths, $codeIndexToolCount code-index tools, $bslLsToolCount BSL LS tools, v8std available"
 }
 Write-Output 'Restart Codex and open the required repository as the project root.'
 }
