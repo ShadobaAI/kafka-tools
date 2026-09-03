@@ -294,6 +294,21 @@ Daemon health не равен readiness индексов. На чистой ус
 Итоговая operational-проверка выполняется через `code-index.health`: daemon должен быть
 `online/healthy`, endpoint — подтверждён, каждый ожидаемый alias — `ready`.
 
+Managed proxy применяет тот же gate автоматически перед первым corpus-запросом,
+кеширует подтверждённую readiness на MCP-сессию и инвалидирует её после upstream error.
+Неготовый или неизвестный alias блокируется до отправки запроса в `bsl-indexer`.
+
+### P2: место реализации
+
+| Пункт | Категория | Статус и фактическая реализация |
+|---|---|---|
+| Batch API `code-index` | `kafka-tools`: orchestration/proxy; upstream `code-index` только при доказанном пробеле | Реализовать локальной композицией существующих `get_function.names`, `get_class.names`, `get_object_structure.full_names` и `name_like` + `meta_type`; BSL-граф уже расширен proxy-инструментами. `list_test_modules`, `get_module_outline`, `get_methods`, `read_functions`, `find_test_owner`, `find_existing_tests_for_object`, `find_project_conventions`, `get_related_symbols` не требуют нового upstream API, пока их контракт надёжно составляется из этих структурных операций. |
+| Method-level EDT mutation | внешний EDT MCP | Нужны native `replace_method`, `insert_method`, `delete_method`, `replace_region`, `insert_region` или `replace_module_fragment` с синтаксическим selector. Локальная текстовая хирургия над целым модулем не владеет EDT-моделью и не обеспечивает корректный selector contract. |
+| Optimistic concurrency | локальный adapter/orchestration; внешний EDT MCP только для недостающего atomic CAS | Orchestration сохраняет hash/version из live source read и передаёт его в mutation, если tool guide показывает expected-token parameter. Повторное live-чтение непосредственно перед записью реализуемо локально, но без atomic compare-and-write остаётся race; тогда EDT writer должен принять `expected_source_hash`/version и атомарно отклонить конфликт. |
+| Компактные API `v8std` | наш репозиторий `ShadobaAI/v8std` | Реализовано: добавлены `v8std_get_summary`, `v8std_get_section`, `v8std_get_pattern`, `v8std_get_api_card`, `v8std_get_related_ids`, `v8std_get_requirements_for_context`, bounded responses, collection filters, MCP tests и документация. Tools включены в managed allowlist; endpoint должен быть собран из версии `v8std` с этими изменениями. |
+| State machine YaXUnit | `kafka-tools`: policy/orchestration | Реализована project policy поверх `yaxunit` corpus и точной EDT signature: receiver states `module -> test set -> test`, без нового native EDT API. Детальная синхронизация существующих skills оставлена владельцу skills. |
+| Экономия calls/context | `kafka-tools`: policy/orchestration/proxy | Реализованы evidence ledger, early stop, structured-first routing, conditional batching и readiness cache proxy. Upstream изменение нужно только после измерения конкретного неустранимого round-trip или избыточного payload. |
+
 ### Шаг 9. Обеспечить идемпотентность
 
 Повторный запуск не должен:

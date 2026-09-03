@@ -9,5 +9,14 @@
     "tests/unit/examples",
     "tests/unit/unit",
     "tests/unit/yaxunit"
-  ]
+  ],
+  "codeIndexAliases": {
+    "kfk": "adapter/adapter",
+    "kfk-base": "adapter/base",
+    "kfk-examples": "adapter/examples",
+    "kfk-conv": "conversion/KFK",
+    "kfk-conv-kd": "conversion/КД",
+    "kfk-unit": "tests/unit/unit",
+    "kfk-yaxunit": "tests/unit/yaxunit"
+  }
 }

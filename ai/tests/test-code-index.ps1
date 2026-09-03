@@ -199,28 +199,45 @@ param()
 
 $ErrorActionPreference = 'Stop'
 $proxy = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\mcp\code-index-proxy.mjs'))
-$node = (Get-Command 'node' -CommandType Application -ErrorAction Stop).Source
+$node = @(Get-Command 'node' -CommandType Application -ErrorAction Stop)[0].Source
 $temporaryRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("code-index-proxy-" + [guid]::NewGuid().ToString('N'))
 
 try {
     New-Item -ItemType Directory -Path $temporaryRoot -Force | Out-Null
     $daemonConfig = Join-Path $temporaryRoot 'daemon.toml'
+    $readyPath = $temporaryRoot.Replace('\', '/')
+    $missingPath = (Join-Path $temporaryRoot 'missing').Replace('\', '/')
     [System.IO.File]::WriteAllText(
         $daemonConfig,
-        "[daemon]`r`nhttp_port = 0`r`n",
+        "[daemon]`r`nhttp_port = 0`r`n`r`n[[paths]]`r`nalias = `"kfk`"`r`npath = `"$readyPath`"`r`nlanguage = `"bsl`"`r`n`r`n[[paths]]`r`nalias = `"kfk-broken`"`r`npath = `"$missingPath`"`r`nlanguage = `"bsl`"`r`n",
         [System.Text.UTF8Encoding]::new($false)
     )
 
     $fakeServer = Join-Path $temporaryRoot 'fake-code-index.mjs'
     $fakeServerSource = @'
+import fs from "node:fs";
+import http from "node:http";
+import path from "node:path";
 import readline from "node:readline";
 
 function write(message) {
   process.stdout.write(`${JSON.stringify(message)}\n`);
 }
 
-const input = readline.createInterface({ input: process.stdin, crlfDelay: Infinity });
-input.on("line", (line) => {
+const configIndex = process.argv.indexOf("--config");
+const configPath = process.argv[configIndex + 1];
+const rootPath = path.dirname(configPath);
+const healthServer = http.createServer((request, response) => {
+  response.setHeader("content-type", "application/json");
+  response.end(JSON.stringify({ status: "running", pid: process.pid, version: "fake", paths: [{ path: rootPath, status: "ready" }] }));
+});
+
+healthServer.listen(0, "127.0.0.1", () => {
+  const address = healthServer.address();
+  fs.writeFileSync(path.join(rootPath, "daemon.json"), JSON.stringify({ pid: process.pid, version: "fake", http_host: "127.0.0.1", http_port: address.port, started_at: "test" }));
+  const input = readline.createInterface({ input: process.stdin, crlfDelay: Infinity });
+  input.on("close", () => healthServer.close());
+  input.on("line", (line) => {
   const message = JSON.parse(line);
   if (message.method === "initialize") {
     write({ jsonrpc: "2.0", id: message.id, result: { protocolVersion: "2025-03-26", capabilities: { tools: {} }, serverInfo: { name: "fake", version: "1" } } });
@@ -265,6 +282,7 @@ input.on("line", (line) => {
   }
   const payload = { columns, rows, row_count: rows.length, truncated: false, limit: message.params.arguments.limit };
   write({ jsonrpc: "2.0", id: message.id, result: { content: [{ type: "text", text: JSON.stringify(payload) }], isError: false } });
+  });
 });
 '@
     [System.IO.File]::WriteAllText($fakeServer, $fakeServerSource, [System.Text.UTF8Encoding]::new($false))
@@ -294,21 +312,25 @@ input.on("line", (line) => {
 
     $startProcedure = [System.Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('0KHRgtCw0YDRgg=='))
     $runThreadsProcedure = [System.Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('0JfQsNC/0YPRgdGC0LjRgtGM0J/QvtGC0L7QutC4'))
+    $initializeRequest = @{ jsonrpc = '2.0'; id = 0; method = 'initialize'; params = @{} }
+    $process.StandardInput.WriteLine(($initializeRequest | ConvertTo-Json -Depth 8 -Compress))
+    $initializeResponse = $process.StandardOutput.ReadLine()
     $requests = @(
-        @{ jsonrpc = '2.0'; id = 0; method = 'initialize'; params = @{} },
         @{ jsonrpc = '2.0'; id = 1; method = 'tools/list'; params = @{} },
+        @{ jsonrpc = '2.0'; id = 6; method = 'tools/call'; params = @{ name = 'health'; arguments = @{} } },
         @{ jsonrpc = '2.0'; id = 2; method = 'tools/call'; params = @{ name = 'get_callers_bsl'; arguments = @{ repo = 'kfk'; procedure = $runThreadsProcedure } } },
         @{ jsonrpc = '2.0'; id = 3; method = 'tools/call'; params = @{ name = 'get_callees_bsl'; arguments = @{ repo = 'kfk'; procedure = "CommonModules/A/Ext/Module.bsl::$startProcedure" } } },
         @{ jsonrpc = '2.0'; id = 4; method = 'tools/call'; params = @{ name = 'get_call_tree_bsl'; arguments = @{ repo = 'kfk'; procedure = $startProcedure; direction = 'callees'; max_depth = 2 } } },
         @{ jsonrpc = '2.0'; id = 5; method = 'tools/call'; params = @{ name = 'get_callers_bsl'; arguments = @{ procedure = $runThreadsProcedure } } },
-        @{ jsonrpc = '2.0'; id = 6; method = 'tools/call'; params = @{ name = 'health'; arguments = @{} } }
+        @{ jsonrpc = '2.0'; id = 7; method = 'tools/call'; params = @{ name = 'get_callers_bsl'; arguments = @{ repo = 'kfk-broken'; procedure = $runThreadsProcedure } } },
+        @{ jsonrpc = '2.0'; id = 8; method = 'tools/call'; params = @{ name = 'get_callers_bsl'; arguments = @{ repo = 'foreign'; procedure = $runThreadsProcedure } } }
     )
     foreach ($request in $requests) {
         $process.StandardInput.WriteLine(($request | ConvertTo-Json -Depth 8 -Compress))
     }
     $process.StandardInput.Close()
 
-    $stdout = $process.StandardOutput.ReadToEnd()
+    $stdout = $initializeResponse + [Environment]::NewLine + $process.StandardOutput.ReadToEnd()
     $stderr = $process.StandardError.ReadToEnd()
     $process.WaitForExit(15000) | Out-Null
     if (-not $process.HasExited) {
@@ -370,14 +392,22 @@ input.on("line", (line) => {
 
     $health = ($responses[6].result.content[0].text | ConvertFrom-Json)
     if (
-        $health.daemon.status -ne 'offline' -or
-        $health.daemon.state -ne 'runtime_info_missing' -or
-        $health.daemon.endpoint_verified -ne $false
+        $health.mcp.status -ne 'ok' -or
+        $health.daemon.status -ne 'online' -or
+        $health.daemon.state -ne 'healthy' -or
+        $health.daemon.endpoint_verified -ne $true -or
+        ($health.repos | Where-Object { $_.repo -eq 'kfk' }).path_status.status -ne 'ready'
     ) {
-        throw 'Managed health trusted an upstream online status without a live daemon endpoint.'
+        throw 'Managed health did not verify the live daemon and ready repository path.'
+    }
+    if ($responses[7].error.message -notmatch "repo 'kfk-broken'.*path status is 'unknown'.*No corpus-dependent request") {
+        throw 'Proxy did not fail closed for a configured repository path that is not ready.'
+    }
+    if ($responses[8].error.message -notmatch "repo 'foreign'.*alias is not configured.*No corpus-dependent request") {
+        throw 'Proxy did not fail closed for an unknown repository alias.'
     }
 
-    Write-Output 'code-index-proxy: health, writer coverage, callers, callees, tree, and validation passed'
+    Write-Output 'code-index-proxy: readiness gate, health, writer coverage, callers, callees, tree, and validation passed'
 }
 finally {
     if (Test-Path -LiteralPath $temporaryRoot) {
@@ -392,7 +422,7 @@ param()
 
 $ErrorActionPreference = 'Stop'
 $proxy = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\mcp\code-index-proxy.mjs'))
-$node = (Get-Command 'node' -CommandType Application -ErrorAction Stop).Source
+$node = @(Get-Command 'node' -CommandType Application -ErrorAction Stop)[0].Source
 $temporaryRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("code-index-proxy-lifecycle-" + [guid]::NewGuid().ToString('N'))
 $process = $null
 
@@ -456,4 +486,3 @@ Invoke-CodeIndexDaemonTest
 Invoke-CodeIndexLauncherTest
 Invoke-CodeIndexProxyTest
 Invoke-CodeIndexProxyLifecycleTest
-

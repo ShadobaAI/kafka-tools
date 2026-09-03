@@ -36,7 +36,7 @@
 | `ai/.codex/skills/bsl-ls-mcp/` | Focused BSL diagnostics и semantic navigation |
 | `ai/hooks/guard-1c-routing.ps1` | PreToolUse guard для MCP allowlists и прямого доступа к `src/**` |
 | `ai/mcp/code-index-mcp.ps1` | Fail-fast запуск federated read-only `bsl-indexer serve` через managed proxy |
-| `ai/mcp/code-index-proxy.mjs` | Read-only BSL callers/callees/tree, проверка реального daemon health и уточнение coverage инструментов |
+| `ai/mcp/code-index-proxy.mjs` | Read-only BSL callers/callees/tree, fail-closed readiness gate для каждого alias, проверка реального daemon health и уточнение coverage инструментов |
 | `ai/mcp/code-index-daemon.ps1` | Управляемый Windows-запуск единого daemon `bsl-indexer` с проверкой PID и HTTP health |
 | `ai/code-index/daemon.toml.template` | Канонические aliases и paths общего индекса |
 | `ai/workspace-policy.json` | Относительные пути 1С-репозиториев, защищаемых hook |
@@ -129,7 +129,7 @@ Code-index routing:
 
 Дополнительно `adapter/adapter` использует repository-owned `bsl-ls` через `.codex/mcp/bsl-ls-proxy.mjs`. Standards, diagnostic codes и snippets маршрутизируются в `v8std`; по умолчанию `https://ai.v8std.ru/mcp`.
 
-Для полной 1С-surface требуются Node.js 18+, Java, Windows-сборка `bsl-indexer.exe` версии `0.69.0` или новее (не публичный npm-бинарник `code-index`) и executable JAR BSL LS. Bootstrap устанавливает оба артефакта в managed-каталоги `%CODEX_HOME%`. Один `CODE_INDEX_HOME` и daemon обслуживают все зарегистрированные workspace; coordination/log runtime хранится там, а индексы — в исключённых из Git `.code-index/` каталогах repository roots. Managed proxy добавляет `get_callers_bsl`, `get_callees_bsl` и `get_call_tree_bsl`; имена процедур ищутся регистронезависимо для латиницы и кириллицы, а coverage относится только к статическому графу. `get_register_writers` показывает только декларативные связи `RegisterRecords`, а не программную запись через `RecordSet`/`RecordManager`.
+Для полной 1С-surface требуются Node.js 18+, Java, Windows-сборка `bsl-indexer.exe` версии `0.69.0` или новее (не публичный npm-бинарник `code-index`) и executable JAR BSL LS. Bootstrap устанавливает оба артефакта в managed-каталоги `%CODEX_HOME%`. Один `CODE_INDEX_HOME` и daemon обслуживают все зарегистрированные workspace; coordination/log runtime хранится там, а индексы — в исключённых из Git `.code-index/` каталогах repository roots. Managed proxy перед первым corpus-запросом автоматически подтверждает живой daemon и состояние `ready` точного alias, кеширует этот факт на MCP-сессию и сбрасывает кеш после upstream error. Для `degraded`, `stale`, `incomplete`, отсутствующего или неизвестного path запрос блокируется до обращения к индексу. Proxy также добавляет `get_callers_bsl`, `get_callees_bsl` и `get_call_tree_bsl`; имена процедур ищутся регистронезависимо для латиницы и кириллицы, а coverage относится только к статическому графу. `get_register_writers` показывает только декларативные связи `RegisterRecords`, а не программную запись через `RecordSet`/`RecordManager`.
 
 На Windows запускайте daemon через managed launcher. Он сериализует конкурентные старты для одного `CODE_INDEX_HOME`, отключает проблемный self-detach бинарника и создаёт процесс с `bInheritHandles=false`, поэтому daemon не удерживает stdio-pipes MCP-клиента и не падает после их закрытия. Успех возвращается только после проверки реального `GET /health`; основной журнал остаётся в `%CODEX_HOME%\code-index\daemon.log`:
 

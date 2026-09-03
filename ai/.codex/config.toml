@@ -12,7 +12,13 @@ tool_timeout_sec = 60
 enabled_tools = [
   "v8std_search",
   "v8std_get_page",
+  "v8std_get_summary",
+  "v8std_get_section",
+  "v8std_get_pattern",
+  "v8std_get_api_card",
+  "v8std_get_requirements_for_context",
   "v8std_get_related",
+  "v8std_get_related_ids",
   "v8std_explain_snippet",
   "v8std_explain_diagnostics",
 ]

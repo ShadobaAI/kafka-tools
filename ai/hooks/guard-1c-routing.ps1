@@ -109,6 +109,17 @@ catch {
     Deny-ToolCall '1C routing guard could not parse the tool request.'
 }
 
+$policyPath = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\workspace-policy.json'))
+if (-not (Test-Path -LiteralPath $policyPath -PathType Leaf)) {
+    Deny-ToolCall "1C routing policy file is missing: '$policyPath'."
+}
+try {
+    $workspacePolicy = Get-Content -LiteralPath $policyPath -Raw | ConvertFrom-Json
+}
+catch {
+    Deny-ToolCall "1C routing policy file is invalid: '$policyPath'."
+}
+
 $toolName = [string]$event.tool_name
 $allowedCodeIndexTools = @(
     'mcp__code_index__search_function',
@@ -163,6 +174,19 @@ $allowedBslLsTools = @(
 if ($toolName -like 'mcp__code_index__*' -and $toolName -notin $allowedCodeIndexTools) {
     Deny-ToolCall "code-index tool '$toolName' is outside the explicit read-only allowlist."
 }
+if ($toolName -like 'mcp__code_index__*' -and $toolName -ne 'mcp__code_index__health') {
+    $allowedAliases = @($workspacePolicy.codeIndexAliases.PSObject.Properties.Name)
+    if ($allowedAliases.Count -eq 0) {
+        Deny-ToolCall "1C routing policy has no codeIndexAliases: '$policyPath'."
+    }
+    $requestedAlias = [string]$event.tool_input.repo
+    if ([string]::IsNullOrWhiteSpace($requestedAlias)) {
+        Deny-ToolCall "code-index tool '$toolName' requires an explicit repository alias."
+    }
+    if ($requestedAlias -notin $allowedAliases) {
+        Deny-ToolCall "code-index alias '$requestedAlias' is outside the configured Kafka workspace."
+    }
+}
 
 if ($toolName -like 'mcp__bsl_ls__*' -and $toolName -notin $allowedBslLsTools) {
     Deny-ToolCall "BSL LS tool '$toolName' is outside the explicit read-only allowlist."
@@ -174,18 +198,6 @@ if ($toolName -match '^mcp__.*edt.*__(git|ask_workmate)$') {
 
 if ($toolName -notin @('Bash', 'shell', 'exec_command', 'apply_patch', 'view_image')) {
     exit 0
-}
-
-$policyPath = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\workspace-policy.json'))
-if (-not (Test-Path -LiteralPath $policyPath -PathType Leaf)) {
-    Deny-ToolCall "1C routing policy file is missing: '$policyPath'."
-}
-
-try {
-    $workspacePolicy = Get-Content -LiteralPath $policyPath -Raw | ConvertFrom-Json
-}
-catch {
-    Deny-ToolCall "1C routing policy file is invalid: '$policyPath'."
 }
 
 if ([string]::IsNullOrWhiteSpace($WorkspaceRoot)) {

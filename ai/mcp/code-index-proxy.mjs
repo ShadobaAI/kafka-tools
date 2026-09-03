@@ -484,9 +484,15 @@ async function buildManagedHealthPayload() {
         : { status: "unavailable", error: daemon.error },
   }));
 
+  const mcpReady =
+    daemon.status === "online" &&
+    daemon.state === "healthy" &&
+    daemon.endpoint_verified === true &&
+    !daemon.configuration_error;
+
   return {
     mcp: {
-      status: "ok",
+      status: mcpReady ? "ok" : "error",
       version: daemon.runtime?.version ?? daemon.health?.version ?? null,
       repos: repositories.map((repository) => repository.repo),
     },
@@ -495,8 +501,59 @@ async function buildManagedHealthPayload() {
   };
 }
 
+let readinessSnapshot;
+
+function rememberReadiness(payload) {
+  readinessSnapshot = payload;
+}
+
+function invalidateReadiness() {
+  readinessSnapshot = undefined;
+}
+
+function readinessFailure(repo, payload) {
+  const daemon = payload?.daemon;
+  if (
+    payload?.mcp?.status !== "ok" ||
+    daemon?.status !== "online" ||
+    daemon?.state !== "healthy" ||
+    daemon?.endpoint_verified !== true
+  ) {
+    const state = [daemon?.status, daemon?.state].filter(Boolean).join("/") || "unknown";
+    const detail = daemon?.configuration_error ?? daemon?.error ?? "health is not verified";
+    return `code-index readiness gate failed for repo '${repo}': daemon state is ${state}: ${detail}`;
+  }
+
+  const repository = payload.repos?.find((item) => item.repo === repo);
+  if (!repository) {
+    return `code-index readiness gate failed for repo '${repo}': alias is not configured`;
+  }
+
+  const status = String(repository.path_status?.status ?? "unknown").toLowerCase();
+  if (status !== "ready") {
+    const detail = repository.path_status?.error ?? "repository path is not ready";
+    return `code-index readiness gate failed for repo '${repo}': path status is '${status}': ${detail}`;
+  }
+
+  return undefined;
+}
+
+async function requireReadyRepository(repo) {
+  if (!repo) {
+    throw new Error("code-index corpus tools require an explicit repository alias");
+  }
+  if (!readinessSnapshot) {
+    rememberReadiness(await buildManagedHealthPayload());
+  }
+  const failure = readinessFailure(repo, readinessSnapshot);
+  if (failure) {
+    throw new Error(`${failure}. No corpus-dependent request was sent upstream.`);
+  }
+}
+
 async function writeManagedHealthResponse(id) {
   const payload = await buildManagedHealthPayload();
+  rememberReadiness(payload);
   writeJson(process.stdout, {
     jsonrpc: "2.0",
     id,
@@ -643,7 +700,7 @@ const child = spawn(
 
 child.stderr.pipe(process.stderr);
 
-function handleClientMessage(line) {
+async function handleClientMessage(line) {
   let message;
   try {
     message = JSON.parse(line);
@@ -659,9 +716,12 @@ function handleClientMessage(line) {
   if (message?.method === "tools/call") {
     if (message.params?.name === "health") {
       if (Object.hasOwn(message, "id")) {
-        writeManagedHealthResponse(message.id).catch((error) => {
+        try {
+          await writeManagedHealthResponse(message.id);
+        } catch (error) {
+          invalidateReadiness();
           writeJsonRpcError(message.id, `managed health failed: ${error.message}`);
-        });
+        }
       }
       return;
     }
@@ -682,6 +742,16 @@ function handleClientMessage(line) {
         arguments: customCall.upstreamArguments,
       };
     }
+    const repo = customCall?.upstreamArguments.repo ?? message.params?.arguments?.repo;
+    try {
+      await requireReadyRepository(typeof repo === "string" ? repo.trim() : "");
+    } catch (error) {
+      writeJsonRpcError(message.id, error.message);
+      return;
+    }
+    if (!customCall && Object.hasOwn(message, "id")) {
+      pending.set(requestKey(message.id), { toolName: "passthrough", repo });
+    }
   }
 
   writeJson(child.stdin, message);
@@ -699,13 +769,20 @@ async function handleServerMessage(line) {
     const key = requestKey(message.id);
     const context = pending.get(key);
     if (context) {
+      if (message.error || message.result?.isError === true) {
+        invalidateReadiness();
+      }
       if (context.toolName === "tools/list" && Array.isArray(message.result?.tools)) {
         const existingNames = new Set(message.result.tools.map((tool) => tool.name));
         message.result.tools.push(
           ...customTools.filter((tool) => !existingNames.has(tool.name)),
         );
         updateUpstreamToolDescriptions(message.result.tools);
-      } else if (context.toolName !== "tools/list" && message.result) {
+      } else if (
+        context.toolName !== "tools/list" &&
+        context.toolName !== "passthrough" &&
+        message.result
+      ) {
         message.result = buildCustomResult(context, message.result);
       }
       pending.delete(key);
@@ -740,7 +817,14 @@ function consumeLines(stream, handler) {
   });
 }
 
-consumeLines(process.stdin, handleClientMessage);
+let clientMessageQueue = Promise.resolve();
+consumeLines(process.stdin, (line) => {
+  clientMessageQueue = clientMessageQueue
+    .then(() => handleClientMessage(line))
+    .catch((error) => {
+      process.stderr.write(`code-index-proxy: request handling failed: ${error.message}\n`);
+    });
+});
 consumeLines(child.stdout, (line) => {
   handleServerMessage(line).catch((error) => {
     process.stderr.write(`code-index-proxy: response handling failed: ${error.message}\n`);
@@ -763,9 +847,11 @@ function stopChild(signal) {
 process.on("SIGINT", () => stopChild("SIGINT"));
 process.on("SIGTERM", () => stopChild("SIGTERM"));
 process.stdin.on("end", () => {
-  if (!child.stdin.destroyed) {
-    child.stdin.end();
-  }
+  clientMessageQueue.finally(() => {
+    if (!child.stdin.destroyed) {
+      child.stdin.end();
+    }
+  });
 });
 process.stdout.on("error", (error) => {
   if (error.code === "EPIPE") {

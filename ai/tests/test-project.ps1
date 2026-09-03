@@ -37,6 +37,7 @@ foreach ($forbiddenUnitConfig in @(
 
 $daemonTemplatePath = Join-Path $workspaceRoot 'tools\ai\code-index\daemon.toml.template'
 $daemonTemplate = Get-Content -LiteralPath $daemonTemplatePath -Raw -Encoding UTF8
+$workspacePolicy = Get-Content -LiteralPath (Join-Path $workspaceRoot 'tools\ai\workspace-policy.json') -Raw | ConvertFrom-Json
 $expectedCodeIndexPaths = [ordered]@{
     'kfk' = 'adapter/adapter'
     'kfk-base' = 'adapter/base'
@@ -52,6 +53,9 @@ foreach ($entry in $expectedCodeIndexPaths.GetEnumerator()) {
     $normalizedTemplate = $daemonTemplate.Replace("`r`n", "`n")
     if (-not $normalizedTemplate.Contains($expectedBlock)) {
         throw "Missing code-index binding '$($entry.Key)' -> '$($entry.Value)'."
+    }
+    if ([string]$workspacePolicy.codeIndexAliases.($entry.Key) -ne $entry.Value) {
+        throw "workspace-policy code-index binding '$($entry.Key)' does not match '$($entry.Value)'."
     }
 }
 $actualAliasCount = [regex]::Matches($daemonTemplate, '(?m)^alias = "').Count
@@ -148,7 +152,22 @@ Invoke-GuardCase -Name 'deny broad repository search through exec command' -Shou
 Invoke-GuardCase -Name 'allow read-only code-index' -ShouldDeny $false -Event @{
     tool_name = 'mcp__code_index__get_callers_bsl'
     cwd = $workspaceRoot
+    tool_input = @{ repo = 'kfk' }
+}
+Invoke-GuardCase -Name 'allow code-index health without alias' -ShouldDeny $false -Event @{
+    tool_name = 'mcp__code_index__health'
+    cwd = $workspaceRoot
     tool_input = @{}
+}
+Invoke-GuardCase -Name 'deny missing code-index alias' -ShouldDeny $true -Event @{
+    tool_name = 'mcp__code_index__get_function'
+    cwd = $workspaceRoot
+    tool_input = @{}
+}
+Invoke-GuardCase -Name 'deny foreign code-index alias' -ShouldDeny $true -Event @{
+    tool_name = 'mcp__code_index__get_function'
+    cwd = $workspaceRoot
+    tool_input = @{ repo = 'crm-production' }
 }
 Invoke-GuardCase -Name 'deny unknown code-index tool' -ShouldDeny $true -Event @{
     tool_name = 'mcp__code_index__index_project'
@@ -171,7 +190,7 @@ Invoke-GuardCase -Name 'allow configured v8std snippet' -ShouldDeny $false -Even
     tool_input = @{}
 }
 
-Write-Output 'guard-1c-routing: 13 cases passed'
+Write-Output 'guard-1c-routing: 16 cases passed'
 }
 
 Invoke-KafkaRoutingTest
