@@ -1,22 +1,21 @@
 ---
 name: 1c-standards
-description: Retrieve and apply general 1C standards and mandatory additional work policy through v8std. Use for every Kafka 1C design, implementation, change review, standards question, diagnostic interpretation, or short snippet analysis; do not use for project source, platform APIs, or YAxUnit facts.
+description: Resolve 1C standards, corporate work policy, diagnostic meaning and snippet-rule questions through v8std. Use for unresolved knowledge questions, not ordinary source discovery, platform APIs or YAxUnit API facts.
 ---
 
 # 1C Standards
 
-Use only the configured `v8std` MCP. It supplies standards and policy, not live project or platform truth.
+Use the configured v8std MCP for standards/policy, never as live-project or platform authority. A classified change already has its selector in $1c-code-change; do not repeat that lookup or start a search just because work is implementation or review.
 
-The calling subject skill owns task classification and mandatory-ID selection. Do not start a search merely because the task is design, implementation, or review. Load known `corporate:work:*` or `v8std` page IDs directly and reuse sufficient evidence. Before a persistent 1C mutation, every matching required page must be loaded completely; an unavailable MCP, missing page, truncated body, or unresolved applicability question stops the mutation.
-
-## Route evidence
-
-| Input | Route |
+| Evidence needed | Retrieval |
 |---|---|
-| Known page ID, alias, path, or URL | `v8std_get_page` |
-| Unknown standards or policy topic | one narrow `v8std_search` in the exact required collection(s), then `v8std_get_page` |
-| Analyzer diagnostic codes | `v8std_explain_diagnostics` filtered to the exact collection(s) |
-| Short BSL/SDBL fragment | `v8std_explain_snippet` filtered to the exact collection(s) |
-| Related requirements can materially change the conclusion | `v8std_get_related` within the selected collection(s) |
+| Known short document, complete body | v8std_get_summary with body_limit=6000; require body_truncated=false |
+| Known exact heading | v8std_get_section |
+| Full document not covered compactly | v8std_get_page |
+| Unknown topic/applicability | one bounded v8std_search OR v8std_get_requirements_for_context, then exact evidence |
+| Diagnostic codes / short fragment | v8std_explain_diagnostics / v8std_explain_snippet |
+| Material linked requirement still unresolved | v8std_get_related |
 
-Never make an unfiltered request. Fetch each known ID once, read material search results through `v8std_get_page`, and stop when evidence is sufficient. Search and related traversal are discovery fallbacks, not mandatory workflow stages. Do not repeat sufficient v8std evidence in EDT, code-index, BSL LS, or web search. Never invent a rule when no material result exists. Apply precedence: explicit user/project constraints, mandatory additional work rules, recommended additional work rules, general 1C, advisory material.
+Filter discovery by the required collections: v8std for general standards; corporate for additional work rules, restricted to corporate:work:* results. Exact-ID tools need no collection filter. Search/ranked candidates are not exhaustive; a truncated body is not complete evidence. Missing, ambiguous or incomplete required evidence blocks the dependent conclusion or mutation.
+
+Follow only links relevant to the actual mechanism. Do not recursively preload related pages. Reuse complete documents/sections already in context. Precedence: explicit user/project constraints, mandatory work rules, recommended work rules, general standards, advisory material.

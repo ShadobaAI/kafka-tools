@@ -1,25 +1,24 @@
 ---
 name: 1c-routing
-description: Route 1C project work to the single MCP authoritative for the required fact or operation. Use for 1C tasks only; do not load for unrelated repository or tooling work.
+description: Route 1C project work to the authoritative MCP and a task-specific skill. Do not load for unrelated Git, documentation or tooling work.
 ---
 
 # 1C Routing
 
-One question has one primary MCP. Do not repeat an answered lookup in another MCP for reassurance.
+Bind the exact project, alias or root from project instructions. Check only tools needed by the selected route; unavailable or mismatched required scope stops that route without substitution.
 
-| Need | Primary MCP |
+| Unresolved need | Authority / next skill |
 |---|---|
-| Indexed source/metadata search, structure, references, graphs, impact | read-only `code-index` |
-| Live source/metadata, platform APIs, mutation, primary diagnostics, build, test, debug | assigned EDT-MCP |
-| Focused BSL symbols, types, references, diagnostics | repository `bsl-ls` |
-| Standards, policy, diagnostic meaning, short snippet rules | `v8std` |
+| Indexed discovery, structure, references, impact | read-only code-index / $1c-code-index |
+| Live source/metadata, primary diagnostics | assigned EDT-MCP |
+| Source/metadata change or change review | assigned EDT-MCP / $1c-code-change |
+| Platform API/version/context | assigned EDT-MCP / $1c-platform-docs |
+| Focused BSL semantics/diagnostics | repository bsl-ls / $bsl-ls-mcp |
+| Standards, work policy, diagnostic meaning, snippet rules | v8std / $1c-standards |
+| YAxUnit authoring, review, execution | $yaxunit-tests |
 
-Use another MCP only for a different fact outside the primary MCP's authority. If sources conflict, EDT wins for live project state and platform truth.
+Load only a skill needed for the current decision, not the whole table. A later phase may require another skill. Known change requirements are selected by $1c-code-change; do not preload standards or corporate pages during source discovery.
 
-Bind the exact project, alias, or root from workspace instructions. Check only MCPs required by the selected route; if one is unavailable or mismatched, stop that route without substitution. `v8std` is a required Kafka dependency: a standards-sensitive design, review, or mutation must not continue when its required pages cannot be loaded completely.
+One fact has one primary authority. Do not repeat sufficient evidence in another MCP. EDT owns live state/platform truth; conflicting indexed/analyzer evidence is invalid until freshness is re-established. Reuse session evidence until a relevant mutation, restart, error or contradiction invalidates it.
 
-Knowledge retrieval is exact-first. The subject skill classifies the engineering scenario and maps known mandatory requirements to stable `v8std` or `corporate:work:*` IDs; load each ID directly with `v8std_get_page` once before a mutation. Use `v8std_search` only for a standards or work-policy question that remains unresolved after classification, `v8std_explain_diagnostics` for diagnostic codes, and `v8std_explain_snippet` for an unknown short fragment. Loaded requirements form the task contract and are reused during final validation.
-
-Load one narrower skill or reference only when a concrete unresolved question requires it; never preload a bundle. Do not reread content already available in context unless it changed or became insufficient. Reuse established session facts until a relevant state change or failure makes them stale.
-
-For an explicit MCP surface/security audit only, load [references/tool-policy.md](references/tool-policy.md).
+For an explicit MCP surface/security audit only, read [references/tool-policy.md](references/tool-policy.md).

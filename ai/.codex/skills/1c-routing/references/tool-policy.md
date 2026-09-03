@@ -70,5 +70,5 @@ Run focused EDT diagnostics after every 1C mutation. Do not disable, suppress, f
 
 - Compare code-index and BSL LS tool surfaces with these allowlists; classify every new tool before exposing it.
 - Check EDT `list_toolsets` and use live `get_tool_guide` for changed tools.
-- Verify the local v8std general and YAxUnit collections before relying on them; Kafka must not use the corporate collection.
+- Verify only the required v8std collections: general standards, corporate:work:* policy, or YAxUnit. Kafka uses corporate work policy; do not broaden it to unrelated corporate namespaces.
 - Re-run a minimal project-aware platform docs, semantic navigation, mutation, and validation smoke test after platform or EDT upgrades.

@@ -7,7 +7,7 @@ description: Create, format, review, run, and debug Kafka YAxUnit tests using th
 
 ## Pattern routing
 
-Classify the operation and mechanisms first. Load the union of matching pattern IDs once with `v8std_get_page`; reuse those pages for implementation and gates. Search `collections=["yaxunit"]` only when the table cannot resolve the API concept.
+Classify the operation and mechanisms first. Load matching pattern IDs once with `v8std_get_pattern`; require `found=true` and `body_truncated=false`, using `v8std_get_page` of the same ID if the compact body is truncated. Reuse complete patterns for implementation and gates. Search `collections=["yaxunit"]` only for an unresolved API concept; use `v8std_get_api_card` for a known module/member.
 
 | Scenario or mechanism | Required pattern IDs |
 |---|---|
@@ -38,7 +38,7 @@ Project naming override: a YAxUnit test module follows the object-based scheme f
 - `code-index`: read-only definitions and real usages in `kfk-yaxunit`, plus bounded product/test search through their assigned aliases.
 - `unit-edt`: live state, an exact installed-version signature only when unknown or conflicting with v8std, all mutations, diagnostics, and test runs.
 
-Keep these roles disjoint. Tests belong to the `unit` extension. Do not mutate product code or YAxUnit core without separate authorization. Load `$1c-code-change` only for a mutation; its knowledge gate supplies applicable general 1C standards and project policy.
+Keep these roles disjoint. Tests belong to the `unit` extension. Do not mutate product code or YAxUnit core without separate authorization. Load `$1c-code-change` for mutation or BSL change review, not run/report-only work; it supplies applicable general standards and work policy.
 
 ## Fluent-chain gate
 

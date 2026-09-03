@@ -1,6 +1,6 @@
 ---
 name: bsl-ls-mcp
-description: Run focused repository-local BSL LS diagnostics and semantic navigation. Use for a changed BSL file or exact symbol, type, reference, hover, or diagnostic question; never for broad search, metadata, platform APIs, writes, or primary validation.
+description: Run repository-local BSL LS diagnostics or semantic navigation for a specific file or symbol when this analyzer's result is needed. Do not load for every BSL change; never replace EDT primary validation or platform authority.
 ---
 
 # BSL Language Server MCP
