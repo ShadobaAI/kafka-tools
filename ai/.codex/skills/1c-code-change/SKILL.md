@@ -10,11 +10,11 @@ Use the assigned EDT-MCP as the only writer and primary validation source. Revie
 ## Context and change gate
 
 1. Identify the target and requested endpoint. Read the smallest live target and directly affected contracts; use $1c-code-index only for a still-unresolved location or impact question.
-2. For implementation or change review, read [references/requirements.md](references/requirements.md). Classify the actual artifact, change shape and mechanisms, not just the user's wording. Load only matching requirements from v8std, using complete compact bodies or exact sections.
-3. Before applying the proposed change, recheck its actual mechanisms against that selection. Load only newly required evidence; review the proposed selector/content, caller impact and applicable requirements. Missing, truncated, ambiguous or unresolved required evidence blocks mutation, not unrelated work.
+2. Before choosing an implementation or judging a change, use [references/requirements.md](references/requirements.md): artifact invariants + operation + actual mechanisms. Reuse any design-stage selection; load only missing applicable v8std evidence.
+3. Before applying, check the proposed content, enclosing structure and caller impact against those requirements. Reclassify only changed assumptions/mechanisms. A loaded page is not a passed check: unresolved applicability, incomplete evidence or a violated mandatory requirement blocks the dependent change.
 4. Capture focused EDT diagnostics for the affected objects when supported; a failed/incomplete required baseline blocks mutation. Retain the returned source hash/version and use the live tool's expected-version guard when available.
 5. Apply one logically atomic, scoped EDT mutation. Prefer native method/region/fragment operations; never rebuild a whole module for a local change.
-6. After every mutation, run the same focused EDT diagnostics and artifact-specific validation. Compare with the baseline, review against the already loaded requirements, and run the smallest relevant existing behavior test required by the project.
+6. After every mutation, run the same focused EDT diagnostics and artifact-specific validation. Compare with the baseline and check the result against retained requirements, including what diagnostics cannot prove. Run the smallest relevant existing behavior test required by the project.
 
 A successful write does not require a redundant reread. Reread when the response is ambiguous, concurrent change is suspected, or validation needs source not returned by the write. Never suppress diagnostics; report material findings and verification gaps.
 

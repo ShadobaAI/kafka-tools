@@ -44,6 +44,9 @@ Before work, identify every affected repository and read its local `AGENTS.md` w
 
 ## 1C Routing and Source Integrity
 
+- New adapter-owned objects use `кфк`; new `examples` objects use `кфк_т_`.
+  YAxUnit test modules are exempt from the project prefix; apply `yaxunit:patterns:naming`.
+
 | Scope | EDT-MCP server | Port | Configuration owner |
 |---|---|---:|---|
 | `adapter/adapter` | `kfk-edt` | `8765` | `adapter/adapter/.codex/config.toml` |
@@ -91,7 +94,7 @@ At the contour level, adapter uses `kfk`, `kfk-base`, and `kfk-examples`; conver
 - Keep the shared user-level `v8std`/`code-index` block independent from the
   Kafka routing guard so another workspace installer cannot remove Kafka policy.
 - Use the MCP named `v8std` as the primary standards/policy corpus. Its endpoint is user-owned configuration: the default local endpoint is `http://127.0.0.1:8766/mcp`, and the user may replace its `url`. Do not apply agent-side source classification, endpoint switching, or code-transfer restrictions beyond the configured MCP.
-- Before every persistent 1C source or metadata mutation, classify the affected mechanisms and load all matching general and additional work requirements from the required `v8std` MCP through `$1c-code-change`. An unavailable, incomplete, or unresolved required page stops the mutation.
+- Before choosing a 1C design, judging compliance or applying a change, select applicable artifact, operation and mechanism requirements from `v8std`: `$1c-standards` for design/normative analysis, `$1c-code-change` for changes. Verify the proposal and result against that same selection; missing evidence or unresolved mandatory requirements block the dependent outcome. Pure source discovery needs no normative preload.
 - Additional work policy is stored separately from the original v8std corpus in the private `corporate` collection under stable `corporate:work:*` IDs. Apply precedence: explicit user and project constraints, mandatory work rules, recommended work rules, general 1C standards, advisory material.
 - Apply BSL requirements only to new or changed code. Do not mass-format or otherwise modernize unrelated legacy code unless the task requires it.
 - Reuse the pre-mutation requirements as the post-mutation review contract; do not replace that validation with a fresh best-effort search.
@@ -108,7 +111,7 @@ At the contour level, adapter uses `kfk`, `kfk-base`, and `kfk-examples`; conver
 - Check availability only for the project MCPs required by the selected route. If a required assigned EDT-MCP, `code-index`, `v8std`, or repository BSL LS endpoint, project, alias, or root is unavailable, report an explicit error and stop the MCP-dependent work. Do not substitute another MCP, workspace, filesystem/shell access, copied source, or model memory, and do not block work on an MCP that the task does not require.
 - For unknown or version-sensitive EDT tool semantics, use `get_tool_guide` instead of guessing. Enable only the EDT toolset required for the task; progressive disclosure is context control, not authorization.
 - Run existing relevant tests when their runner is available. Do not create tests merely because coverage is absent or the change is important; create them only when requested or required by project policy. Run additional tests only when required by the local repository instructions or the changed behavior.
-- For YaXUnit authoring, establish observable behavior, test owner, client/server context, data and isolation strategy, mock boundary, assertion strategy, existing fixtures, and applicable `yaxunit` requirements before mutation. Resolve the fluent receiver state explicitly as `module -> test set -> test`; attach hooks, transaction settings, tags, parameters, and context options to the receiver documented by the loaded contract rather than inferring from method names. Prefer public `ЮТест.Данные()` builders for new data and mock only an external boundary, never the behavior under test.
+- For YaXUnit authoring, establish observable behavior, test owner, client/server context, data and isolation strategy, mock boundary, assertion strategy, existing fixtures, and applicable `yaxunit` requirements before mutation. Use `$yaxunit-tests` for registration and fluent-formatting checks. Prefer public `ЮТест.Данные()` builders for new data and mock only an external boundary, never the behavior under test.
 
 ## Non-1C Files
 

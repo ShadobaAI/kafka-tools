@@ -1,11 +1,11 @@
 ---
 name: 1c-standards
-description: Resolve 1C standards, corporate work policy, diagnostic meaning and snippet-rule questions through v8std. Use for unresolved knowledge questions, not ordinary source discovery, platform APIs or YAxUnit API facts.
+description: Apply v8std requirements to 1C design, normative analysis, diagnostics and snippets; resolve unknown standards and work policy. Not source discovery or platform/YAxUnit API lookup.
 ---
 
 # 1C Standards
 
-Use the configured v8std MCP for standards/policy, never as live-project or platform authority. A classified change already has its selector in $1c-code-change; do not repeat that lookup or start a search just because work is implementation or review.
+Use configured v8std for standards/policy, never live-project or platform truth. For design or normative analysis of an artifact, read the shared [requirements selector](../1c-code-change/references/requirements.md) once scope is known; apply only decision-relevant rows. A change already classified by $1c-code-change reuses that selection, without another search. Read-only design needs no mutation diagnostics or write steps.
 
 | Evidence needed | Retrieval |
 |---|---|
@@ -18,4 +18,4 @@ Use the configured v8std MCP for standards/policy, never as live-project or plat
 
 Filter discovery by the required collections: v8std for general standards; corporate for additional work rules, restricted to corporate:work:* results. Exact-ID tools need no collection filter. Search/ranked candidates are not exhaustive; a truncated body is not complete evidence. Missing, ambiguous or incomplete required evidence blocks the dependent conclusion or mutation.
 
-Follow only links relevant to the actual mechanism. Do not recursively preload related pages. Reuse complete documents/sections already in context. Precedence: explicit user/project constraints, mandatory work rules, recommended work rules, general standards, advisory material.
+Resolve links supplying applicable conditions, exceptions or required dependencies; skip background/example links. A self-contained section is sufficient, a clause without its conditions is not. Examples supplement requirements, not replace them. Reuse complete evidence. Precedence: explicit user/project constraints, mandatory work rules, recommended work rules, general standards, advisory material. Report unresolved conflicts; do not invent exceptions.

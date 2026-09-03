@@ -1,6 +1,6 @@
 # Kafka YAxUnit Workflow
 
-Use only for creating, changing, running, or debugging tests.
+Use for designing, creating, changing, reviewing, running or debugging tests. Read-only tasks do not authorize mutation or require runtime checks merely to give a conclusion.
 
 ## Create or change
 
@@ -12,15 +12,16 @@ Use only for creating, changing, running, or debugging tests.
 
 ## Authoring gate
 
-Before runtime, reject the change until all checks pass:
+Before accepting a design/review or applying a change, check the applicable items below. Recheck affected items on the result before runtime; do not defer mandatory authoring rules until after writing.
 
-- Registration is declarative; module role and naming match the loaded contract.
+- Enclosing structure, method placement, role and naming satisfy applicable general, work and test contracts together; a minimal pattern is not a full module template.
+- Registration is declarative; registered test methods satisfy their export/context contract.
 - Setup is deterministic and isolated.
 - The test exercises one observable behavior.
 - Assertions match the loaded pattern.
-- Every multiline fluent chain passes the receiver-depth gate in `SKILL.md`.
+- Every multiline fluent chain passes the logical-ownership gate in `SKILL.md`.
 
-Fix findings, then revalidate the gate.
+For authorized changes, fix findings and revalidate affected checks. For read-only review, report findings without edits. Passing runtime tests does not establish structural or normative compliance.
 
 ## Run or debug
 

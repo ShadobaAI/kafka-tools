@@ -14,10 +14,10 @@ Bind the exact project, alias or root from project instructions. Check only tool
 | Source/metadata change or change review | assigned EDT-MCP / $1c-code-change |
 | Platform API/version/context | assigned EDT-MCP / $1c-platform-docs |
 | Focused BSL semantics/diagnostics | repository bsl-ls / $bsl-ls-mcp |
-| Standards, work policy, diagnostic meaning, snippet rules | v8std / $1c-standards |
+| Design or normative analysis, standards, work policy, diagnostic meaning, snippet rules | v8std / $1c-standards |
 | YAxUnit authoring, review, execution | $yaxunit-tests |
 
-Load only a skill needed for the current decision, not the whole table. A later phase may require another skill. Known change requirements are selected by $1c-code-change; do not preload standards or corporate pages during source discovery.
+Load only the current route. Design and change review must select applicable requirements before accepting a solution; implementation must do so before writing. Reuse that selection across phases. Pure source discovery needs no normative corpus; it must not silently become a design or compliance conclusion.
 
 One fact has one primary authority. Do not repeat sufficient evidence in another MCP. EDT owns live state/platform truth; conflicting indexed/analyzer evidence is invalid until freshness is re-established. Reuse session evidence until a relevant mutation, restart, error or contradiction invalidates it.
 
