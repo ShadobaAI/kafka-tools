@@ -10,7 +10,7 @@
 | `docker-image/` | Раздельные Docker-образы для CI: `edtcli`, `ibcmd`, `client` |
 | `.github/scripts/` | Скрипты для сборки 1С-проектов в CI/CD |
 | `.github/workflows/` | GitHub Actions reusable workflows для сборки CF/CFE |
-| `kafka/` | Apache Kafka — двухузловой кластер KRaft + Kafka UI |
+| `kafka/` | Apache Kafka — двухузловой dev/test-кластер KRaft с ACL, Kafka UI и Schema Registry |
 | `kafka/scripts/` | Вспомогательные скрипты для тестирования Kafka |
 | `elk/` | ELK-стек — Elasticsearch + Logstash + Kibana |
 | `opensearch/` | Альтернатива ELK — OpenSearch + Dashboards + Fluent Bit |
@@ -242,7 +242,7 @@ python .\docker-image\scripts\build_image.py ibcmd:8.3.27
 
 ## kafka
 
-Двухузловой кластер Apache Kafka в режиме KRaft (без ZooKeeper) + веб-интерфейс Kafka UI.
+Единый двухузловой dev/test-кластер Apache Kafka в режиме KRaft (без ZooKeeper) с поддержкой ACL, веб-интерфейсом Kafka UI и Schema Registry.
 
 ```
 cd kafka
@@ -254,8 +254,21 @@ docker compose up -d
 | Kafka node1 (внешний) | `localhost:29091` |
 | Kafka node2 (внешний) | `localhost:29092` |
 | Kafka UI | http://localhost:8081 |
+| Schema Registry | http://localhost:38081 |
 
 Bootstrap-серверы для адаптера: `localhost:29091,localhost:29092`
+
+Все интеграционные тесты, включая операции с ACL и настройками брокеров, используют `node1/node2`. На обоих узлах включён `StandardAuthorizer`. PLAINTEXT-клиенты работают с административным principal `User:ANONYMOUS`, что позволяет проверять создание, чтение и удаление тестовых ACL без настройки аутентификации. Настройки, изменённые тестом, должны восстанавливаться, а созданные им ресурсы — удаляться.
+
+Schema Registry доступен на loopback-порту `38081`, подключён к `node1:9092,node2:9092` и хранит схемы с фактором репликации `2`. Он запускается после успешных проверок готовности обоих брокеров. Данные кластера сохраняются в томах `node1-data` и `node2-data`.
+
+Применение обновлённого compose из каталога `kafka`:
+
+```powershell
+docker compose up -d
+```
+
+Изменение конфигурации пересоздаст контейнеры брокеров с сохранением томов; на время применения стенд будет недоступен. Первый запуск Schema Registry требует загрузки образа `confluentinc/cp-schema-registry:7.9.1`. Проверка конфигурации перед запуском: `docker compose config --quiet`.
 
 ### kafka/scripts/kafka_sender.py
 
