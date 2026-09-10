@@ -5,18 +5,29 @@
       <xs:pattern value="[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"/>
     </xs:restriction>
   </xs:simpleType>
-  <xs:complexType name="TestCatalog">
-    <xs:sequence>
-      <xs:element name="ref" type="tns:UUID"/>
-      <xs:element name="name" type="xs:string"/>
-      <xs:element name="dateTime" type="xs:dateTime" nillable="true"/>
-      <xs:element name="number" type="xs:decimal" nillable="true"/>
-      <xs:element name="boolean" type="xs:boolean" nillable="true"/>
-      <xs:element name="enum" type="tns:TestCatalog.Enum" minOccurs="0" nillable="true"/>
-      <xs:element name="comment" type="xs:string" nillable="true"/>
-      <xs:element name="tabularSection" type="tns:TestCatalog.TabularSection" minOccurs="0" nillable="true"/>
-    </xs:sequence>
-  </xs:complexType>
+  <xs:simpleType name="TestConversionDocumentKindEnum">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="Продажа"/>
+      <xs:enumeration value="Интерес"/>
+      <xs:enumeration value="Активность"/>
+      <xs:enumeration value="ДоговорСПокупателем"/>
+      <xs:enumeration value="Анкета"/>
+      <xs:enumeration value="НетОснования"/>
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:simpleType name="TestConversionEnum">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="Значение1"/>
+      <xs:enumeration value="Значение2"/>
+      <xs:enumeration value="Значение3"/>
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:simpleType name="TestConversionPaymentKind">
+    <xs:restriction base="xs:integer">
+      <xs:enumeration value="0"/>
+      <xs:enumeration value="1"/>
+    </xs:restriction>
+  </xs:simpleType>
   <xs:simpleType name="TestCatalog.Enum">
     <xs:restriction base="xs:string">
       <xs:enumeration value="Значение1"/>
@@ -24,30 +35,28 @@
       <xs:enumeration value="Значение3"/>
     </xs:restriction>
   </xs:simpleType>
-  <xs:complexType name="TestCatalog.TabularSection.Row">
-    <xs:sequence>
-      <xs:element name="dateTime" type="xs:dateTime" nillable="true"/>
-      <xs:element name="string" type="xs:string" nillable="true"/>
-    </xs:sequence>
-  </xs:complexType>
-  <xs:complexType name="TestCatalog.TabularSection">
-    <xs:sequence>
-      <xs:element name="row" type="tns:TestCatalog.TabularSection.Row" maxOccurs="unbounded"/>
-    </xs:sequence>
-  </xs:complexType>
-  <xs:complexType name="TestRegister">
-    <xs:sequence>
-      <xs:element name="period" type="xs:dateTime"/>
-      <xs:element name="testRef" type="tns:UUID" nillable="true"/>
-      <xs:element name="boolean" type="xs:boolean" nillable="true"/>
-      <xs:element name="string" type="xs:string" nillable="true"/>
-      <xs:element name="number" type="xs:decimal" nillable="true"/>
-      <xs:element name="dateTime" type="xs:dateTime" nillable="true"/>
-      <xs:element name="uuid" type="tns:UUID" nillable="true"/>
-      <xs:element name="comment" type="xs:string" nillable="true"/>
-    </xs:sequence>
-  </xs:complexType>
-  <xs:complexType name="TestRegisterRs">
+  <xs:simpleType name="TestConversion.DecimalEnum">
+    <xs:restriction base="xs:decimal">
+      <xs:enumeration value="-0.5"/>
+      <xs:enumeration value="0"/>
+      <xs:enumeration value="0.5"/>
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:simpleType name="TestConversion.Enum">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="Значение1"/>
+      <xs:enumeration value="Значение2"/>
+      <xs:enumeration value="Значение3"/>
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:simpleType name="TestConversion.IntegerEnum">
+    <xs:restriction base="xs:integer">
+      <xs:enumeration value="-1"/>
+      <xs:enumeration value="0"/>
+      <xs:enumeration value="1"/>
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:complexType name="TestAccumulationRegister">
     <xs:sequence>
       <xs:element name="period" type="xs:dateTime"/>
       <xs:element name="recorder" type="tns:UUID"/>
@@ -55,7 +64,285 @@
       <xs:element name="value" type="xs:decimal" nillable="true"/>
     </xs:sequence>
   </xs:complexType>
-  <xs:complexType name="TestAccumulationRegister">
+  <xs:complexType name="TestCatalog">
+    <xs:sequence>
+      <xs:element name="ref" type="tns:UUID"/>
+      <xs:element name="name" type="xs:string"/>
+      <xs:element name="dateTime" type="xs:dateTime" nillable="true"/>
+      <xs:element name="number" type="xs:decimal" nillable="true"/>
+      <xs:element name="boolean" type="xs:boolean" nillable="true"/>
+      <xs:element name="enum" type="tns:TestCatalog.Enum" nillable="true"/>
+      <xs:element name="comment" type="xs:string" nillable="true"/>
+      <xs:element name="tabularSection" type="tns:TestCatalog.TabularSection" minOccurs="0"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="TestCatalog.TabularSection">
+    <xs:sequence>
+      <xs:element name="row" type="tns:TestCatalog.TabularSection.Row" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="TestCatalog.TabularSection.Row">
+    <xs:sequence>
+      <xs:element name="dateTime" type="xs:dateTime" nillable="true"/>
+      <xs:element name="string" type="xs:string" nillable="true"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="TestConversion">
+    <xs:sequence>
+      <xs:element name="ref" type="tns:UUID"/>
+      <xs:element name="name" type="xs:string"/>
+      <xs:element name="requiredBoolean" type="xs:boolean"/>
+      <xs:element name="requiredNumber" type="xs:decimal"/>
+      <xs:element name="requiredString" type="xs:string"/>
+      <xs:element name="optionalString" type="xs:string" nillable="true"/>
+      <xs:element name="boolean" type="xs:boolean" nillable="true"/>
+      <xs:element name="decimal" type="xs:decimal" nillable="true"/>
+      <xs:element name="integer" type="xs:integer" nillable="true"/>
+      <xs:element name="int32" type="xs:int" nillable="true"/>
+      <xs:element name="int64" type="xs:long" nillable="true"/>
+      <xs:element name="float" type="xs:float" nillable="true"/>
+      <xs:element name="double" type="xs:double" nillable="true"/>
+      <xs:element name="dateTime" type="xs:dateTime" nillable="true"/>
+      <xs:element name="date" type="xs:date" nillable="true"/>
+      <xs:element name="time" type="xs:time" nillable="true"/>
+      <xs:element name="uuidAsString" nillable="true">
+        <xs:simpleType>
+          <xs:restriction base="xs:string">
+            <xs:minLength value="36"/>
+            <xs:maxLength value="36"/>
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:element>
+      <xs:element name="patternString" nillable="true">
+        <xs:simpleType>
+          <xs:restriction base="xs:string">
+            <xs:pattern value="[A-Z]{2}[0-9]{2}"/>
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:element>
+      <xs:element name="boundedDecimal" nillable="true">
+        <xs:simpleType>
+          <xs:restriction base="xs:decimal">
+            <xs:minInclusive value="-100"/>
+            <xs:maxInclusive value="100"/>
+            <xs:fractionDigits value="2"/>
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:element>
+      <xs:element name="exclusiveDecimal" nillable="true">
+        <xs:simpleType>
+          <xs:restriction base="xs:decimal">
+            <xs:minExclusive value="0"/>
+            <xs:maxExclusive value="10"/>
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:element>
+      <xs:element name="boundedInteger" nillable="true">
+        <xs:simpleType>
+          <xs:restriction base="xs:integer">
+            <xs:minInclusive value="-2"/>
+            <xs:maxInclusive value="2"/>
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:element>
+      <xs:element name="enum" type="tns:TestConversion.Enum" nillable="true"/>
+      <xs:element name="sharedEnum" type="tns:TestConversionEnum" nillable="true"/>
+      <xs:element name="integerEnum" type="tns:TestConversion.IntegerEnum" nillable="true"/>
+      <xs:element name="decimalEnum" type="tns:TestConversion.DecimalEnum" nillable="true"/>
+      <xs:element name="catalog" type="tns:TestCatalog" nillable="true"/>
+      <xs:element name="nested" type="tns:TestConversionLevel1" nillable="true"/>
+      <xs:element name="recursive" type="tns:TestConversionNode" nillable="true"/>
+      <xs:element name="strings" type="xs:string" minOccurs="0" maxOccurs="unbounded"/>
+      <xs:element name="numbers" type="xs:decimal" minOccurs="0" maxOccurs="unbounded"/>
+      <xs:element name="booleans" type="xs:boolean" minOccurs="0" maxOccurs="unbounded"/>
+      <xs:element name="dates" type="xs:dateTime" minOccurs="0" maxOccurs="unbounded"/>
+      <xs:element name="refs" type="tns:UUID" minOccurs="0" maxOccurs="unbounded"/>
+      <xs:element name="enumValues" type="tns:TestConversionEnum" minOccurs="0" maxOccurs="unbounded"/>
+      <xs:element name="fixedStrings" minOccurs="2" maxOccurs="2">
+        <xs:simpleType>
+          <xs:restriction base="xs:string">
+            <xs:minLength value="1"/>
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:element>
+      <xs:element name="boundedNumbers" minOccurs="1" maxOccurs="3">
+        <xs:simpleType>
+          <xs:restriction base="xs:decimal">
+            <xs:minInclusive value="0"/>
+            <xs:maxInclusive value="10"/>
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:element>
+      <xs:element name="singleString" type="xs:string" minOccurs="1" maxOccurs="1"/>
+      <xs:element name="catalogs" type="tns:TestCatalog" minOccurs="0" maxOccurs="unbounded"/>
+      <xs:element name="nodes" type="tns:TestConversionNode" minOccurs="0" maxOccurs="unbounded"/>
+      <xs:element name="tabularSection" type="tns:TestConversion.TabularSection" minOccurs="0"/>
+      <xs:element name="requiredRows" type="tns:TestConversion.RequiredRows"/>
+      <xs:element name="singleRow" type="tns:TestConversion.SingleRow" minOccurs="0"/>
+      <xs:element name="stringTable" type="tns:TestConversionStringTable" nillable="true"/>
+      <xs:element name="rowTable" type="tns:TestConversionRowTable" nillable="true"/>
+      <xs:element name="emptyObject" type="tns:TestConversionEmpty" nillable="true"/>
+      <xs:element name="additionalCases" type="tns:TestConversionAdditionalCases" nillable="true"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="TestConversion.RequiredRows">
+    <xs:sequence>
+      <xs:element name="row" type="tns:TestConversion.RequiredRows.Row" minOccurs="1" maxOccurs="3"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="TestConversion.RequiredRows.Row">
+    <xs:sequence>
+      <xs:element name="code">
+        <xs:simpleType>
+          <xs:restriction base="xs:string">
+            <xs:minLength value="1"/>
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:element>
+      <xs:element name="value" type="xs:decimal" nillable="true"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="TestConversion.SingleRow">
+    <xs:sequence>
+      <xs:element name="row" type="tns:TestConversion.SingleRow.Row" minOccurs="1" maxOccurs="1"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="TestConversion.SingleRow.Row">
+    <xs:sequence>
+      <xs:element name="code" type="xs:string" nillable="true"/>
+      <xs:element name="value" type="xs:decimal" nillable="true"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="TestConversion.TabularSection">
+    <xs:sequence>
+      <xs:element name="row" type="tns:TestConversion.TabularSection.Row" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="TestConversion.TabularSection.Row">
+    <xs:sequence>
+      <xs:element name="lineNumber" type="xs:integer"/>
+      <xs:element name="string" type="xs:string" nillable="true"/>
+      <xs:element name="number" type="xs:decimal" nillable="true"/>
+      <xs:element name="boolean" type="xs:boolean" nillable="true"/>
+      <xs:element name="dateTime" type="xs:dateTime" nillable="true"/>
+      <xs:element name="ref" type="tns:UUID" nillable="true"/>
+      <xs:element name="enum" type="tns:TestConversionEnum" nillable="true"/>
+      <xs:element name="nested" type="tns:TestConversionLevel1" nillable="true"/>
+      <xs:element name="details" type="tns:TestConversion.TabularSection.Row.Details" minOccurs="0"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="TestConversion.TabularSection.Row.Details">
+    <xs:sequence>
+      <xs:element name="row" type="tns:TestConversion.TabularSection.Row.Details.Row" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="TestConversion.TabularSection.Row.Details.Row">
+    <xs:sequence>
+      <xs:element name="code" type="xs:string"/>
+      <xs:element name="value" type="xs:decimal" nillable="true"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="TestConversionAdditionalCases">
+    <xs:sequence>
+      <xs:element name="objectId" type="tns:UUID"/>
+      <xs:element name="typeDocumentManagement" type="tns:TestConversionDocumentKindEnum" nillable="true"/>
+      <xs:element name="documentManagement" type="tns:UUID" nillable="true"/>
+      <xs:element name="dateTime" type="xs:dateTime"/>
+      <xs:element name="paymentKind" type="tns:TestConversionPaymentKind" nillable="true"/>
+      <xs:element name="stringLimits" type="tns:TestConversionStringLimits" nillable="true"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="TestConversionEmpty">
+    <xs:sequence/>
+  </xs:complexType>
+  <xs:complexType name="TestConversionLevel1">
+    <xs:sequence>
+      <xs:element name="level2" type="tns:TestConversionLevel2" nillable="true"/>
+      <xs:element name="sibling" type="xs:string" nillable="true"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="TestConversionLevel2">
+    <xs:sequence>
+      <xs:element name="level3" type="tns:TestConversionLevel3" nillable="true"/>
+      <xs:element name="sibling" type="xs:decimal" nillable="true"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="TestConversionLevel3">
+    <xs:sequence>
+      <xs:element name="value" type="xs:string" nillable="true"/>
+      <xs:element name="ref" type="tns:UUID" nillable="true"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="TestConversionNode">
+    <xs:sequence>
+      <xs:element name="ref" type="tns:UUID"/>
+      <xs:element name="name" type="xs:string" nillable="true"/>
+      <xs:element name="parent" type="tns:TestConversionNode" nillable="true"/>
+      <xs:element name="children" type="tns:TestConversionNode" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="TestConversionRowTable">
+    <xs:sequence>
+      <xs:element name="row" type="tns:TestConversionRowTable.Row" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="TestConversionRowTable.Row">
+    <xs:sequence>
+      <xs:element name="code" type="xs:string"/>
+      <xs:element name="value" type="xs:decimal" nillable="true"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="TestConversionStringLimits">
+    <xs:sequence>
+      <xs:element name="unlimited" type="xs:string" nillable="true"/>
+      <xs:element name="maxLength" nillable="true">
+        <xs:simpleType>
+          <xs:restriction base="xs:string">
+            <xs:maxLength value="10"/>
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:element>
+      <xs:element name="minMaxLength" nillable="true">
+        <xs:simpleType>
+          <xs:restriction base="xs:string">
+            <xs:minLength value="2"/>
+            <xs:maxLength value="10"/>
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:element>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="TestConversionStringTable">
+    <xs:sequence>
+      <xs:element name="row" type="xs:string" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="TestRegister">
+    <xs:sequence>
+      <xs:element name="period" type="xs:dateTime"/>
+      <xs:element name="testRef" type="tns:UUID" nillable="true"/>
+      <xs:element name="boolean" type="xs:boolean" nillable="true"/>
+      <xs:element name="string" nillable="true">
+        <xs:simpleType>
+          <xs:restriction base="xs:string">
+            <xs:maxLength value="50"/>
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:element>
+      <xs:element name="number" type="xs:decimal" nillable="true"/>
+      <xs:element name="dateTime" type="xs:dateTime" nillable="true"/>
+      <xs:element name="uuid" nillable="true">
+        <xs:simpleType>
+          <xs:restriction base="xs:string">
+            <xs:minLength value="36"/>
+            <xs:maxLength value="36"/>
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:element>
+      <xs:element name="comment" type="xs:string" nillable="true"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="TestRegisterRs">
     <xs:sequence>
       <xs:element name="period" type="xs:dateTime"/>
       <xs:element name="recorder" type="tns:UUID"/>
