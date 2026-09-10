@@ -6,44 +6,6 @@ info:
 defaultContentType: application/json
 components:
   schemas:
-    TestCatalog:
-      type: object
-      additionalProperties: false
-      required:
-        - ref
-        - name
-      properties:
-        ref:
-          type: string
-          format: uuid
-        name:
-          type: string
-        dateTime:
-          type: string
-          format: date-time
-        number:
-          type: number
-        boolean:
-          type: boolean
-        enum:
-          type: string
-          enum:
-            - Значение1
-            - Значение2
-            - Значение3
-        comment:
-          type: string
-        tabularSection:
-          type: array
-          items:
-            type: object
-            additionalProperties: false
-            properties:
-              dateTime:
-                type: string
-                format: date-time
-              string:
-                type: string
     TestConversion:
       type: object
       additionalProperties: false
@@ -138,8 +100,6 @@ components:
           - -0.5
           - 0
           - 0.5
-        catalog:
-          $ref: '#/components/schemas/TestCatalog'
         nested:
           $ref: '#/components/schemas/TestConversionLevel1'
         recursive:
@@ -191,10 +151,6 @@ components:
           maxItems: 1
           items:
             type: string
-        catalogs:
-          type: array
-          items:
-            $ref: '#/components/schemas/TestCatalog'
         nodes:
           type: array
           items:

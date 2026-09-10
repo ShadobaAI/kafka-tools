@@ -28,13 +28,6 @@
       <xs:enumeration value="1"/>
     </xs:restriction>
   </xs:simpleType>
-  <xs:simpleType name="TestCatalog.Enum">
-    <xs:restriction base="xs:string">
-      <xs:enumeration value="Значение1"/>
-      <xs:enumeration value="Значение2"/>
-      <xs:enumeration value="Значение3"/>
-    </xs:restriction>
-  </xs:simpleType>
   <xs:simpleType name="TestConversion.DecimalEnum">
     <xs:restriction base="xs:decimal">
       <xs:enumeration value="-0.5"/>
@@ -56,29 +49,6 @@
       <xs:enumeration value="1"/>
     </xs:restriction>
   </xs:simpleType>
-  <xs:complexType name="TestCatalog">
-    <xs:sequence>
-      <xs:element name="ref" type="tns:UUID"/>
-      <xs:element name="name" type="xs:string"/>
-      <xs:element name="dateTime" type="xs:dateTime" nillable="true"/>
-      <xs:element name="number" type="xs:decimal" nillable="true"/>
-      <xs:element name="boolean" type="xs:boolean" nillable="true"/>
-      <xs:element name="enum" type="tns:TestCatalog.Enum" nillable="true"/>
-      <xs:element name="comment" type="xs:string" nillable="true"/>
-      <xs:element name="tabularSection" type="tns:TestCatalog.TabularSection" minOccurs="0"/>
-    </xs:sequence>
-  </xs:complexType>
-  <xs:complexType name="TestCatalog.TabularSection">
-    <xs:sequence>
-      <xs:element name="row" type="tns:TestCatalog.TabularSection.Row" minOccurs="0" maxOccurs="unbounded"/>
-    </xs:sequence>
-  </xs:complexType>
-  <xs:complexType name="TestCatalog.TabularSection.Row">
-    <xs:sequence>
-      <xs:element name="dateTime" type="xs:dateTime" nillable="true"/>
-      <xs:element name="string" type="xs:string" nillable="true"/>
-    </xs:sequence>
-  </xs:complexType>
   <xs:complexType name="TestConversion">
     <xs:sequence>
       <xs:element name="ref" type="tns:UUID"/>
@@ -141,7 +111,6 @@
       <xs:element name="sharedEnum" type="tns:TestConversionEnum" nillable="true"/>
       <xs:element name="integerEnum" type="tns:TestConversion.IntegerEnum" nillable="true"/>
       <xs:element name="decimalEnum" type="tns:TestConversion.DecimalEnum" nillable="true"/>
-      <xs:element name="catalog" type="tns:TestCatalog" nillable="true"/>
       <xs:element name="nested" type="tns:TestConversionLevel1" nillable="true"/>
       <xs:element name="recursive" type="tns:TestConversionNode" nillable="true"/>
       <xs:element name="strings" type="xs:string" minOccurs="0" maxOccurs="unbounded"/>
@@ -166,7 +135,6 @@
         </xs:simpleType>
       </xs:element>
       <xs:element name="singleString" type="xs:string" minOccurs="1" maxOccurs="1"/>
-      <xs:element name="catalogs" type="tns:TestCatalog" minOccurs="0" maxOccurs="unbounded"/>
       <xs:element name="nodes" type="tns:TestConversionNode" minOccurs="0" maxOccurs="unbounded"/>
       <xs:element name="tabularSection" type="tns:TestConversion.TabularSection" minOccurs="0"/>
       <xs:element name="requiredRows" type="tns:TestConversion.RequiredRows"/>
