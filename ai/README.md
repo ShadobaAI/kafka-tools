@@ -4,6 +4,14 @@
 установщик, `code-index`, общие 1С-skills, routing guard и regression-тесты.
 EDT и BSL LS остаются repository-local и настраиваются в репозиториях-владельцах.
 
+Навыки и политика EDT опираются на live API назначенного сервера и его `get_tool_guide`.
+Рабочие контракты находятся в
+[редактировании](.codex/skills/1c-code-change/references/edt-editing.md) и
+[политике инструментов](.codex/skills/1c-routing/references/tool-policy.md).
+Конфиги трёх контуров сохраняют свои endpoints и запрет `git`/`ask_workmate`;
+новые инструменты доступны с явно заданными режимами подтверждения.
+Параметры Codex соответствуют [документации MCP](https://developers.openai.com/codex/mcp).
+
 ## Установка
 
 Структура каталогов Kafka фиксирована. Переносить можно весь workspace целиком;

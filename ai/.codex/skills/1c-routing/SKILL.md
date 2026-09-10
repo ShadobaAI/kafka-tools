@@ -16,9 +16,14 @@ Bind the exact project, alias or root from project instructions. Check only tool
 | Focused BSL semantics/diagnostics | repository bsl-ls / $bsl-ls-mcp |
 | Design or normative analysis, standards, work policy, diagnostic meaning, snippet rules | v8std / $1c-standards |
 | YAxUnit authoring, review, execution | $yaxunit-tests |
+| Live DCS/settings, dynamic lists, conditional appearance | assigned EDT-MCP `dcs`; $1c-code-change for edits |
+| Three-way metadata comparison or merge decisions | assigned EDT-MCP / [comparison workflow](references/comparison.md) |
+| Runtime launch or breakpoint setup | assigned EDT-MCP / [runtime workflow](references/runtime.md) |
 
 Load only the current route. Design and change review must select applicable requirements before accepting a solution; implementation must do so before writing. Reuse that selection across phases. Pure source discovery needs no normative corpus; it must not silently become a design or compliance conclusion.
 
 One fact has one primary authority. Do not repeat sufficient evidence in another MCP. EDT owns live state/platform truth; conflicting indexed/analyzer evidence is invalid until freshness is re-established. Reuse session evidence until a relevant mutation, restart, error or contradiction invalidates it.
+
+For EDT, use `list_toolsets` to establish visibility and enable only the needed group when progressive disclosure is active. Visibility is not permission. Preserve returned operation identifiers; follow an existing `jobId` with `get_job_status`, not by restarting its owning operation. Read `structuredContent` when present and embedded resource text from tool guides; a short text acknowledgment alone is not the result.
 
 For an explicit MCP surface/security audit only, read [references/tool-policy.md](references/tool-policy.md).
