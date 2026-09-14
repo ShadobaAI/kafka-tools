@@ -166,7 +166,7 @@ def is_nullable(prop_name: str, required: list | None) -> bool:
     return not required or prop_name not in required
 
 
-def array_occurs(schema: dict, context: str, allow_absent: bool = False) -> tuple[str, str]:
+def array_occurs(schema: dict, context: str) -> tuple[str | None, str]:
     """Преобразует стандартные minItems/maxItems в границы XSD."""
     min_items = schema.get("minItems", 0)
     max_items = schema.get("maxItems")
@@ -184,10 +184,9 @@ def array_occurs(schema: dict, context: str, allow_absent: bool = False) -> tupl
             f"minItems ({min_items}) больше maxItems ({max_items}): {context}"
         )
 
-    # Для плоского необязательного массива отсутствие свойства представляется нулём элементов.
-    min_occurs = 0 if allow_absent else min_items
+    min_occurs = str(min_items) if "minItems" in schema else None
     max_occurs = "unbounded" if max_items is None else str(max_items)
-    return str(min_occurs), max_occurs
+    return min_occurs, max_occurs
 
 
 def is_enum_schema(schema: dict) -> bool:
@@ -235,8 +234,9 @@ class ElementBuilder:
         self._attrs["type"] = t
         return self
 
-    def min_occurs(self, v: str) -> "ElementBuilder":
-        self._attrs["minOccurs"] = v
+    def min_occurs(self, v: str | None) -> "ElementBuilder":
+        if v is not None:
+            self._attrs["minOccurs"] = v
         return self
 
     def max_occurs(self, v: str) -> "ElementBuilder":
@@ -246,11 +246,6 @@ class ElementBuilder:
     def nillable_if_nullable(self, prop_name: str, required: list | None) -> "ElementBuilder":
         if is_nullable(prop_name, required):
             self._attrs["nillable"] = "true"
-        return self
-
-    def min_occurs_if_not_required(self, prop_name: str, required: list | None) -> "ElementBuilder":
-        if not required or prop_name not in required:
-            self._attrs["minOccurs"] = "0"
         return self
 
     def build(self):
@@ -515,11 +510,7 @@ def _process_array_property(root, seq, prop_name: str, prop: dict, type_name: st
         raise ValueError(f"Array '{type_name}.{prop_name}' has no items")
 
     context = f"{type_name}.{prop_name}"
-    min_occurs, max_occurs = array_occurs(
-        prop,
-        context,
-        allow_absent=is_nullable(prop_name, required),
-    )
+    min_occurs, max_occurs = array_occurs(prop, context)
 
     if "$ref" in items:
         ref_schema_name = ref_name(items["$ref"])
@@ -536,6 +527,7 @@ def _process_array_property(root, seq, prop_name: str, prop: dict, type_name: st
             .type(f"tns:{resolved_name}")
             .min_occurs(min_occurs)
             .max_occurs(max_occurs)
+            .nillable_if_nullable(prop_name, required)
             .build()
         )
         return
@@ -545,6 +537,7 @@ def _process_array_property(root, seq, prop_name: str, prop: dict, type_name: st
             elem(seq, prop_name)
             .min_occurs(min_occurs)
             .max_occurs(max_occurs)
+            .nillable_if_nullable(prop_name, required)
             .build()
         )
         append_primitive_type(array_element, items, context)
@@ -569,7 +562,7 @@ def _process_array_property(root, seq, prop_name: str, prop: dict, type_name: st
     (
         elem(seq, prop_name)
         .type(f"tns:{table_type}")
-        .min_occurs_if_not_required(prop_name, required)
+        .nillable_if_nullable(prop_name, required)
         .build()
     )
 
