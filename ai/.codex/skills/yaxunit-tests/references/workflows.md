@@ -26,3 +26,5 @@ For authorized changes, fix findings and revalidate affected checks. For read-on
 ## Run or debug
 
 Run the narrowest scope. Treat unexpected `0` tests as failure. Classify a failure as test, product, data/environment, or runner before changing code; inspect only the source needed by that classification.
+
+Read the live `run_yaxunit_tests` guide for runner side effects and retain its `jobId` for `get_job_status`; do not start another run to check progress. For debug runs or breakpoint changes, load [the runtime workflow](../../1c-routing/references/runtime.md). Do not globally disable break-on-error as a routine test prerequisite. Account for the runner's database-update and client-restart behavior within the authorized test environment.

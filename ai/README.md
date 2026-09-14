@@ -6,6 +6,14 @@
 установщик, `code-index`, общие 1С-skills, routing guard и regression-тесты.
 EDT и BSL LS остаются repository-local и настраиваются в репозиториях-владельцах.
 
+Навыки и политика EDT опираются на live API назначенного сервера и его `get_tool_guide`.
+Рабочие контракты находятся в
+[редактировании](.codex/skills/1c-code-change/references/edt-editing.md) и
+[политике инструментов](.codex/skills/1c-routing/references/tool-policy.md).
+Конфиги трёх контуров сохраняют свои endpoints и запрет `git`/`ask_workmate`;
+новые инструменты доступны с явно заданными режимами подтверждения.
+Параметры Codex соответствуют [документации MCP](https://developers.openai.com/codex/mcp).
+
 ## Установка
 
 Структура каталогов Kafka фиксирована. Переносить можно весь workspace целиком;
@@ -57,6 +65,50 @@ repository-local BSL LS и доступность `v8std`. `-ConfigurationOnly` 
 завершает выполнение сводкой `RESULT`.
 
 После успешной установки перезапустите Codex и откройте нужный repository root.
+
+## Обновление code-index
+
+Для уже установленного code-index запустите отдельный скрипт:
+
+```bat
+.\tools\ai\update-code-index.cmd
+```
+
+`update-code-index.cmd` работает через Windows PowerShell 5.1 и не запускает
+`install.cmd`. Сначала он проверяет установку и зарегистрированные пути, завершает
+managed daemon и дожидается выхода процесса. Также завершает отдельные MCP-процессы
+`bsl-indexer serve` с точным совпадением installed executable и `daemon.toml`:
+они могут удерживать `index.db` после остановки daemon. Перед удалением проверка
+повторяется; кратковременная блокировка файла ожидается до 10 секунд.
+После обновления переподключите code-index или перезапустите Codex.
+Затем скрипт проверяет последний опубликованный
+release `Regsorm/code-index-mcp` (включая prerelease). Если нужной версии нет ни в
+установленном runtime, ни в `runtime\windows`, скачивает Windows x64 artifact,
+проверяет размер, SHA-256 и upstream digest при наличии, распаковку и версию executable.
+
+Как установщик, скрипт удаляет все `.code-index` у Kafka-путей из
+`code-index\daemon.toml.template`, запускает daemon и ждёт `ready` для **всех**
+путей общего `daemon.toml`, включая другие workspace. Их индексы не удаляются.
+Затем проверяет MCP `initialize`/`tools/list` и повторно подтверждает готовность
+каждого пути. Конфигурация, BSL LS, skills и другие компоненты не обновляются.
+
+Вывод содержит шесть нумерованных этапов, версии и пути, результаты удаления,
+статусы всех aliases, прогресс ожидания не реже раза в 15 секунд между опросами,
+`[OK]`, `[WARNING]`, `[ERROR]`, `[ROLLBACK]` и итоговый `RESULT`.
+При ошибке возвращается ненулевой код; скрипт пытается восстановить прежний
+managed executable и ранее работавший daemon. Удалённые индексы не восстанавливаются
+из резервной копии: daemon должен построить их заново; готовность после rollback
+не считается подтверждённой.
+
+Поддерживаются `-WorkspaceRoot`, `-CodexHome`, `-NodePath`,
+`-IndexReadyTimeoutSeconds` (по умолчанию 1800) и `-McpReadyTimeoutSeconds`
+(по умолчанию 600). Для обновления из локального файла без GitHub-запросов:
+
+```bat
+.\tools\ai\update-code-index.cmd -BslIndexerPath D:\distribution\bsl-indexer.exe
+```
+
+Для запуска без заключительной паузы задайте `KAFKA_AI_NO_PAUSE=1`.
 
 ## Маршрутизация
 

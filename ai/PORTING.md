@@ -195,6 +195,14 @@ Installer подставляет фактический workspace root и обн
 - не использовать EDT другого workspace как fallback;
 - для version-sensitive semantics обращаться к tool guide, а не угадывать параметры.
 
+Режимы инструментов EDT-MCP и параметры запуска описаны в
+[tool-policy](.codex/skills/1c-routing/references/tool-policy.md). В Kafka нет
+EDT `enabled_tools`: новые инструменты доступны через сервер, а `disabled_tools`
+сохраняет запрет `git`/`ask_workmate`. У mixed-инструментов `dcs` и `merge_rules`
+подтверждение действует на весь инструмент, включая чтение: Codex не задаёт
+`approval_mode` отдельно для значения `action` или `mode`. Управлять видимостью
+групп следует через EDT progressive disclosure, не копированием полного каталога tools.
+
 Если один EDT-MCP обслуживает несколько связанных проектов, это фиксируется явно в
 workspace policy. Само соседство каталогов не является достаточным основанием.
 
@@ -319,8 +327,8 @@ Managed proxy применяет тот же gate автоматически п�
 | Пункт | Категория | Статус и фактическая реализация |
 |---|---|---|
 | Batch API `code-index` | `kafka-tools`: orchestration/proxy; upstream `code-index` только при доказанном пробеле | Реализовать локальной композицией существующих `get_function.names`, `get_class.names`, `get_object_structure.full_names` и `name_like` + `meta_type`; BSL-граф уже расширен proxy-инструментами. `list_test_modules`, `get_module_outline`, `get_methods`, `read_functions`, `find_test_owner`, `find_existing_tests_for_object`, `find_project_conventions`, `get_related_symbols` не требуют нового upstream API, пока их контракт надёжно составляется из этих структурных операций. |
-| Method-level EDT mutation | внешний EDT MCP | Нужны native `replace_method`, `insert_method`, `delete_method`, `replace_region`, `insert_region` или `replace_module_fragment` с синтаксическим selector. Локальная текстовая хирургия над целым модулем не владеет EDT-моделью и не обеспечивает корректный selector contract. |
-| Optimistic concurrency | локальный adapter/orchestration; внешний EDT MCP только для недостающего atomic CAS | Orchestration сохраняет hash/version из live source read и передаёт его в mutation, если tool guide показывает expected-token parameter. Повторное live-чтение непосредственно перед записью реализуемо локально, но без atomic compare-and-write остаётся race; тогда EDT writer должен принять `expected_source_hash`/version и атомарно отклонить конфликт. |
+| Method-level EDT mutation | внешний EDT MCP | Использовать `write_module_source` с `replaceMethod`, `insertBefore`, `insertAfter`: один полный метод, точный `methodName` и обязательный `expectedHash`. Для меньшего уникального фрагмента — `searchReplace`. Удаление метода и операции над регионами не следует выдумывать по аналогии; ограничения scanner проверяются по live guide. |
+| Optimistic concurrency | локальный adapter/orchestration + внешний EDT MCP | Передавать `contentHash` из `read_method_source`/`read_module_source` как `expectedHash` в writer; после записи токен устаревает. Для `dcs` использовать его собственный `hash` из `get`. Наличие hash-параметра и повторной проверки перед записью само по себе не доказывает строгий atomic CAS. |
 | Компактные API `v8std` | наш репозиторий `ShadobaAI/v8std` | Реализовано: добавлены `v8std_get_summary`, `v8std_get_section`, `v8std_get_pattern`, `v8std_get_api_card`, `v8std_get_related_ids`, `v8std_get_requirements_for_context`, bounded responses, collection filters, MCP tests и документация. Tools включены в managed allowlist; endpoint должен быть собран из версии `v8std` с этими изменениями. |
 | State machine YaXUnit | `kafka-tools`: policy/orchestration | Реализована project policy поверх `yaxunit` corpus и точной EDT signature: receiver states `module -> test set -> test`, без нового native EDT API. Детальная синхронизация существующих skills оставлена владельцу skills. |
 | Экономия calls/context | `kafka-tools`: policy/orchestration/proxy | Реализованы evidence ledger, early stop, structured-first routing, conditional batching и readiness cache proxy. Upstream изменение нужно только после измерения конкретного неустранимого round-trip или избыточного payload. |
