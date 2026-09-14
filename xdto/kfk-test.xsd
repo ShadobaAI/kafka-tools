@@ -29,7 +29,7 @@
       <xs:element name="boolean" type="xs:boolean" nillable="true"/>
       <xs:element name="enum" type="tns:TestCatalog.Enum" nillable="true"/>
       <xs:element name="comment" type="xs:string" nillable="true"/>
-      <xs:element name="tabularSection" type="tns:TestCatalog.TabularSection" minOccurs="0"/>
+      <xs:element name="tabularSection" type="tns:TestCatalog.TabularSection" nillable="true"/>
     </xs:sequence>
   </xs:complexType>
   <xs:complexType name="TestCatalog.TabularSection">

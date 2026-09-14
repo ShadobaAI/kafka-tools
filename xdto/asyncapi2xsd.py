@@ -188,6 +188,15 @@ def array_occurs(schema: dict, context: str) -> tuple[str, str]:
     return str(min_items), max_occurs
 
 
+def required_array_schema(schema: dict, context: str, is_required: bool) -> dict:
+    min_occurs, max_occurs = array_occurs(schema, context)
+    if not is_required or min_occurs != "0":
+        return schema
+    if max_occurs == "0":
+        raise ValueError(f"Обязательный массив не может иметь maxItems=0: {context}")
+    return {**schema, "minItems": 1}
+
+
 def is_enum_schema(schema: dict) -> bool:
     return "enum" in schema and "properties" not in schema
 
@@ -477,13 +486,19 @@ def _process_enum_property(root, seq, prop_name: str, prop: dict, type_name: str
     )
 
 
-def _process_ref_property(root, seq, prop_name: str, prop: dict, required: list, schemas: dict, channel_map: dict):
+def _process_ref_property(root, seq, prop_name: str, prop: dict, type_name: str, required: list, schemas: dict, channel_map: dict, created: set):
     ref_schema_name = ref_name(prop["$ref"])
     ref_schema = schemas.get(ref_schema_name)
     if not ref_schema:
         raise ValueError(f"Unknown schema ref: '{ref_schema_name}'")
 
     resolved_name = resolve_schema_type_name(ref_schema_name, channel_map)
+
+    if ref_schema.get("type") == "array" and required and prop_name in required:
+        array_schema = required_array_schema(ref_schema, f"{type_name}.{prop_name}", True)
+        if array_schema is not ref_schema:
+            resolved_name = f"{type_name}.{pascal_case(prop_name)}"
+            create_complex_type(root, resolved_name, array_schema, schemas, channel_map, created)
 
     if is_enum_schema(ref_schema):
         create_enum_simple_type(root, resolved_name, ref_schema)
@@ -503,59 +518,10 @@ def _process_ref_property(root, seq, prop_name: str, prop: dict, required: list,
 
 
 def _process_array_property(root, seq, prop_name: str, prop: dict, type_name: str, required: list, schemas: dict, channel_map: dict, created: set):
-    items = prop.get("items")
-    if not items:
-        raise ValueError(f"Array '{type_name}.{prop_name}' has no items")
-
     context = f"{type_name}.{prop_name}"
-    min_occurs, max_occurs = array_occurs(prop, context)
-
-    if "$ref" in items:
-        ref_schema_name = ref_name(items["$ref"])
-        ref_schema = schemas.get(ref_schema_name)
-        if not ref_schema:
-            raise ValueError(f"Unknown array item schema ref: '{ref_schema_name}'")
-
-        resolved_name = resolve_schema_type_name(ref_schema_name, channel_map)
-        if is_enum_schema(ref_schema):
-            create_enum_simple_type(root, resolved_name, ref_schema)
-
-        (
-            elem(seq, prop_name)
-            .type(f"tns:{resolved_name}")
-            .min_occurs(min_occurs)
-            .max_occurs(max_occurs)
-            .nillable_if_nullable(prop_name, required)
-            .build()
-        )
-        return
-
-    if items.get("type") != "object":
-        array_element = (
-            elem(seq, prop_name)
-            .min_occurs(min_occurs)
-            .max_occurs(max_occurs)
-            .nillable_if_nullable(prop_name, required)
-            .build()
-        )
-        append_primitive_type(array_element, items, context)
-        return
-
+    array_schema = required_array_schema(prop, context, bool(required and prop_name in required))
     table_type = f"{type_name}.{pascal_case(prop_name)}"
-    row_type = f"{table_type}.{ROW_SUFFIX}"
-
-    create_complex_type(root, row_type, items, schemas, channel_map, created)
-
-    tct = etree.SubElement(root, etree.QName(XSD_NS, "complexType"), name=table_type)
-    tseq = etree.SubElement(tct, etree.QName(XSD_NS, "sequence"))
-    row_min_occurs, row_max_occurs = array_occurs(prop, context)
-    (
-        elem(tseq, "row")
-        .type(f"tns:{row_type}")
-        .min_occurs(row_min_occurs)
-        .max_occurs(row_max_occurs)
-        .build()
-    )
+    create_complex_type(root, table_type, array_schema, schemas, channel_map, created)
 
     (
         elem(seq, prop_name)
@@ -647,7 +613,7 @@ def create_complex_type(root, type_name: str, schema: dict, schemas: dict, chann
             if "enum" in prop:
                 _process_enum_property(root, seq, prop_name, prop, type_name, required)
             elif "$ref" in prop:
-                _process_ref_property(root, seq, prop_name, prop, required, schemas, channel_map)
+                _process_ref_property(root, seq, prop_name, prop, type_name, required, schemas, channel_map, created)
             elif prop.get("type") == "array":
                 _process_array_property(root, seq, prop_name, prop, type_name, required, schemas, channel_map, created)
             elif prop.get("type") == "object":
