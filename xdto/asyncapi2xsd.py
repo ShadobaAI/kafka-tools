@@ -166,7 +166,7 @@ def is_nullable(prop_name: str, required: list | None) -> bool:
     return not required or prop_name not in required
 
 
-def array_occurs(schema: dict, context: str) -> tuple[str | None, str]:
+def array_occurs(schema: dict, context: str) -> tuple[str, str]:
     """Преобразует стандартные minItems/maxItems в границы XSD."""
     min_items = schema.get("minItems", 0)
     max_items = schema.get("maxItems")
@@ -184,9 +184,8 @@ def array_occurs(schema: dict, context: str) -> tuple[str | None, str]:
             f"minItems ({min_items}) больше maxItems ({max_items}): {context}"
         )
 
-    min_occurs = str(min_items) if "minItems" in schema else None
     max_occurs = "unbounded" if max_items is None else str(max_items)
-    return min_occurs, max_occurs
+    return str(min_items), max_occurs
 
 
 def is_enum_schema(schema: dict) -> bool:
@@ -234,9 +233,8 @@ class ElementBuilder:
         self._attrs["type"] = t
         return self
 
-    def min_occurs(self, v: str | None) -> "ElementBuilder":
-        if v is not None:
-            self._attrs["minOccurs"] = v
+    def min_occurs(self, v: str) -> "ElementBuilder":
+        self._attrs["minOccurs"] = v
         return self
 
     def max_occurs(self, v: str) -> "ElementBuilder":
