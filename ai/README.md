@@ -1,5 +1,7 @@
 # Codex toolkit для Kafka Adapter
 
+[← Все инструменты](../readme.md)
+
 Каталог `tools/ai` содержит общую AI-инфраструктуру фиксированного Kafka workspace:
 установщик, `code-index`, общие 1С-skills, routing guard и regression-тесты.
 EDT и BSL LS остаются repository-local и настраиваются в репозиториях-владельцах.
@@ -97,4 +99,4 @@ Get-ChildItem -LiteralPath .\tools\ai\tests -Filter 'test-*.ps1' |
 `smoke-code-index-runtime.ps1` является отдельной live-проверкой.
 
 Подробная архитектура, правила переноса и критерии готовности описаны в
-`PORTING.md`; политика runtime — в `runtime/README.md`.
+[PORTING.md](PORTING.md); политика runtime — в [runtime/README.md](runtime/README.md).
