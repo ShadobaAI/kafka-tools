@@ -10,7 +10,7 @@
 |---|---|---|
 | Настроить AI-инструменты | Установка, маршрутизация MCP, проверки | [ai](ai/README.md) |
 | Собрать Docker-образы для CI | Профили `edtcli`, `ibcmd`, `client`, дистрибутивы и публикация | [.github/ci-images](.github/ci-images/README.md) |
-| Настроить сборку релизов | GitHub Actions, сборка CF/CFE, упаковка EDT/XML | [.github](.github/README.md) |
+| Настроить сборку релизов | GitHub Actions, сборка CF/CFE, упаковка EDT/XML | [.github](.github/README_CI.md) |
 | Запустить Kafka и отправить тестовые сообщения | Два узла KRaft, ACL, Kafka UI, Schema Registry, генератор нагрузки | [kafka](kafka/README.md) |
 | Настроить логирование через ELK | Elasticsearch, Logstash, Kibana | [elk](elk/README.md) |
 | Настроить логирование через OpenSearch | OpenSearch, Dashboards, Fluent Bit | [opensearch](opensearch/README.md) |
