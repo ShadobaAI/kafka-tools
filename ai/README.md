@@ -1,6 +1,6 @@
 # Codex toolkit для Kafka Adapter
 
-[← Все инструменты](../readme.md)
+[← Все инструменты](../README.md)
 
 Каталог `tools/ai` содержит общую AI-инфраструктуру фиксированного Kafka workspace:
 установщик, `code-index`, общие 1С-skills, routing guard и regression-тесты.

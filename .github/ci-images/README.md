@@ -1,6 +1,6 @@
 # Docker-образы для CI
 
-[← CI/CD](../README.md) · [Все инструменты](../../readme.md)
+[← CI/CD](../README.md) · [Все инструменты](../../README.md)
 
 Раздельные образы для конвертации, сборки и тестирования проектов 1С. Конфигурация registry и профилей — [images.yml](images.yml), сборка — [Dockerfile](docker/Dockerfile).
 
