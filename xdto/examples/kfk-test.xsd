@@ -1,5 +1,14 @@
 <?xml version='1.0' encoding='UTF-8'?>
-<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:tns="http://v8.fsk.ru/kfk/test/1.0" targetNamespace="http://v8.fsk.ru/kfk/test/1.0" elementFormDefault="qualified" attributeFormDefault="unqualified">
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:tns="http://v8.fsk.ru/kfk/test/1.0" targetNamespace="http://v8.fsk.ru/kfk/test/1.0" elementFormDefault="qualified">
+  <xs:simpleType name="UUID">
+    <xs:annotation>
+      <xs:documentation>UUID identifier</xs:documentation>
+    </xs:annotation>
+    <xs:restriction base="xs:string">
+      <xs:length value="36"/>
+      <xs:pattern value="[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"/>
+    </xs:restriction>
+  </xs:simpleType>
   <xs:simpleType name="TestAccumulationRegister.Period">
     <xs:restriction base="xs:dateTime"/>
   </xs:simpleType>
@@ -66,64 +75,55 @@
   <xs:simpleType name="TestRegisterRs.Value">
     <xs:restriction base="xs:decimal"/>
   </xs:simpleType>
-  <xs:simpleType name="UUID">
-    <xs:annotation>
-      <xs:documentation>UUID identifier</xs:documentation>
-    </xs:annotation>
-    <xs:restriction base="xs:string">
-      <xs:length value="36"/>
-      <xs:pattern value="[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"/>
-    </xs:restriction>
-  </xs:simpleType>
   <xs:complexType name="TestAccumulationRegister">
     <xs:sequence>
-      <xs:element name="period" type="tns:TestAccumulationRegister.Period" minOccurs="1" maxOccurs="1" nillable="false"/>
-      <xs:element name="recorder" type="tns:UUID" minOccurs="1" maxOccurs="1" nillable="false"/>
-      <xs:element name="id" type="tns:UUID" minOccurs="1" maxOccurs="1" nillable="false"/>
-      <xs:element name="value" type="tns:TestAccumulationRegister.Value" minOccurs="0" maxOccurs="1" nillable="false"/>
+      <xs:element name="period" type="tns:TestAccumulationRegister.Period"/>
+      <xs:element name="recorder" type="tns:UUID"/>
+      <xs:element name="id" type="tns:UUID"/>
+      <xs:element name="value" type="tns:TestAccumulationRegister.Value" nillable="true"/>
     </xs:sequence>
   </xs:complexType>
   <xs:complexType name="TestCatalog">
     <xs:sequence>
-      <xs:element name="ref" type="tns:UUID" minOccurs="1" maxOccurs="1" nillable="false"/>
-      <xs:element name="name" type="tns:TestCatalog.Name" minOccurs="1" maxOccurs="1" nillable="false"/>
-      <xs:element name="dateTime" type="tns:TestCatalog.DateTime" minOccurs="0" maxOccurs="1" nillable="false"/>
-      <xs:element name="number" type="tns:TestCatalog.Number" minOccurs="0" maxOccurs="1" nillable="false"/>
-      <xs:element name="boolean" type="tns:TestCatalog.Boolean" minOccurs="0" maxOccurs="1" nillable="false"/>
-      <xs:element name="enum" type="tns:TestCatalog.Enum" minOccurs="0" maxOccurs="1" nillable="false"/>
-      <xs:element name="comment" type="tns:TestCatalog.Comment" minOccurs="0" maxOccurs="1" nillable="false"/>
-      <xs:element name="tabularSection" type="tns:TestCatalog.TabularSection" minOccurs="0" maxOccurs="1" nillable="false"/>
+      <xs:element name="ref" type="tns:UUID"/>
+      <xs:element name="name" type="tns:TestCatalog.Name"/>
+      <xs:element name="dateTime" type="tns:TestCatalog.DateTime" nillable="true"/>
+      <xs:element name="number" type="tns:TestCatalog.Number" nillable="true"/>
+      <xs:element name="boolean" type="tns:TestCatalog.Boolean" nillable="true"/>
+      <xs:element name="enum" type="tns:TestCatalog.Enum" nillable="true"/>
+      <xs:element name="comment" type="tns:TestCatalog.Comment" nillable="true"/>
+      <xs:element name="tabularSection" type="tns:TestCatalog.TabularSection" nillable="true"/>
     </xs:sequence>
   </xs:complexType>
   <xs:complexType name="TestCatalog.TabularSection">
     <xs:sequence>
-      <xs:element name="row" type="tns:TestCatalog.TabularSection.Row" minOccurs="0" maxOccurs="unbounded" nillable="false"/>
+      <xs:element name="row" type="tns:TestCatalog.TabularSection.Row" minOccurs="0" maxOccurs="unbounded"/>
     </xs:sequence>
   </xs:complexType>
   <xs:complexType name="TestCatalog.TabularSection.Row">
     <xs:sequence>
-      <xs:element name="dateTime" type="tns:TestCatalog.TabularSection.Row.DateTime" minOccurs="0" maxOccurs="1" nillable="false"/>
-      <xs:element name="string" type="tns:TestCatalog.TabularSection.Row.String" minOccurs="0" maxOccurs="1" nillable="false"/>
+      <xs:element name="dateTime" type="tns:TestCatalog.TabularSection.Row.DateTime" nillable="true"/>
+      <xs:element name="string" type="tns:TestCatalog.TabularSection.Row.String" nillable="true"/>
     </xs:sequence>
   </xs:complexType>
   <xs:complexType name="TestRegister">
     <xs:sequence>
-      <xs:element name="period" type="tns:TestRegister.Period" minOccurs="1" maxOccurs="1" nillable="false"/>
-      <xs:element name="testRef" type="tns:UUID" minOccurs="0" maxOccurs="1" nillable="false"/>
-      <xs:element name="boolean" type="tns:TestRegister.Boolean" minOccurs="0" maxOccurs="1" nillable="false"/>
-      <xs:element name="string" type="tns:TestRegister.String" minOccurs="0" maxOccurs="1" nillable="false"/>
-      <xs:element name="number" type="tns:TestRegister.Number" minOccurs="0" maxOccurs="1" nillable="false"/>
-      <xs:element name="dateTime" type="tns:TestRegister.DateTime" minOccurs="0" maxOccurs="1" nillable="false"/>
-      <xs:element name="uuid" type="tns:TestRegister.Uuid" minOccurs="0" maxOccurs="1" nillable="false"/>
-      <xs:element name="comment" type="tns:TestRegister.Comment" minOccurs="0" maxOccurs="1" nillable="false"/>
+      <xs:element name="period" type="tns:TestRegister.Period"/>
+      <xs:element name="testRef" type="tns:UUID" nillable="true"/>
+      <xs:element name="boolean" type="tns:TestRegister.Boolean" nillable="true"/>
+      <xs:element name="string" type="tns:TestRegister.String" nillable="true"/>
+      <xs:element name="number" type="tns:TestRegister.Number" nillable="true"/>
+      <xs:element name="dateTime" type="tns:TestRegister.DateTime" nillable="true"/>
+      <xs:element name="uuid" type="tns:TestRegister.Uuid" nillable="true"/>
+      <xs:element name="comment" type="tns:TestRegister.Comment" nillable="true"/>
     </xs:sequence>
   </xs:complexType>
   <xs:complexType name="TestRegisterRs">
     <xs:sequence>
-      <xs:element name="period" type="tns:TestRegisterRs.Period" minOccurs="1" maxOccurs="1" nillable="false"/>
-      <xs:element name="recorder" type="tns:UUID" minOccurs="1" maxOccurs="1" nillable="false"/>
-      <xs:element name="id" type="tns:UUID" minOccurs="1" maxOccurs="1" nillable="false"/>
-      <xs:element name="value" type="tns:TestRegisterRs.Value" minOccurs="0" maxOccurs="1" nillable="false"/>
+      <xs:element name="period" type="tns:TestRegisterRs.Period"/>
+      <xs:element name="recorder" type="tns:UUID"/>
+      <xs:element name="id" type="tns:UUID"/>
+      <xs:element name="value" type="tns:TestRegisterRs.Value" nillable="true"/>
     </xs:sequence>
   </xs:complexType>
 </xs:schema>

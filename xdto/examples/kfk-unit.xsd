@@ -1,5 +1,37 @@
 <?xml version='1.0' encoding='UTF-8'?>
-<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:tns="http://v8.fsk.ru/kfk/unit/1.0" targetNamespace="http://v8.fsk.ru/kfk/unit/1.0" elementFormDefault="qualified" attributeFormDefault="unqualified">
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:tns="http://v8.fsk.ru/kfk/unit/1.0" targetNamespace="http://v8.fsk.ru/kfk/unit/1.0" elementFormDefault="qualified">
+  <xs:simpleType name="UUID">
+    <xs:annotation>
+      <xs:documentation>UUID identifier</xs:documentation>
+    </xs:annotation>
+    <xs:restriction base="xs:string">
+      <xs:length value="36"/>
+      <xs:pattern value="[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"/>
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:simpleType name="TestConversionDocumentKindEnum">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="Продажа"/>
+      <xs:enumeration value="Интерес"/>
+      <xs:enumeration value="Активность"/>
+      <xs:enumeration value="ДоговорСПокупателем"/>
+      <xs:enumeration value="Анкета"/>
+      <xs:enumeration value="НетОснования"/>
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:simpleType name="TestConversionEnum">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="Значение1"/>
+      <xs:enumeration value="Значение2"/>
+      <xs:enumeration value="Значение3"/>
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:simpleType name="TestConversionPaymentKind">
+    <xs:restriction base="xs:integer">
+      <xs:enumeration value="0"/>
+      <xs:enumeration value="1"/>
+    </xs:restriction>
+  </xs:simpleType>
   <xs:simpleType name="TestConversion.Boolean">
     <xs:restriction base="xs:boolean"/>
   </xs:simpleType>
@@ -160,23 +192,6 @@
   <xs:simpleType name="TestConversionAdditionalCases.DateTime">
     <xs:restriction base="xs:dateTime"/>
   </xs:simpleType>
-  <xs:simpleType name="TestConversionDocumentKindEnum">
-    <xs:restriction base="xs:string">
-      <xs:enumeration value="Продажа"/>
-      <xs:enumeration value="Интерес"/>
-      <xs:enumeration value="Активность"/>
-      <xs:enumeration value="ДоговорСПокупателем"/>
-      <xs:enumeration value="Анкета"/>
-      <xs:enumeration value="НетОснования"/>
-    </xs:restriction>
-  </xs:simpleType>
-  <xs:simpleType name="TestConversionEnum">
-    <xs:restriction base="xs:string">
-      <xs:enumeration value="Значение1"/>
-      <xs:enumeration value="Значение2"/>
-      <xs:enumeration value="Значение3"/>
-    </xs:restriction>
-  </xs:simpleType>
   <xs:simpleType name="TestConversionLevel1.Sibling">
     <xs:restriction base="xs:string"/>
   </xs:simpleType>
@@ -188,12 +203,6 @@
   </xs:simpleType>
   <xs:simpleType name="TestConversionNode.Name">
     <xs:restriction base="xs:string"/>
-  </xs:simpleType>
-  <xs:simpleType name="TestConversionPaymentKind">
-    <xs:restriction base="xs:integer">
-      <xs:enumeration value="0"/>
-      <xs:enumeration value="1"/>
-    </xs:restriction>
   </xs:simpleType>
   <xs:simpleType name="TestConversionRowTable.Row.Code">
     <xs:restriction base="xs:string"/>
@@ -218,127 +227,118 @@
   <xs:simpleType name="TestConversionStringTable.Row">
     <xs:restriction base="xs:string"/>
   </xs:simpleType>
-  <xs:simpleType name="UUID">
-    <xs:annotation>
-      <xs:documentation>UUID identifier</xs:documentation>
-    </xs:annotation>
-    <xs:restriction base="xs:string">
-      <xs:length value="36"/>
-      <xs:pattern value="[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"/>
-    </xs:restriction>
-  </xs:simpleType>
   <xs:complexType name="TestConversion">
     <xs:sequence>
-      <xs:element name="ref" type="tns:UUID" minOccurs="1" maxOccurs="1" nillable="false"/>
-      <xs:element name="name" type="tns:TestConversion.Name" minOccurs="1" maxOccurs="1" nillable="false"/>
-      <xs:element name="requiredBoolean" type="tns:TestConversion.RequiredBoolean" minOccurs="1" maxOccurs="1" nillable="false"/>
-      <xs:element name="requiredNumber" type="tns:TestConversion.RequiredNumber" minOccurs="1" maxOccurs="1" nillable="false"/>
-      <xs:element name="requiredString" type="tns:TestConversion.RequiredString" minOccurs="1" maxOccurs="1" nillable="false"/>
-      <xs:element name="optionalString" type="tns:TestConversion.OptionalString" minOccurs="0" maxOccurs="1" nillable="false"/>
-      <xs:element name="boolean" type="tns:TestConversion.Boolean" minOccurs="0" maxOccurs="1" nillable="false"/>
-      <xs:element name="decimal" type="tns:TestConversion.Decimal" minOccurs="0" maxOccurs="1" nillable="false"/>
-      <xs:element name="integer" type="tns:TestConversion.Integer" minOccurs="0" maxOccurs="1" nillable="false"/>
-      <xs:element name="int32" type="tns:TestConversion.Int32" minOccurs="0" maxOccurs="1" nillable="false"/>
-      <xs:element name="int64" type="tns:TestConversion.Int64" minOccurs="0" maxOccurs="1" nillable="false"/>
-      <xs:element name="float" type="tns:TestConversion.Float" minOccurs="0" maxOccurs="1" nillable="false"/>
-      <xs:element name="double" type="tns:TestConversion.Double" minOccurs="0" maxOccurs="1" nillable="false"/>
-      <xs:element name="dateTime" type="tns:TestConversion.DateTime" minOccurs="0" maxOccurs="1" nillable="false"/>
-      <xs:element name="date" type="tns:TestConversion.Date" minOccurs="0" maxOccurs="1" nillable="false"/>
-      <xs:element name="time" type="tns:TestConversion.Time" minOccurs="0" maxOccurs="1" nillable="false"/>
-      <xs:element name="uuidAsString" type="tns:TestConversion.UuidAsString" minOccurs="0" maxOccurs="1" nillable="false"/>
-      <xs:element name="patternString" type="tns:TestConversion.PatternString" minOccurs="0" maxOccurs="1" nillable="false"/>
-      <xs:element name="boundedDecimal" type="tns:TestConversion.BoundedDecimal" minOccurs="0" maxOccurs="1" nillable="false"/>
-      <xs:element name="exclusiveDecimal" type="tns:TestConversion.ExclusiveDecimal" minOccurs="0" maxOccurs="1" nillable="false"/>
-      <xs:element name="boundedInteger" type="tns:TestConversion.BoundedInteger" minOccurs="0" maxOccurs="1" nillable="false"/>
-      <xs:element name="enum" type="tns:TestConversion.Enum" minOccurs="0" maxOccurs="1" nillable="false"/>
-      <xs:element name="sharedEnum" type="tns:TestConversionEnum" minOccurs="0" maxOccurs="1" nillable="false"/>
-      <xs:element name="integerEnum" type="tns:TestConversion.IntegerEnum" minOccurs="0" maxOccurs="1" nillable="false"/>
-      <xs:element name="decimalEnum" type="tns:TestConversion.DecimalEnum" minOccurs="0" maxOccurs="1" nillable="false"/>
-      <xs:element name="nested" type="tns:ОбщиеСвойства.TestConversionLevel1" minOccurs="0" maxOccurs="1" nillable="false"/>
-      <xs:element name="recursive" type="tns:ОбщиеСвойства.TestConversionNode" minOccurs="0" maxOccurs="1" nillable="false"/>
-      <xs:element name="strings" type="tns:TestConversion.Strings.Row" minOccurs="0" maxOccurs="unbounded" nillable="false"/>
-      <xs:element name="numbers" type="tns:TestConversion.Numbers.Row" minOccurs="0" maxOccurs="unbounded" nillable="false"/>
-      <xs:element name="booleans" type="tns:TestConversion.Booleans.Row" minOccurs="0" maxOccurs="unbounded" nillable="false"/>
-      <xs:element name="dates" type="tns:TestConversion.Dates.Row" minOccurs="0" maxOccurs="unbounded" nillable="false"/>
-      <xs:element name="refs" type="tns:UUID" minOccurs="0" maxOccurs="unbounded" nillable="false"/>
-      <xs:element name="enumValues" type="tns:TestConversionEnum" minOccurs="0" maxOccurs="unbounded" nillable="false"/>
-      <xs:element name="fixedStrings" type="tns:TestConversion.FixedStrings.Row" minOccurs="2" maxOccurs="2" nillable="false"/>
-      <xs:element name="boundedNumbers" type="tns:TestConversion.BoundedNumbers.Row" minOccurs="1" maxOccurs="3" nillable="false"/>
-      <xs:element name="singleString" type="tns:TestConversion.SingleString.Row" minOccurs="1" maxOccurs="1" nillable="false"/>
-      <xs:element name="nodes" type="tns:TestConversion.Nodes" minOccurs="0" maxOccurs="1" nillable="false"/>
-      <xs:element name="tabularSection" type="tns:TestConversion.TabularSection" minOccurs="0" maxOccurs="1" nillable="false"/>
-      <xs:element name="requiredRows" type="tns:TestConversion.RequiredRows" minOccurs="1" maxOccurs="1" nillable="false"/>
-      <xs:element name="singleRow" type="tns:TestConversion.SingleRow" minOccurs="0" maxOccurs="1" nillable="false"/>
-      <xs:element name="stringTable" type="tns:TestConversionStringTable" minOccurs="0" maxOccurs="1" nillable="false"/>
-      <xs:element name="rowTable" type="tns:TestConversionRowTable" minOccurs="0" maxOccurs="1" nillable="false"/>
-      <xs:element name="emptyObject" type="tns:ОбщиеСвойства.TestConversionEmpty" minOccurs="0" maxOccurs="1" nillable="false"/>
-      <xs:element name="additionalCases" type="tns:ОбщиеСвойства.TestConversionAdditionalCases" minOccurs="0" maxOccurs="1" nillable="false"/>
+      <xs:element name="ref" type="tns:UUID"/>
+      <xs:element name="name" type="tns:TestConversion.Name"/>
+      <xs:element name="requiredBoolean" type="tns:TestConversion.RequiredBoolean"/>
+      <xs:element name="requiredNumber" type="tns:TestConversion.RequiredNumber"/>
+      <xs:element name="requiredString" type="tns:TestConversion.RequiredString"/>
+      <xs:element name="optionalString" type="tns:TestConversion.OptionalString" nillable="true"/>
+      <xs:element name="boolean" type="tns:TestConversion.Boolean" nillable="true"/>
+      <xs:element name="decimal" type="tns:TestConversion.Decimal" nillable="true"/>
+      <xs:element name="integer" type="tns:TestConversion.Integer" nillable="true"/>
+      <xs:element name="int32" type="tns:TestConversion.Int32" nillable="true"/>
+      <xs:element name="int64" type="tns:TestConversion.Int64" nillable="true"/>
+      <xs:element name="float" type="tns:TestConversion.Float" nillable="true"/>
+      <xs:element name="double" type="tns:TestConversion.Double" nillable="true"/>
+      <xs:element name="dateTime" type="tns:TestConversion.DateTime" nillable="true"/>
+      <xs:element name="date" type="tns:TestConversion.Date" nillable="true"/>
+      <xs:element name="time" type="tns:TestConversion.Time" nillable="true"/>
+      <xs:element name="uuidAsString" type="tns:TestConversion.UuidAsString" nillable="true"/>
+      <xs:element name="patternString" type="tns:TestConversion.PatternString" nillable="true"/>
+      <xs:element name="boundedDecimal" type="tns:TestConversion.BoundedDecimal" nillable="true"/>
+      <xs:element name="exclusiveDecimal" type="tns:TestConversion.ExclusiveDecimal" nillable="true"/>
+      <xs:element name="boundedInteger" type="tns:TestConversion.BoundedInteger" nillable="true"/>
+      <xs:element name="enum" type="tns:TestConversion.Enum" nillable="true"/>
+      <xs:element name="sharedEnum" type="tns:TestConversionEnum" nillable="true"/>
+      <xs:element name="integerEnum" type="tns:TestConversion.IntegerEnum" nillable="true"/>
+      <xs:element name="decimalEnum" type="tns:TestConversion.DecimalEnum" nillable="true"/>
+      <xs:element name="nested" type="tns:TestConversionLevel1" nillable="true"/>
+      <xs:element name="recursive" type="tns:TestConversionNode" nillable="true"/>
+      <xs:element name="strings" type="tns:TestConversion.Strings.Row" minOccurs="0" maxOccurs="unbounded" nillable="true"/>
+      <xs:element name="numbers" type="tns:TestConversion.Numbers.Row" minOccurs="0" maxOccurs="unbounded" nillable="true"/>
+      <xs:element name="booleans" type="tns:TestConversion.Booleans.Row" minOccurs="0" maxOccurs="unbounded" nillable="true"/>
+      <xs:element name="dates" type="tns:TestConversion.Dates.Row" minOccurs="0" maxOccurs="unbounded" nillable="true"/>
+      <xs:element name="refs" type="tns:UUID" minOccurs="0" maxOccurs="unbounded" nillable="true"/>
+      <xs:element name="enumValues" type="tns:TestConversionEnum" minOccurs="0" maxOccurs="unbounded" nillable="true"/>
+      <xs:element name="fixedStrings" type="tns:TestConversion.FixedStrings.Row" minOccurs="2" maxOccurs="2"/>
+      <xs:element name="boundedNumbers" type="tns:TestConversion.BoundedNumbers.Row" maxOccurs="3"/>
+      <xs:element name="singleString" type="tns:TestConversion.SingleString.Row"/>
+      <xs:element name="nodes" type="tns:TestConversion.Nodes" nillable="true"/>
+      <xs:element name="tabularSection" type="tns:TestConversion.TabularSection" nillable="true"/>
+      <xs:element name="requiredRows" type="tns:TestConversion.RequiredRows"/>
+      <xs:element name="singleRow" type="tns:TestConversion.SingleRow"/>
+      <xs:element name="stringTable" type="tns:TestConversionStringTable" nillable="true"/>
+      <xs:element name="rowTable" type="tns:TestConversionRowTable" nillable="true"/>
+      <xs:element name="emptyObject" type="tns:TestConversionEmpty" nillable="true"/>
+      <xs:element name="additionalCases" type="tns:TestConversionAdditionalCases" nillable="true"/>
     </xs:sequence>
   </xs:complexType>
   <xs:complexType name="TestConversion.Nodes">
     <xs:sequence>
-      <xs:element name="row" type="tns:TestConversionNode" minOccurs="0" maxOccurs="unbounded" nillable="false"/>
+      <xs:element name="row" type="tns:TestConversionNode" minOccurs="0" maxOccurs="unbounded"/>
     </xs:sequence>
   </xs:complexType>
   <xs:complexType name="TestConversion.RequiredRows">
     <xs:sequence>
-      <xs:element name="row" type="tns:TestConversion.RequiredRows.Row" minOccurs="1" maxOccurs="3" nillable="false"/>
+      <xs:element name="row" type="tns:TestConversion.RequiredRows.Row" maxOccurs="3"/>
     </xs:sequence>
   </xs:complexType>
   <xs:complexType name="TestConversion.RequiredRows.Row">
     <xs:sequence>
-      <xs:element name="code" type="tns:TestConversion.RequiredRows.Row.Code" minOccurs="1" maxOccurs="1" nillable="false"/>
-      <xs:element name="value" type="tns:TestConversion.RequiredRows.Row.Value" minOccurs="0" maxOccurs="1" nillable="false"/>
+      <xs:element name="code" type="tns:TestConversion.RequiredRows.Row.Code"/>
+      <xs:element name="value" type="tns:TestConversion.RequiredRows.Row.Value" nillable="true"/>
     </xs:sequence>
   </xs:complexType>
   <xs:complexType name="TestConversion.SingleRow">
     <xs:sequence>
-      <xs:element name="row" type="tns:TestConversion.SingleRow.Row" minOccurs="1" maxOccurs="1" nillable="false"/>
+      <xs:element name="row" type="tns:TestConversion.SingleRow.Row"/>
     </xs:sequence>
   </xs:complexType>
   <xs:complexType name="TestConversion.SingleRow.Row">
     <xs:sequence>
-      <xs:element name="code" type="tns:TestConversion.SingleRow.Row.Code" minOccurs="0" maxOccurs="1" nillable="false"/>
-      <xs:element name="value" type="tns:TestConversion.SingleRow.Row.Value" minOccurs="0" maxOccurs="1" nillable="false"/>
+      <xs:element name="code" type="tns:TestConversion.SingleRow.Row.Code" nillable="true"/>
+      <xs:element name="value" type="tns:TestConversion.SingleRow.Row.Value" nillable="true"/>
     </xs:sequence>
   </xs:complexType>
   <xs:complexType name="TestConversion.TabularSection">
     <xs:sequence>
-      <xs:element name="row" type="tns:TestConversion.TabularSection.Row" minOccurs="0" maxOccurs="unbounded" nillable="false"/>
+      <xs:element name="row" type="tns:TestConversion.TabularSection.Row" minOccurs="0" maxOccurs="unbounded"/>
     </xs:sequence>
   </xs:complexType>
   <xs:complexType name="TestConversion.TabularSection.Row">
     <xs:sequence>
-      <xs:element name="lineNumber" type="tns:TestConversion.TabularSection.Row.LineNumber" minOccurs="1" maxOccurs="1" nillable="false"/>
-      <xs:element name="string" type="tns:TestConversion.TabularSection.Row.String" minOccurs="0" maxOccurs="1" nillable="false"/>
-      <xs:element name="number" type="tns:TestConversion.TabularSection.Row.Number" minOccurs="0" maxOccurs="1" nillable="false"/>
-      <xs:element name="boolean" type="tns:TestConversion.TabularSection.Row.Boolean" minOccurs="0" maxOccurs="1" nillable="false"/>
-      <xs:element name="dateTime" type="tns:TestConversion.TabularSection.Row.DateTime" minOccurs="0" maxOccurs="1" nillable="false"/>
-      <xs:element name="ref" type="tns:UUID" minOccurs="0" maxOccurs="1" nillable="false"/>
-      <xs:element name="enum" type="tns:TestConversionEnum" minOccurs="0" maxOccurs="1" nillable="false"/>
-      <xs:element name="nested" type="tns:ОбщиеСвойства.TestConversionLevel1" minOccurs="0" maxOccurs="1" nillable="false"/>
-      <xs:element name="details" type="tns:TestConversion.TabularSection.Row.Details" minOccurs="0" maxOccurs="1" nillable="false"/>
+      <xs:element name="lineNumber" type="tns:TestConversion.TabularSection.Row.LineNumber"/>
+      <xs:element name="string" type="tns:TestConversion.TabularSection.Row.String" nillable="true"/>
+      <xs:element name="number" type="tns:TestConversion.TabularSection.Row.Number" nillable="true"/>
+      <xs:element name="boolean" type="tns:TestConversion.TabularSection.Row.Boolean" nillable="true"/>
+      <xs:element name="dateTime" type="tns:TestConversion.TabularSection.Row.DateTime" nillable="true"/>
+      <xs:element name="ref" type="tns:UUID" nillable="true"/>
+      <xs:element name="enum" type="tns:TestConversionEnum" nillable="true"/>
+      <xs:element name="nested" type="tns:TestConversionLevel1" nillable="true"/>
+      <xs:element name="details" type="tns:TestConversion.TabularSection.Row.Details" nillable="true"/>
     </xs:sequence>
   </xs:complexType>
   <xs:complexType name="TestConversion.TabularSection.Row.Details">
     <xs:sequence>
-      <xs:element name="row" type="tns:TestConversion.TabularSection.Row.Details.Row" minOccurs="0" maxOccurs="unbounded" nillable="false"/>
+      <xs:element name="row" type="tns:TestConversion.TabularSection.Row.Details.Row" minOccurs="0" maxOccurs="unbounded"/>
     </xs:sequence>
   </xs:complexType>
   <xs:complexType name="TestConversion.TabularSection.Row.Details.Row">
     <xs:sequence>
-      <xs:element name="code" type="tns:TestConversion.TabularSection.Row.Details.Row.Code" minOccurs="1" maxOccurs="1" nillable="false"/>
-      <xs:element name="value" type="tns:TestConversion.TabularSection.Row.Details.Row.Value" minOccurs="0" maxOccurs="1" nillable="false"/>
+      <xs:element name="code" type="tns:TestConversion.TabularSection.Row.Details.Row.Code"/>
+      <xs:element name="value" type="tns:TestConversion.TabularSection.Row.Details.Row.Value" nillable="true"/>
     </xs:sequence>
   </xs:complexType>
   <xs:complexType name="TestConversionAdditionalCases">
     <xs:sequence>
-      <xs:element name="objectId" type="tns:UUID" minOccurs="1" maxOccurs="1" nillable="false"/>
-      <xs:element name="typeDocumentManagement" type="tns:TestConversionDocumentKindEnum" minOccurs="0" maxOccurs="1" nillable="false"/>
-      <xs:element name="documentManagement" type="tns:UUID" minOccurs="0" maxOccurs="1" nillable="false"/>
-      <xs:element name="dateTime" type="tns:TestConversionAdditionalCases.DateTime" minOccurs="1" maxOccurs="1" nillable="false"/>
-      <xs:element name="paymentKind" type="tns:TestConversionPaymentKind" minOccurs="0" maxOccurs="1" nillable="false"/>
-      <xs:element name="stringLimits" type="tns:ОбщиеСвойства.TestConversionStringLimits" minOccurs="0" maxOccurs="1" nillable="false"/>
+      <xs:element name="objectId" type="tns:UUID"/>
+      <xs:element name="typeDocumentManagement" type="tns:TestConversionDocumentKindEnum" nillable="true"/>
+      <xs:element name="documentManagement" type="tns:UUID" nillable="true"/>
+      <xs:element name="dateTime" type="tns:TestConversionAdditionalCases.DateTime"/>
+      <xs:element name="paymentKind" type="tns:TestConversionPaymentKind" nillable="true"/>
+      <xs:element name="stringLimits" type="tns:TestConversionStringLimits" nillable="true"/>
     </xs:sequence>
   </xs:complexType>
   <xs:complexType name="TestConversionEmpty">
@@ -346,102 +346,56 @@
   </xs:complexType>
   <xs:complexType name="TestConversionLevel1">
     <xs:sequence>
-      <xs:element name="level2" type="tns:ОбщиеСвойства.TestConversionLevel2" minOccurs="0" maxOccurs="1" nillable="false"/>
-      <xs:element name="sibling" type="tns:TestConversionLevel1.Sibling" minOccurs="0" maxOccurs="1" nillable="false"/>
+      <xs:element name="level2" type="tns:TestConversionLevel2" nillable="true"/>
+      <xs:element name="sibling" type="tns:TestConversionLevel1.Sibling" nillable="true"/>
     </xs:sequence>
   </xs:complexType>
   <xs:complexType name="TestConversionLevel2">
     <xs:sequence>
-      <xs:element name="level3" type="tns:ОбщиеСвойства.TestConversionLevel3" minOccurs="0" maxOccurs="1" nillable="false"/>
-      <xs:element name="sibling" type="tns:TestConversionLevel2.Sibling" minOccurs="0" maxOccurs="1" nillable="false"/>
+      <xs:element name="level3" type="tns:TestConversionLevel3" nillable="true"/>
+      <xs:element name="sibling" type="tns:TestConversionLevel2.Sibling" nillable="true"/>
     </xs:sequence>
   </xs:complexType>
   <xs:complexType name="TestConversionLevel3">
     <xs:sequence>
-      <xs:element name="value" type="tns:TestConversionLevel3.Value" minOccurs="0" maxOccurs="1" nillable="false"/>
-      <xs:element name="ref" type="tns:UUID" minOccurs="0" maxOccurs="1" nillable="false"/>
+      <xs:element name="value" type="tns:TestConversionLevel3.Value" nillable="true"/>
+      <xs:element name="ref" type="tns:UUID" nillable="true"/>
     </xs:sequence>
   </xs:complexType>
   <xs:complexType name="TestConversionNode">
     <xs:sequence>
-      <xs:element name="ref" type="tns:UUID" minOccurs="1" maxOccurs="1" nillable="false"/>
-      <xs:element name="name" type="tns:TestConversionNode.Name" minOccurs="0" maxOccurs="1" nillable="false"/>
-      <xs:element name="parent" type="tns:ОбщиеСвойства.TestConversionNode" minOccurs="0" maxOccurs="1" nillable="false"/>
-      <xs:element name="children" type="tns:TestConversionNode.Children" minOccurs="0" maxOccurs="1" nillable="false"/>
+      <xs:element name="ref" type="tns:UUID"/>
+      <xs:element name="name" type="tns:TestConversionNode.Name" nillable="true"/>
+      <xs:element name="parent" type="tns:TestConversionNode" nillable="true"/>
+      <xs:element name="children" type="tns:TestConversionNode.Children" nillable="true"/>
     </xs:sequence>
   </xs:complexType>
   <xs:complexType name="TestConversionNode.Children">
     <xs:sequence>
-      <xs:element name="row" type="tns:TestConversionNode" minOccurs="0" maxOccurs="unbounded" nillable="false"/>
+      <xs:element name="row" type="tns:TestConversionNode" minOccurs="0" maxOccurs="unbounded"/>
     </xs:sequence>
   </xs:complexType>
   <xs:complexType name="TestConversionRowTable">
     <xs:sequence>
-      <xs:element name="row" type="tns:TestConversionRowTable.Row" minOccurs="0" maxOccurs="unbounded" nillable="false"/>
+      <xs:element name="row" type="tns:TestConversionRowTable.Row" minOccurs="0" maxOccurs="unbounded"/>
     </xs:sequence>
   </xs:complexType>
   <xs:complexType name="TestConversionRowTable.Row">
     <xs:sequence>
-      <xs:element name="code" type="tns:TestConversionRowTable.Row.Code" minOccurs="1" maxOccurs="1" nillable="false"/>
-      <xs:element name="value" type="tns:TestConversionRowTable.Row.Value" minOccurs="0" maxOccurs="1" nillable="false"/>
+      <xs:element name="code" type="tns:TestConversionRowTable.Row.Code"/>
+      <xs:element name="value" type="tns:TestConversionRowTable.Row.Value" nillable="true"/>
     </xs:sequence>
   </xs:complexType>
   <xs:complexType name="TestConversionStringLimits">
     <xs:sequence>
-      <xs:element name="unlimited" type="tns:TestConversionStringLimits.Unlimited" minOccurs="0" maxOccurs="1" nillable="false"/>
-      <xs:element name="maxLength" type="tns:TestConversionStringLimits.MaxLength" minOccurs="0" maxOccurs="1" nillable="false"/>
-      <xs:element name="minMaxLength" type="tns:TestConversionStringLimits.MinMaxLength" minOccurs="0" maxOccurs="1" nillable="false"/>
+      <xs:element name="unlimited" type="tns:TestConversionStringLimits.Unlimited" nillable="true"/>
+      <xs:element name="maxLength" type="tns:TestConversionStringLimits.MaxLength" nillable="true"/>
+      <xs:element name="minMaxLength" type="tns:TestConversionStringLimits.MinMaxLength" nillable="true"/>
     </xs:sequence>
   </xs:complexType>
   <xs:complexType name="TestConversionStringTable">
     <xs:sequence>
-      <xs:element name="row" type="tns:TestConversionStringTable.Row" minOccurs="0" maxOccurs="unbounded" nillable="false"/>
-    </xs:sequence>
-  </xs:complexType>
-  <xs:complexType name="ОбщиеСвойства.TestConversionAdditionalCases">
-    <xs:sequence>
-      <xs:element name="objectId" type="tns:UUID" minOccurs="1" maxOccurs="1" nillable="false"/>
-      <xs:element name="typeDocumentManagement" type="tns:TestConversionDocumentKindEnum" minOccurs="0" maxOccurs="1" nillable="false"/>
-      <xs:element name="documentManagement" type="tns:UUID" minOccurs="0" maxOccurs="1" nillable="false"/>
-      <xs:element name="dateTime" type="tns:TestConversionAdditionalCases.DateTime" minOccurs="1" maxOccurs="1" nillable="false"/>
-      <xs:element name="paymentKind" type="tns:TestConversionPaymentKind" minOccurs="0" maxOccurs="1" nillable="false"/>
-      <xs:element name="stringLimits" type="tns:ОбщиеСвойства.TestConversionStringLimits" minOccurs="0" maxOccurs="1" nillable="false"/>
-    </xs:sequence>
-  </xs:complexType>
-  <xs:complexType name="ОбщиеСвойства.TestConversionEmpty">
-    <xs:sequence/>
-  </xs:complexType>
-  <xs:complexType name="ОбщиеСвойства.TestConversionLevel1">
-    <xs:sequence>
-      <xs:element name="level2" type="tns:ОбщиеСвойства.TestConversionLevel2" minOccurs="0" maxOccurs="1" nillable="false"/>
-      <xs:element name="sibling" type="tns:TestConversionLevel1.Sibling" minOccurs="0" maxOccurs="1" nillable="false"/>
-    </xs:sequence>
-  </xs:complexType>
-  <xs:complexType name="ОбщиеСвойства.TestConversionLevel2">
-    <xs:sequence>
-      <xs:element name="level3" type="tns:ОбщиеСвойства.TestConversionLevel3" minOccurs="0" maxOccurs="1" nillable="false"/>
-      <xs:element name="sibling" type="tns:TestConversionLevel2.Sibling" minOccurs="0" maxOccurs="1" nillable="false"/>
-    </xs:sequence>
-  </xs:complexType>
-  <xs:complexType name="ОбщиеСвойства.TestConversionLevel3">
-    <xs:sequence>
-      <xs:element name="value" type="tns:TestConversionLevel3.Value" minOccurs="0" maxOccurs="1" nillable="false"/>
-      <xs:element name="ref" type="tns:UUID" minOccurs="0" maxOccurs="1" nillable="false"/>
-    </xs:sequence>
-  </xs:complexType>
-  <xs:complexType name="ОбщиеСвойства.TestConversionNode">
-    <xs:sequence>
-      <xs:element name="ref" type="tns:UUID" minOccurs="1" maxOccurs="1" nillable="false"/>
-      <xs:element name="name" type="tns:TestConversionNode.Name" minOccurs="0" maxOccurs="1" nillable="false"/>
-      <xs:element name="parent" type="tns:ОбщиеСвойства.TestConversionNode" minOccurs="0" maxOccurs="1" nillable="false"/>
-      <xs:element name="children" type="tns:TestConversionNode.Children" minOccurs="0" maxOccurs="1" nillable="false"/>
-    </xs:sequence>
-  </xs:complexType>
-  <xs:complexType name="ОбщиеСвойства.TestConversionStringLimits">
-    <xs:sequence>
-      <xs:element name="unlimited" type="tns:TestConversionStringLimits.Unlimited" minOccurs="0" maxOccurs="1" nillable="false"/>
-      <xs:element name="maxLength" type="tns:TestConversionStringLimits.MaxLength" minOccurs="0" maxOccurs="1" nillable="false"/>
-      <xs:element name="minMaxLength" type="tns:TestConversionStringLimits.MinMaxLength" minOccurs="0" maxOccurs="1" nillable="false"/>
+      <xs:element name="row" type="tns:TestConversionStringTable.Row" minOccurs="0" maxOccurs="unbounded"/>
     </xs:sequence>
   </xs:complexType>
 </xs:schema>
