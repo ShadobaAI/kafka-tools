@@ -54,15 +54,17 @@ class GeneratorTests(unittest.TestCase):
     def test_type_declaration_order(self):
         spec = document(
             Zulu={"type": "string"}, Alpha={"type": "integer"},
-            ZObject=obj({"value": {"type": "string"}}),
-            AObject=obj({"second": {"type": "string"}, "first": {"type": "string"},
+            ZObject=obj({"value": {"type": "string", "minLength": 1}}),
+            AObject=obj({"second": {"type": "string", "minLength": 1}, "first": {"type": "string", "minLength": 1},
                          "id": {"type": "string", "format": "uuid"}}))
         root = tree(spec)
         self.assertEqual(
-            ["UUID", "Alpha", "Zulu", "AObject.First", "AObject.Second", "ZObject.Value", "AObject", "ZObject"],
+            ["UUID", "Alpha", "Zulu", "AObject", "ZObject"],
             [element.get("name") for element in root])
         self.assertEqual(["second", "first", "id"], root.xpath(
             "//xs:complexType[@name='AObject']/xs:sequence/xs:element/@name", namespaces=XS))
+        self.assertEqual(3, len(root.xpath("xs:complexType/xs:sequence/xs:element/xs:simpleType/xs:restriction/xs:minLength", namespaces=XS)))
+        self.assertEqual([], root.xpath("//xs:element[@type]/xs:simpleType", namespaces=XS))
         spec["components"]["schemas"] = dict(reversed(list(spec["components"]["schemas"].items())))
         self.assertEqual(etree.tostring(root), etree.tostring(tree(spec)))
 
@@ -79,6 +81,8 @@ class GeneratorTests(unittest.TestCase):
         fields = root.xpath("//xs:complexType[@name='A']//xs:element", namespaces=XS)
         self.assertEqual(["1", "1"], [v.get("minOccurs", "1") for v in fields])
         self.assertEqual(["false", "true"], [v.get("nillable", "false") for v in fields])
+        self.assertEqual(["xs:integer", "xs:string"], [v.get("type") for v in fields])
+        self.assertEqual([], root.xpath("xs:simpleType", namespaces=XS))
         valid = validator(spec)
         self.assertFalse(valid.validate(instance("<id>0</id>")))
         self.assertTrue(valid.validate(instance("<id>0</id>" + nil_field("comment"))))
@@ -224,7 +228,8 @@ class GeneratorTests(unittest.TestCase):
 
     def test_name_collisions(self):
         self.rejects({"components": {"schemas": {"order-details": obj({}), "order_details": obj({})}}}, "name-conflict")
-        self.rejects(document(A=obj({"some-name": {"type": "string"}, "some_name": {"type": "integer"}})), "name-conflict")
+        tree(document(A=obj({"some-name": {"type": "string"}, "some_name": {"type": "integer"}})))
+        tree(document(A=obj({"some-name": {"type": "string", "minLength": 1}, "some_name": {"type": "integer", "minimum": 1}})))
 
     def test_unknown_keywords_formats_and_wrong_required(self):
         for schema in ({"allOf": [ref("A")]}, {"type": "string", "const": "fixed"},
@@ -277,6 +282,9 @@ class GeneratorTests(unittest.TestCase):
             self.assertFalse(valid.validate(instance(f"<code>{text}</code>")))
 
     def test_closed_objects_and_email_annotation(self):
+        array = tree(document(Emails={"type": "array", "items": {"type": "string", "format": "email"}}))
+        self.assertEqual(["xs:string"], array.xpath("//xs:element[@name='row']/@type", namespaces=XS))
+        self.assertIn("format: email", " ".join(array.xpath("//xs:documentation/text()", namespaces=XS)))
         spec = document(A=obj({"email": {"type": "string", "format": "email", "maxLength": 3}}, additionalProperties=False, examples=[{"email": "a@b"}]))
         root = tree(spec)
         self.assertIn("format: email", " ".join(root.xpath("//xs:documentation/text()", namespaces=XS)))
@@ -340,6 +348,9 @@ class GeneratorTests(unittest.TestCase):
         root = tree(document(A=obj(fields, list(fields))))
         elements = root.xpath("xs:complexType[@name='A']/xs:sequence/xs:element", namespaces=XS)
         self.assertEqual(["1"] * 6 + ["0"], [element.get("minOccurs", "1") for element in elements])
+        self.assertEqual([], root.xpath("xs:simpleType", namespaces=XS))
+        self.assertEqual(["xs:string", "xs:integer", "xs:decimal", "xs:boolean", "xs:date", "tns:A.Group", "xs:string"],
+                         [element.get("type") for element in elements])
         self.assertTrue(all(element.get("nillable", "false") == "false" for element in elements))
         tree(document(A=obj({"array": fields["array"]}, ["array"], examples=[{"array": []}])))
 

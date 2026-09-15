@@ -9,89 +9,31 @@
       <xs:pattern value="[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"/>
     </xs:restriction>
   </xs:simpleType>
-  <xs:simpleType name="TestAccumulationRegister.Period">
-    <xs:restriction base="xs:dateTime"/>
-  </xs:simpleType>
-  <xs:simpleType name="TestAccumulationRegister.Value">
-    <xs:restriction base="xs:decimal"/>
-  </xs:simpleType>
-  <xs:simpleType name="TestCatalog.Boolean">
-    <xs:restriction base="xs:boolean"/>
-  </xs:simpleType>
-  <xs:simpleType name="TestCatalog.Comment">
-    <xs:restriction base="xs:string"/>
-  </xs:simpleType>
-  <xs:simpleType name="TestCatalog.DateTime">
-    <xs:restriction base="xs:dateTime"/>
-  </xs:simpleType>
-  <xs:simpleType name="TestCatalog.Enum">
-    <xs:restriction base="xs:string">
-      <xs:enumeration value="Значение1"/>
-      <xs:enumeration value="Значение2"/>
-      <xs:enumeration value="Значение3"/>
-    </xs:restriction>
-  </xs:simpleType>
-  <xs:simpleType name="TestCatalog.Name">
-    <xs:restriction base="xs:string"/>
-  </xs:simpleType>
-  <xs:simpleType name="TestCatalog.Number">
-    <xs:restriction base="xs:decimal"/>
-  </xs:simpleType>
-  <xs:simpleType name="TestCatalog.TabularSection.Row.DateTime">
-    <xs:restriction base="xs:dateTime"/>
-  </xs:simpleType>
-  <xs:simpleType name="TestCatalog.TabularSection.Row.String">
-    <xs:restriction base="xs:string"/>
-  </xs:simpleType>
-  <xs:simpleType name="TestRegister.Boolean">
-    <xs:restriction base="xs:boolean"/>
-  </xs:simpleType>
-  <xs:simpleType name="TestRegister.Comment">
-    <xs:restriction base="xs:string"/>
-  </xs:simpleType>
-  <xs:simpleType name="TestRegister.DateTime">
-    <xs:restriction base="xs:dateTime"/>
-  </xs:simpleType>
-  <xs:simpleType name="TestRegister.Number">
-    <xs:restriction base="xs:decimal"/>
-  </xs:simpleType>
-  <xs:simpleType name="TestRegister.Period">
-    <xs:restriction base="xs:dateTime"/>
-  </xs:simpleType>
-  <xs:simpleType name="TestRegister.String">
-    <xs:restriction base="xs:string">
-      <xs:maxLength value="50"/>
-    </xs:restriction>
-  </xs:simpleType>
-  <xs:simpleType name="TestRegister.Uuid">
-    <xs:restriction base="xs:string">
-      <xs:minLength value="36"/>
-      <xs:maxLength value="36"/>
-    </xs:restriction>
-  </xs:simpleType>
-  <xs:simpleType name="TestRegisterRs.Period">
-    <xs:restriction base="xs:dateTime"/>
-  </xs:simpleType>
-  <xs:simpleType name="TestRegisterRs.Value">
-    <xs:restriction base="xs:decimal"/>
-  </xs:simpleType>
   <xs:complexType name="TestAccumulationRegister">
     <xs:sequence>
-      <xs:element name="period" type="tns:TestAccumulationRegister.Period"/>
+      <xs:element name="period" type="xs:dateTime"/>
       <xs:element name="recorder" type="tns:UUID"/>
       <xs:element name="id" type="tns:UUID"/>
-      <xs:element name="value" type="tns:TestAccumulationRegister.Value" nillable="true"/>
+      <xs:element name="value" type="xs:decimal" nillable="true"/>
     </xs:sequence>
   </xs:complexType>
   <xs:complexType name="TestCatalog">
     <xs:sequence>
       <xs:element name="ref" type="tns:UUID"/>
-      <xs:element name="name" type="tns:TestCatalog.Name"/>
-      <xs:element name="dateTime" type="tns:TestCatalog.DateTime" nillable="true"/>
-      <xs:element name="number" type="tns:TestCatalog.Number" nillable="true"/>
-      <xs:element name="boolean" type="tns:TestCatalog.Boolean" nillable="true"/>
-      <xs:element name="enum" type="tns:TestCatalog.Enum" nillable="true"/>
-      <xs:element name="comment" type="tns:TestCatalog.Comment" nillable="true"/>
+      <xs:element name="name" type="xs:string"/>
+      <xs:element name="dateTime" type="xs:dateTime" nillable="true"/>
+      <xs:element name="number" type="xs:decimal" nillable="true"/>
+      <xs:element name="boolean" type="xs:boolean" nillable="true"/>
+      <xs:element name="enum" nillable="true">
+        <xs:simpleType>
+          <xs:restriction base="xs:string">
+            <xs:enumeration value="Значение1"/>
+            <xs:enumeration value="Значение2"/>
+            <xs:enumeration value="Значение3"/>
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:element>
+      <xs:element name="comment" type="xs:string" nillable="true"/>
       <xs:element name="tabularSection" type="tns:TestCatalog.TabularSection" nillable="true"/>
     </xs:sequence>
   </xs:complexType>
@@ -102,28 +44,41 @@
   </xs:complexType>
   <xs:complexType name="TestCatalog.TabularSection.Row">
     <xs:sequence>
-      <xs:element name="dateTime" type="tns:TestCatalog.TabularSection.Row.DateTime" nillable="true"/>
-      <xs:element name="string" type="tns:TestCatalog.TabularSection.Row.String" nillable="true"/>
+      <xs:element name="dateTime" type="xs:dateTime" nillable="true"/>
+      <xs:element name="string" type="xs:string" nillable="true"/>
     </xs:sequence>
   </xs:complexType>
   <xs:complexType name="TestRegister">
     <xs:sequence>
-      <xs:element name="period" type="tns:TestRegister.Period"/>
+      <xs:element name="period" type="xs:dateTime"/>
       <xs:element name="testRef" type="tns:UUID" nillable="true"/>
-      <xs:element name="boolean" type="tns:TestRegister.Boolean" nillable="true"/>
-      <xs:element name="string" type="tns:TestRegister.String" nillable="true"/>
-      <xs:element name="number" type="tns:TestRegister.Number" nillable="true"/>
-      <xs:element name="dateTime" type="tns:TestRegister.DateTime" nillable="true"/>
-      <xs:element name="uuid" type="tns:TestRegister.Uuid" nillable="true"/>
-      <xs:element name="comment" type="tns:TestRegister.Comment" nillable="true"/>
+      <xs:element name="boolean" type="xs:boolean" nillable="true"/>
+      <xs:element name="string" nillable="true">
+        <xs:simpleType>
+          <xs:restriction base="xs:string">
+            <xs:maxLength value="50"/>
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:element>
+      <xs:element name="number" type="xs:decimal" nillable="true"/>
+      <xs:element name="dateTime" type="xs:dateTime" nillable="true"/>
+      <xs:element name="uuid" nillable="true">
+        <xs:simpleType>
+          <xs:restriction base="xs:string">
+            <xs:minLength value="36"/>
+            <xs:maxLength value="36"/>
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:element>
+      <xs:element name="comment" type="xs:string" nillable="true"/>
     </xs:sequence>
   </xs:complexType>
   <xs:complexType name="TestRegisterRs">
     <xs:sequence>
-      <xs:element name="period" type="tns:TestRegisterRs.Period"/>
+      <xs:element name="period" type="xs:dateTime"/>
       <xs:element name="recorder" type="tns:UUID"/>
       <xs:element name="id" type="tns:UUID"/>
-      <xs:element name="value" type="tns:TestRegisterRs.Value" nillable="true"/>
+      <xs:element name="value" type="xs:decimal" nillable="true"/>
     </xs:sequence>
   </xs:complexType>
 </xs:schema>

@@ -32,239 +32,116 @@
       <xs:enumeration value="1"/>
     </xs:restriction>
   </xs:simpleType>
-  <xs:simpleType name="TestConversion.Boolean">
-    <xs:restriction base="xs:boolean"/>
-  </xs:simpleType>
-  <xs:simpleType name="TestConversion.Booleans.Row">
-    <xs:restriction base="xs:boolean"/>
-  </xs:simpleType>
-  <xs:simpleType name="TestConversion.BoundedDecimal">
-    <xs:restriction base="xs:decimal">
-      <xs:minInclusive value="-100"/>
-      <xs:maxInclusive value="100"/>
-      <xs:fractionDigits value="2"/>
-    </xs:restriction>
-  </xs:simpleType>
-  <xs:simpleType name="TestConversion.BoundedInteger">
-    <xs:restriction base="xs:integer">
-      <xs:minInclusive value="-2"/>
-      <xs:maxInclusive value="2"/>
-    </xs:restriction>
-  </xs:simpleType>
-  <xs:simpleType name="TestConversion.BoundedNumbers.Row">
-    <xs:restriction base="xs:decimal">
-      <xs:minInclusive value="0"/>
-      <xs:maxInclusive value="10"/>
-    </xs:restriction>
-  </xs:simpleType>
-  <xs:simpleType name="TestConversion.Date">
-    <xs:restriction base="xs:date"/>
-  </xs:simpleType>
-  <xs:simpleType name="TestConversion.DateTime">
-    <xs:restriction base="xs:dateTime"/>
-  </xs:simpleType>
-  <xs:simpleType name="TestConversion.Dates.Row">
-    <xs:restriction base="xs:dateTime"/>
-  </xs:simpleType>
-  <xs:simpleType name="TestConversion.Decimal">
-    <xs:restriction base="xs:decimal"/>
-  </xs:simpleType>
-  <xs:simpleType name="TestConversion.DecimalEnum">
-    <xs:restriction base="xs:decimal">
-      <xs:enumeration value="-0.5"/>
-      <xs:enumeration value="0"/>
-      <xs:enumeration value="0.5"/>
-    </xs:restriction>
-  </xs:simpleType>
-  <xs:simpleType name="TestConversion.Double">
-    <xs:restriction base="xs:double"/>
-  </xs:simpleType>
-  <xs:simpleType name="TestConversion.Enum">
-    <xs:restriction base="xs:string">
-      <xs:enumeration value="Значение1"/>
-      <xs:enumeration value="Значение2"/>
-      <xs:enumeration value="Значение3"/>
-    </xs:restriction>
-  </xs:simpleType>
-  <xs:simpleType name="TestConversion.ExclusiveDecimal">
-    <xs:restriction base="xs:decimal">
-      <xs:minExclusive value="0"/>
-      <xs:maxExclusive value="10"/>
-    </xs:restriction>
-  </xs:simpleType>
-  <xs:simpleType name="TestConversion.FixedStrings.Row">
-    <xs:restriction base="xs:string">
-      <xs:minLength value="1"/>
-    </xs:restriction>
-  </xs:simpleType>
-  <xs:simpleType name="TestConversion.Float">
-    <xs:restriction base="xs:float"/>
-  </xs:simpleType>
-  <xs:simpleType name="TestConversion.Int32">
-    <xs:restriction base="xs:int"/>
-  </xs:simpleType>
-  <xs:simpleType name="TestConversion.Int64">
-    <xs:restriction base="xs:long"/>
-  </xs:simpleType>
-  <xs:simpleType name="TestConversion.Integer">
-    <xs:restriction base="xs:integer"/>
-  </xs:simpleType>
-  <xs:simpleType name="TestConversion.IntegerEnum">
-    <xs:restriction base="xs:integer">
-      <xs:enumeration value="-1"/>
-      <xs:enumeration value="0"/>
-      <xs:enumeration value="1"/>
-    </xs:restriction>
-  </xs:simpleType>
-  <xs:simpleType name="TestConversion.Name">
-    <xs:restriction base="xs:string"/>
-  </xs:simpleType>
-  <xs:simpleType name="TestConversion.Numbers.Row">
-    <xs:restriction base="xs:decimal"/>
-  </xs:simpleType>
-  <xs:simpleType name="TestConversion.OptionalString">
-    <xs:restriction base="xs:string"/>
-  </xs:simpleType>
-  <xs:simpleType name="TestConversion.PatternString">
-    <xs:restriction base="xs:string">
-      <xs:pattern value="[\s\S]*([A-Z]{2}[0-9]{2})[\s\S]*"/>
-    </xs:restriction>
-  </xs:simpleType>
-  <xs:simpleType name="TestConversion.RequiredBoolean">
-    <xs:restriction base="xs:boolean"/>
-  </xs:simpleType>
-  <xs:simpleType name="TestConversion.RequiredNumber">
-    <xs:restriction base="xs:decimal"/>
-  </xs:simpleType>
-  <xs:simpleType name="TestConversion.RequiredRows.Row.Code">
-    <xs:restriction base="xs:string">
-      <xs:minLength value="1"/>
-    </xs:restriction>
-  </xs:simpleType>
-  <xs:simpleType name="TestConversion.RequiredRows.Row.Value">
-    <xs:restriction base="xs:decimal"/>
-  </xs:simpleType>
-  <xs:simpleType name="TestConversion.RequiredString">
-    <xs:restriction base="xs:string"/>
-  </xs:simpleType>
-  <xs:simpleType name="TestConversion.SingleRow.Row.Code">
-    <xs:restriction base="xs:string"/>
-  </xs:simpleType>
-  <xs:simpleType name="TestConversion.SingleRow.Row.Value">
-    <xs:restriction base="xs:decimal"/>
-  </xs:simpleType>
-  <xs:simpleType name="TestConversion.SingleString.Row">
-    <xs:restriction base="xs:string"/>
-  </xs:simpleType>
-  <xs:simpleType name="TestConversion.Strings.Row">
-    <xs:restriction base="xs:string"/>
-  </xs:simpleType>
-  <xs:simpleType name="TestConversion.TabularSection.Row.Boolean">
-    <xs:restriction base="xs:boolean"/>
-  </xs:simpleType>
-  <xs:simpleType name="TestConversion.TabularSection.Row.DateTime">
-    <xs:restriction base="xs:dateTime"/>
-  </xs:simpleType>
-  <xs:simpleType name="TestConversion.TabularSection.Row.Details.Row.Code">
-    <xs:restriction base="xs:string"/>
-  </xs:simpleType>
-  <xs:simpleType name="TestConversion.TabularSection.Row.Details.Row.Value">
-    <xs:restriction base="xs:decimal"/>
-  </xs:simpleType>
-  <xs:simpleType name="TestConversion.TabularSection.Row.LineNumber">
-    <xs:restriction base="xs:integer"/>
-  </xs:simpleType>
-  <xs:simpleType name="TestConversion.TabularSection.Row.Number">
-    <xs:restriction base="xs:decimal"/>
-  </xs:simpleType>
-  <xs:simpleType name="TestConversion.TabularSection.Row.String">
-    <xs:restriction base="xs:string"/>
-  </xs:simpleType>
-  <xs:simpleType name="TestConversion.Time">
-    <xs:restriction base="xs:time"/>
-  </xs:simpleType>
-  <xs:simpleType name="TestConversion.UuidAsString">
-    <xs:restriction base="xs:string">
-      <xs:minLength value="36"/>
-      <xs:maxLength value="36"/>
-    </xs:restriction>
-  </xs:simpleType>
-  <xs:simpleType name="TestConversionAdditionalCases.DateTime">
-    <xs:restriction base="xs:dateTime"/>
-  </xs:simpleType>
-  <xs:simpleType name="TestConversionLevel1.Sibling">
-    <xs:restriction base="xs:string"/>
-  </xs:simpleType>
-  <xs:simpleType name="TestConversionLevel2.Sibling">
-    <xs:restriction base="xs:decimal"/>
-  </xs:simpleType>
-  <xs:simpleType name="TestConversionLevel3.Value">
-    <xs:restriction base="xs:string"/>
-  </xs:simpleType>
-  <xs:simpleType name="TestConversionNode.Name">
-    <xs:restriction base="xs:string"/>
-  </xs:simpleType>
-  <xs:simpleType name="TestConversionRowTable.Row.Code">
-    <xs:restriction base="xs:string"/>
-  </xs:simpleType>
-  <xs:simpleType name="TestConversionRowTable.Row.Value">
-    <xs:restriction base="xs:decimal"/>
-  </xs:simpleType>
-  <xs:simpleType name="TestConversionStringLimits.MaxLength">
-    <xs:restriction base="xs:string">
-      <xs:maxLength value="10"/>
-    </xs:restriction>
-  </xs:simpleType>
-  <xs:simpleType name="TestConversionStringLimits.MinMaxLength">
-    <xs:restriction base="xs:string">
-      <xs:minLength value="2"/>
-      <xs:maxLength value="10"/>
-    </xs:restriction>
-  </xs:simpleType>
-  <xs:simpleType name="TestConversionStringLimits.Unlimited">
-    <xs:restriction base="xs:string"/>
-  </xs:simpleType>
-  <xs:simpleType name="TestConversionStringTable.Row">
-    <xs:restriction base="xs:string"/>
-  </xs:simpleType>
   <xs:complexType name="TestConversion">
     <xs:sequence>
       <xs:element name="ref" type="tns:UUID"/>
-      <xs:element name="name" type="tns:TestConversion.Name"/>
-      <xs:element name="requiredBoolean" type="tns:TestConversion.RequiredBoolean"/>
-      <xs:element name="requiredNumber" type="tns:TestConversion.RequiredNumber"/>
-      <xs:element name="requiredString" type="tns:TestConversion.RequiredString"/>
-      <xs:element name="optionalString" type="tns:TestConversion.OptionalString" nillable="true"/>
-      <xs:element name="boolean" type="tns:TestConversion.Boolean" nillable="true"/>
-      <xs:element name="decimal" type="tns:TestConversion.Decimal" nillable="true"/>
-      <xs:element name="integer" type="tns:TestConversion.Integer" nillable="true"/>
-      <xs:element name="int32" type="tns:TestConversion.Int32" nillable="true"/>
-      <xs:element name="int64" type="tns:TestConversion.Int64" nillable="true"/>
-      <xs:element name="float" type="tns:TestConversion.Float" nillable="true"/>
-      <xs:element name="double" type="tns:TestConversion.Double" nillable="true"/>
-      <xs:element name="dateTime" type="tns:TestConversion.DateTime" nillable="true"/>
-      <xs:element name="date" type="tns:TestConversion.Date" nillable="true"/>
-      <xs:element name="time" type="tns:TestConversion.Time" nillable="true"/>
-      <xs:element name="uuidAsString" type="tns:TestConversion.UuidAsString" nillable="true"/>
-      <xs:element name="patternString" type="tns:TestConversion.PatternString" nillable="true"/>
-      <xs:element name="boundedDecimal" type="tns:TestConversion.BoundedDecimal" nillable="true"/>
-      <xs:element name="exclusiveDecimal" type="tns:TestConversion.ExclusiveDecimal" nillable="true"/>
-      <xs:element name="boundedInteger" type="tns:TestConversion.BoundedInteger" nillable="true"/>
-      <xs:element name="enum" type="tns:TestConversion.Enum" nillable="true"/>
+      <xs:element name="name" type="xs:string"/>
+      <xs:element name="requiredBoolean" type="xs:boolean"/>
+      <xs:element name="requiredNumber" type="xs:decimal"/>
+      <xs:element name="requiredString" type="xs:string"/>
+      <xs:element name="optionalString" type="xs:string" nillable="true"/>
+      <xs:element name="boolean" type="xs:boolean" nillable="true"/>
+      <xs:element name="decimal" type="xs:decimal" nillable="true"/>
+      <xs:element name="integer" type="xs:integer" nillable="true"/>
+      <xs:element name="int32" type="xs:int" nillable="true"/>
+      <xs:element name="int64" type="xs:long" nillable="true"/>
+      <xs:element name="float" type="xs:float" nillable="true"/>
+      <xs:element name="double" type="xs:double" nillable="true"/>
+      <xs:element name="dateTime" type="xs:dateTime" nillable="true"/>
+      <xs:element name="date" type="xs:date" nillable="true"/>
+      <xs:element name="time" type="xs:time" nillable="true"/>
+      <xs:element name="uuidAsString" nillable="true">
+        <xs:simpleType>
+          <xs:restriction base="xs:string">
+            <xs:minLength value="36"/>
+            <xs:maxLength value="36"/>
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:element>
+      <xs:element name="patternString" nillable="true">
+        <xs:simpleType>
+          <xs:restriction base="xs:string">
+            <xs:pattern value="[\s\S]*([A-Z]{2}[0-9]{2})[\s\S]*"/>
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:element>
+      <xs:element name="boundedDecimal" nillable="true">
+        <xs:simpleType>
+          <xs:restriction base="xs:decimal">
+            <xs:minInclusive value="-100"/>
+            <xs:maxInclusive value="100"/>
+            <xs:fractionDigits value="2"/>
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:element>
+      <xs:element name="exclusiveDecimal" nillable="true">
+        <xs:simpleType>
+          <xs:restriction base="xs:decimal">
+            <xs:minExclusive value="0"/>
+            <xs:maxExclusive value="10"/>
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:element>
+      <xs:element name="boundedInteger" nillable="true">
+        <xs:simpleType>
+          <xs:restriction base="xs:integer">
+            <xs:minInclusive value="-2"/>
+            <xs:maxInclusive value="2"/>
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:element>
+      <xs:element name="enum" nillable="true">
+        <xs:simpleType>
+          <xs:restriction base="xs:string">
+            <xs:enumeration value="Значение1"/>
+            <xs:enumeration value="Значение2"/>
+            <xs:enumeration value="Значение3"/>
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:element>
       <xs:element name="sharedEnum" type="tns:TestConversionEnum" nillable="true"/>
-      <xs:element name="integerEnum" type="tns:TestConversion.IntegerEnum" nillable="true"/>
-      <xs:element name="decimalEnum" type="tns:TestConversion.DecimalEnum" nillable="true"/>
+      <xs:element name="integerEnum" nillable="true">
+        <xs:simpleType>
+          <xs:restriction base="xs:integer">
+            <xs:enumeration value="-1"/>
+            <xs:enumeration value="0"/>
+            <xs:enumeration value="1"/>
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:element>
+      <xs:element name="decimalEnum" nillable="true">
+        <xs:simpleType>
+          <xs:restriction base="xs:decimal">
+            <xs:enumeration value="-0.5"/>
+            <xs:enumeration value="0"/>
+            <xs:enumeration value="0.5"/>
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:element>
       <xs:element name="nested" type="tns:TestConversionLevel1" nillable="true"/>
       <xs:element name="recursive" type="tns:TestConversionNode" nillable="true"/>
-      <xs:element name="strings" type="tns:TestConversion.Strings.Row" minOccurs="0" maxOccurs="unbounded" nillable="true"/>
-      <xs:element name="numbers" type="tns:TestConversion.Numbers.Row" minOccurs="0" maxOccurs="unbounded" nillable="true"/>
-      <xs:element name="booleans" type="tns:TestConversion.Booleans.Row" minOccurs="0" maxOccurs="unbounded" nillable="true"/>
-      <xs:element name="dates" type="tns:TestConversion.Dates.Row" minOccurs="0" maxOccurs="unbounded" nillable="true"/>
+      <xs:element name="strings" type="xs:string" minOccurs="0" maxOccurs="unbounded" nillable="true"/>
+      <xs:element name="numbers" type="xs:decimal" minOccurs="0" maxOccurs="unbounded" nillable="true"/>
+      <xs:element name="booleans" type="xs:boolean" minOccurs="0" maxOccurs="unbounded" nillable="true"/>
+      <xs:element name="dates" type="xs:dateTime" minOccurs="0" maxOccurs="unbounded" nillable="true"/>
       <xs:element name="refs" type="tns:UUID" minOccurs="0" maxOccurs="unbounded" nillable="true"/>
       <xs:element name="enumValues" type="tns:TestConversionEnum" minOccurs="0" maxOccurs="unbounded" nillable="true"/>
-      <xs:element name="fixedStrings" type="tns:TestConversion.FixedStrings.Row" minOccurs="2" maxOccurs="2"/>
-      <xs:element name="boundedNumbers" type="tns:TestConversion.BoundedNumbers.Row" maxOccurs="3"/>
-      <xs:element name="singleString" type="tns:TestConversion.SingleString.Row"/>
+      <xs:element name="fixedStrings" minOccurs="2" maxOccurs="2">
+        <xs:simpleType>
+          <xs:restriction base="xs:string">
+            <xs:minLength value="1"/>
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:element>
+      <xs:element name="boundedNumbers" maxOccurs="3">
+        <xs:simpleType>
+          <xs:restriction base="xs:decimal">
+            <xs:minInclusive value="0"/>
+            <xs:maxInclusive value="10"/>
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:element>
+      <xs:element name="singleString" type="xs:string"/>
       <xs:element name="nodes" type="tns:TestConversion.Nodes" nillable="true"/>
       <xs:element name="tabularSection" type="tns:TestConversion.TabularSection" nillable="true"/>
       <xs:element name="requiredRows" type="tns:TestConversion.RequiredRows"/>
@@ -287,8 +164,14 @@
   </xs:complexType>
   <xs:complexType name="TestConversion.RequiredRows.Row">
     <xs:sequence>
-      <xs:element name="code" type="tns:TestConversion.RequiredRows.Row.Code"/>
-      <xs:element name="value" type="tns:TestConversion.RequiredRows.Row.Value" nillable="true"/>
+      <xs:element name="code">
+        <xs:simpleType>
+          <xs:restriction base="xs:string">
+            <xs:minLength value="1"/>
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:element>
+      <xs:element name="value" type="xs:decimal" nillable="true"/>
     </xs:sequence>
   </xs:complexType>
   <xs:complexType name="TestConversion.SingleRow">
@@ -298,8 +181,8 @@
   </xs:complexType>
   <xs:complexType name="TestConversion.SingleRow.Row">
     <xs:sequence>
-      <xs:element name="code" type="tns:TestConversion.SingleRow.Row.Code" nillable="true"/>
-      <xs:element name="value" type="tns:TestConversion.SingleRow.Row.Value" nillable="true"/>
+      <xs:element name="code" type="xs:string" nillable="true"/>
+      <xs:element name="value" type="xs:decimal" nillable="true"/>
     </xs:sequence>
   </xs:complexType>
   <xs:complexType name="TestConversion.TabularSection">
@@ -309,11 +192,11 @@
   </xs:complexType>
   <xs:complexType name="TestConversion.TabularSection.Row">
     <xs:sequence>
-      <xs:element name="lineNumber" type="tns:TestConversion.TabularSection.Row.LineNumber"/>
-      <xs:element name="string" type="tns:TestConversion.TabularSection.Row.String" nillable="true"/>
-      <xs:element name="number" type="tns:TestConversion.TabularSection.Row.Number" nillable="true"/>
-      <xs:element name="boolean" type="tns:TestConversion.TabularSection.Row.Boolean" nillable="true"/>
-      <xs:element name="dateTime" type="tns:TestConversion.TabularSection.Row.DateTime" nillable="true"/>
+      <xs:element name="lineNumber" type="xs:integer"/>
+      <xs:element name="string" type="xs:string" nillable="true"/>
+      <xs:element name="number" type="xs:decimal" nillable="true"/>
+      <xs:element name="boolean" type="xs:boolean" nillable="true"/>
+      <xs:element name="dateTime" type="xs:dateTime" nillable="true"/>
       <xs:element name="ref" type="tns:UUID" nillable="true"/>
       <xs:element name="enum" type="tns:TestConversionEnum" nillable="true"/>
       <xs:element name="nested" type="tns:TestConversionLevel1" nillable="true"/>
@@ -327,8 +210,8 @@
   </xs:complexType>
   <xs:complexType name="TestConversion.TabularSection.Row.Details.Row">
     <xs:sequence>
-      <xs:element name="code" type="tns:TestConversion.TabularSection.Row.Details.Row.Code"/>
-      <xs:element name="value" type="tns:TestConversion.TabularSection.Row.Details.Row.Value" nillable="true"/>
+      <xs:element name="code" type="xs:string"/>
+      <xs:element name="value" type="xs:decimal" nillable="true"/>
     </xs:sequence>
   </xs:complexType>
   <xs:complexType name="TestConversionAdditionalCases">
@@ -336,7 +219,7 @@
       <xs:element name="objectId" type="tns:UUID"/>
       <xs:element name="typeDocumentManagement" type="tns:TestConversionDocumentKindEnum" nillable="true"/>
       <xs:element name="documentManagement" type="tns:UUID" nillable="true"/>
-      <xs:element name="dateTime" type="tns:TestConversionAdditionalCases.DateTime"/>
+      <xs:element name="dateTime" type="xs:dateTime"/>
       <xs:element name="paymentKind" type="tns:TestConversionPaymentKind" nillable="true"/>
       <xs:element name="stringLimits" type="tns:TestConversionStringLimits" nillable="true"/>
     </xs:sequence>
@@ -347,25 +230,25 @@
   <xs:complexType name="TestConversionLevel1">
     <xs:sequence>
       <xs:element name="level2" type="tns:TestConversionLevel2" nillable="true"/>
-      <xs:element name="sibling" type="tns:TestConversionLevel1.Sibling" nillable="true"/>
+      <xs:element name="sibling" type="xs:string" nillable="true"/>
     </xs:sequence>
   </xs:complexType>
   <xs:complexType name="TestConversionLevel2">
     <xs:sequence>
       <xs:element name="level3" type="tns:TestConversionLevel3" nillable="true"/>
-      <xs:element name="sibling" type="tns:TestConversionLevel2.Sibling" nillable="true"/>
+      <xs:element name="sibling" type="xs:decimal" nillable="true"/>
     </xs:sequence>
   </xs:complexType>
   <xs:complexType name="TestConversionLevel3">
     <xs:sequence>
-      <xs:element name="value" type="tns:TestConversionLevel3.Value" nillable="true"/>
+      <xs:element name="value" type="xs:string" nillable="true"/>
       <xs:element name="ref" type="tns:UUID" nillable="true"/>
     </xs:sequence>
   </xs:complexType>
   <xs:complexType name="TestConversionNode">
     <xs:sequence>
       <xs:element name="ref" type="tns:UUID"/>
-      <xs:element name="name" type="tns:TestConversionNode.Name" nillable="true"/>
+      <xs:element name="name" type="xs:string" nillable="true"/>
       <xs:element name="parent" type="tns:TestConversionNode" nillable="true"/>
       <xs:element name="children" type="tns:TestConversionNode.Children" nillable="true"/>
     </xs:sequence>
@@ -382,20 +265,33 @@
   </xs:complexType>
   <xs:complexType name="TestConversionRowTable.Row">
     <xs:sequence>
-      <xs:element name="code" type="tns:TestConversionRowTable.Row.Code"/>
-      <xs:element name="value" type="tns:TestConversionRowTable.Row.Value" nillable="true"/>
+      <xs:element name="code" type="xs:string"/>
+      <xs:element name="value" type="xs:decimal" nillable="true"/>
     </xs:sequence>
   </xs:complexType>
   <xs:complexType name="TestConversionStringLimits">
     <xs:sequence>
-      <xs:element name="unlimited" type="tns:TestConversionStringLimits.Unlimited" nillable="true"/>
-      <xs:element name="maxLength" type="tns:TestConversionStringLimits.MaxLength" nillable="true"/>
-      <xs:element name="minMaxLength" type="tns:TestConversionStringLimits.MinMaxLength" nillable="true"/>
+      <xs:element name="unlimited" type="xs:string" nillable="true"/>
+      <xs:element name="maxLength" nillable="true">
+        <xs:simpleType>
+          <xs:restriction base="xs:string">
+            <xs:maxLength value="10"/>
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:element>
+      <xs:element name="minMaxLength" nillable="true">
+        <xs:simpleType>
+          <xs:restriction base="xs:string">
+            <xs:minLength value="2"/>
+            <xs:maxLength value="10"/>
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:element>
     </xs:sequence>
   </xs:complexType>
   <xs:complexType name="TestConversionStringTable">
     <xs:sequence>
-      <xs:element name="row" type="tns:TestConversionStringTable.Row" minOccurs="0" maxOccurs="unbounded"/>
+      <xs:element name="row" type="xs:string" minOccurs="0" maxOccurs="unbounded"/>
     </xs:sequence>
   </xs:complexType>
 </xs:schema>

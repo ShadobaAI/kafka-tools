@@ -43,6 +43,7 @@ class SimpleType:
     facets: tuple[tuple[str, str], ...]
     path: str
     description: str = ""
+    declared: bool = True
 
 
 @dataclass(frozen=True)
@@ -574,7 +575,8 @@ class Compiler:
         title = compact_text(schema.get("title", ""))
         description = compact_text(schema.get("description", ""))
         text = title or description
-        if schema.get("format") == "email":
+        value_schema = schema.get("items") if schema.get("type") == "array" else schema
+        if isinstance(value_schema, dict) and value_schema.get("format") == "email":
             text += " format: email (JSON Schema annotation; XSD string constraints apply)"
         return text.strip()
 
@@ -652,15 +654,7 @@ class Compiler:
             self.types[name] = ObjectType(name, (Property("row", item_name, lower, upper, path, repeated=True),), path, self.description(schema), array_value=True)
             return name
         if schema["type"] in BASES:
-            base, facets = primitive(schema, path)
-            if base == "tns:UUID":
-                self.register("UUID", "<UUID>")
-                self.types["UUID"] = SimpleType("UUID", "xs:string", (("length", "36"), ("pattern", UUID_PATTERN)), "<UUID>", "UUID identifier")
-                name = "UUID"
-            else:
-                self.register(name, path)
-                self.types[name] = SimpleType(name, base, facets, path, self.description(schema))
-            return name
+            return self.simple_type(schema, name, path, named=True)
         self.register(name, path)
         properties = mapping(schema.get("properties"), path + ".properties")
         required = schema.get("required", [])
@@ -705,6 +699,22 @@ class Compiler:
         self.types[name] = ObjectType(name, tuple(fields), path, self.description(schema))
         return name
 
+    def simple_type(self, schema, name, path, *, named):
+        base, facets = primitive(schema, path)
+        if base == "tns:UUID":
+            self.register("UUID", "<UUID>")
+            self.types["UUID"] = SimpleType("UUID", "xs:string", (("length", "36"), ("pattern", UUID_PATTERN)), "<UUID>", "UUID identifier")
+            return "UUID"
+        if not named:
+            if not facets:
+                self.types.setdefault(base, SimpleType(base, base, (), "<" + base + ">", declared=False))
+                return base
+            self.types[path] = SimpleType(path, base, facets, path, self.description(schema), declared=False)
+            return path
+        self.register(name, path)
+        self.types[name] = SimpleType(name, base, facets, path, self.description(schema))
+        return name
+
     @staticmethod
     def array_nullable(is_required, lower, path):
         if not is_required and lower > 0:
@@ -736,6 +746,8 @@ class Compiler:
         if "$ref" in schema:
             key = local_reference(schema["$ref"], SCHEMA_REF, self.schemas, path + ".$ref")
             return self.named(key)
+        if schema["type"] in BASES:
+            return self.simple_type(schema, proposed, path, named=False)
         return self.define(schema, proposed, path)
 
     def finish(self):
@@ -789,21 +801,46 @@ def documentation(parent, text):
         node(node(parent, "annotation"), "documentation").text = compact_text(text)
 
 
+def type_qname(target):
+    if isinstance(target, SimpleType) and not target.declared:
+        return target.base
+    return "tns:" + target.name
+
+
+def type_attributes(target):
+    if isinstance(target, SimpleType) and not target.declared and target.facets:
+        return {}
+    return {"type": type_qname(target)}
+
+
+def write_restriction(parent, target):
+    restriction = node(parent, "restriction", base=target.base)
+    for facet, value in target.facets:
+        node(restriction, facet, value=value)
+
+
+def write_inline_type(element, target):
+    if isinstance(target, SimpleType) and not target.declared and target.facets:
+        write_restriction(node(element, "simpleType"), target)
+
+
 def build_schema(model):
     root = etree.Element(etree.QName(XSD_NS, "schema"), nsmap={"xs": XSD_NS, "tns": model.namespace},
                          targetNamespace=model.namespace, elementFormDefault="qualified")
+    types = {target.name: target for target in (*model.simple_types, *model.object_types)}
     for target in model.simple_types:
+        if not target.declared:
+            continue
         simple = node(root, "simpleType", name=target.name)
         documentation(simple, target.description)
-        restriction = node(simple, "restriction", base=target.base)
-        for facet, value in target.facets:
-            node(restriction, facet, value=value)
+        write_restriction(simple, target)
     for target in model.object_types:
         complex_type = node(root, "complexType", name=target.name)
         documentation(complex_type, target.description)
         sequence = node(complex_type, "sequence")
         for field in target.properties:
-            attributes = {"name": field.name, "type": "tns:" + field.type_name}
+            target_type = types[field.type_name]
+            attributes = {"name": field.name, **type_attributes(target_type)}
             if field.lower != 1:
                 attributes["minOccurs"] = str(field.lower)
             if field.upper != 1:
@@ -812,6 +849,7 @@ def build_schema(model):
                 attributes["nillable"] = "true"
             element = node(sequence, "element", **attributes)
             documentation(element, field.description)
+            write_inline_type(element, target_type)
     return root
 
 
@@ -853,7 +891,8 @@ def validate_values(model, root, values):
     for index, target in enumerate(model.simple_types):
         tag = "Probe" + str(index)
         tags[target.name] = tag
-        node(probes, "element", name=tag, type="tns:" + target.name)
+        element = node(probes, "element", name=tag, **type_attributes(target))
+        write_inline_type(element, target)
     validator = compile_xsd(probes)
 
     def validate_simple(name, value, path):
