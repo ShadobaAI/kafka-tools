@@ -11,7 +11,7 @@ import re
 import sys
 import tempfile
 from collections import defaultdict, deque
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 
@@ -47,6 +47,17 @@ class Property:
     upper: int | None
     path: str
     description: str = ""
+    wrapped_array: bool = False
+    repeated: bool = False
+
+
+@dataclass(frozen=True)
+class CollectionValue:
+    item_type: str
+    value: object
+    path: str
+    lower: int
+    upper: int | None
 
 
 @dataclass(frozen=True)
@@ -55,6 +66,8 @@ class ObjectType:
     properties: tuple[Property, ...]
     path: str
     description: str = ""
+    collection: bool = False
+    array_value: bool = False
 
 
 @dataclass(frozen=True)
@@ -173,7 +186,7 @@ def load_document(path: Path):
 UUID_PATTERN = "[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"
 BASES = {
     "string": {None: "xs:string", "uuid": "tns:UUID", "date": "xs:date",
-               "time": "xs:time", "date-time": "xs:dateTime"},
+               "time": "xs:time", "date-time": "xs:dateTime", "email": "xs:string"},
     "integer": {None: "xs:integer", "int32": "xs:int", "int64": "xs:long"},
     "number": {None: "xs:decimal", "float": "xs:float", "double": "xs:double"},
     "boolean": {None: "xs:boolean"},
@@ -214,13 +227,22 @@ def scalar_lexical(kind, value):
 def portable_pattern(pattern, path):
     """Translate ASCII atoms/classes and greedy repetitions from search to XSD match.
 
-    Anchors, wildcard dots, groups, alternation and non-ASCII classes are outside
-    the profile. This keeps JavaScript/XSD character and matching semantics equal.
+    Leading ^ and trailing $ are translated as assertions, not XSD literals.
+    Wildcard dots, user groups, alternation and non-ASCII classes are outside
+    the profile.
     """
     if not isinstance(pattern, str) or not pattern:
         raise SchemaError("pattern", path, "expected a nonempty portable expression")
     if len(pattern) > 4096:
         raise SchemaError("limit", path, "pattern exceeds 4096 characters")
+    original_pattern = pattern
+    anchored_start = pattern.startswith("^")
+    if anchored_start:
+        pattern = pattern[1:]
+    backslashes_before_end = len(pattern[:-1]) - len(pattern[:-1].rstrip("\\"))
+    anchored_end = pattern.endswith("$") and backslashes_before_end % 2 == 0
+    if anchored_end:
+        pattern = pattern[:-1]
     result = []
     i = 0
     while i < len(pattern):
@@ -261,10 +283,13 @@ def portable_pattern(pattern, path):
             result.append(match.group())
             i += len(match.group())
     try:
-        re.compile(pattern, re.ASCII)
+        re.compile(original_pattern, re.ASCII)
     except re.error as exc:
         raise SchemaError("pattern", path, str(exc)) from exc
-    return r"[\s\S]*(" + "".join(result) + r")[\s\S]*"
+    prefix = "" if anchored_start else r"[\s\S]*"
+    # JSON Schema patterns have no multiline flag: $ requires the input end.
+    suffix = "" if anchored_end else r"[\s\S]*"
+    return prefix + "(" + "".join(result) + ")" + suffix
 
 
 def primitive(schema, path):
@@ -275,12 +300,12 @@ def primitive(schema, path):
     if fmt not in BASES[kind]:
         raise SchemaError("format", path + ".format", f"unsupported format {fmt!r} for {kind}")
     base = BASES[kind][fmt]
-    allowed = STRING_KEYS if kind == "string" and fmt is None else NUMBER_KEYS if kind in {"integer", "number"} else set()
+    allowed = STRING_KEYS if kind == "string" and fmt in {None, "email"} else NUMBER_KEYS if kind in {"integer", "number"} else set()
     invalid = (STRING_KEYS | NUMBER_KEYS).intersection(schema).difference(allowed)
     if invalid:
         raise SchemaError("facet", path, f"constraints incompatible with type/format: {sorted(invalid)}")
     facets = []
-    if kind == "string" and fmt is None:
+    if kind == "string" and fmt in {None, "email"}:
         for key in ("minLength", "maxLength"):
             if key in schema:
                 facets.append((key, str(nonnegative(schema[key], path + "." + key))))
@@ -380,7 +405,7 @@ def check_scalar(kind, value, path):
 
 SCHEMA_REF = "#/components/schemas/"
 ANNOTATIONS = {"title", "description", "deprecated", "default", "examples", "$comment"}
-STRUCTURE = {"type", "$ref", "properties", "required", "items", "minItems", "maxItems", "format", "enum"}
+STRUCTURE = {"type", "$ref", "properties", "required", "items", "minItems", "maxItems", "format", "enum", "additionalProperties"}
 
 
 def mapping(value, path):
@@ -514,7 +539,9 @@ class Compiler:
             kind = schema.get("type")
             if not isinstance(kind, str) or kind not in set(BASES) | {"object", "array"}:
                 raise SchemaError("type", path + ".type", "expected an explicit supported type; null/unions are outside the profile")
-            applicable = {"properties", "required"} if kind == "object" else {"items", "minItems", "maxItems"} if kind == "array" else {"format", "enum"} | STRING_KEYS | NUMBER_KEYS
+            applicable = {"properties", "required", "additionalProperties"} if kind == "object" else {"items", "minItems", "maxItems"} if kind == "array" else {"format", "enum"} | STRING_KEYS | NUMBER_KEYS
+            if "additionalProperties" in schema and schema["additionalProperties"] is not False:
+                raise SchemaError("unsupported", path + ".additionalProperties", "only false is supported; dictionaries require a separate representation")
             wrong = set(schema).intersection(STRUCTURE | STRING_KEYS | NUMBER_KEYS).difference(applicable | {"type"})
             if wrong:
                 raise SchemaError("keyword", path, f"keywords incompatible with {kind}: {sorted(wrong)}")
@@ -526,7 +553,10 @@ class Compiler:
         self.owners[name] = path
 
     def description(self, schema):
-        return "\n\n".join(schema[key] for key in ("title", "description") if schema.get(key))
+        text = "\n\n".join(schema[key] for key in ("title", "description") if schema.get(key))
+        if schema.get("format") == "email":
+            text += "\n\nformat: email (JSON Schema annotation; XSD string constraints apply)"
+        return text.strip()
 
     def remember_values(self, schema, name, path):
         if "default" in schema:
@@ -563,8 +593,6 @@ class Compiler:
             return name
         path = "$.components.schemas." + key
         schema = self.schema(self.schemas[key], path)
-        if schema["type"] == "array":
-            raise SchemaError("representation", path, "standalone array schemas are outside the object-exchange profile")
         if len(self.active_definitions) >= 100:
             raise SchemaError("limit", path, "reference expansion exceeds 100 nested definitions")
         self.resolved[key] = name  # Object recursion refers to an already allocated identity.
@@ -575,6 +603,12 @@ class Compiler:
             self.active_definitions.remove(key)
 
     def define(self, schema, name, path):
+        if schema["type"] == "array":
+            self.register(name, path)
+            lower, upper, item_name = self.array_items(schema, name + ".Row", path)
+            self.types[name] = ObjectType(name, (Property("row", item_name, lower, upper, path, repeated=True),), path, self.description(schema), True, True)
+            self.remember_values(schema, name, path)
+            return name
         if schema["type"] in BASES:
             base, facets = primitive(schema, path)
             if base == "tns:UUID":
@@ -601,36 +635,54 @@ class Compiler:
                 raise SchemaError("representation", field_path, "AdditionalInfo requires a separate platform serialization contract")
             child = self.schema(raw, field_path)
             if child.get("type") == "array":
-                if len(properties) != 1:
-                    raise SchemaError("representation", field_path, "array fields require a dedicated single-property container")
-                lower = nonnegative(child.get("minItems", 0), field_path + ".minItems")
-                upper = nonnegative(child["maxItems"], field_path + ".maxItems") if "maxItems" in child else None
-                if upper is not None and (upper <= 1 or lower > upper):
-                    raise SchemaError("representation", field_path, "collection must have maxItems > 1 (or no upper bound) and consistent bounds")
-                if (field in required and lower == 0) or (field not in required and lower > 0):
+                proposed_item = name + "." + type_name(field, field_path) + ".Row" if len(properties) > 1 else name + ".Row"
+                lower, upper, item_name = self.array_items(child, proposed_item, field_path)
+                object_rows = not isinstance(self.types.get(item_name), SimpleType)
+                wrapped = object_rows and len(properties) > 1
+                if not wrapped and ((field in required and lower == 0) or (field not in required and lower > 0)):
                     raise SchemaError("representation", field_path, "array presence and cardinality cannot be represented independently by a repeated XML element")
-                item_path = field_path + ".items"
-                item = self.schema(child.get("items"), item_path)
-                if item.get("type") == "array":
-                    raise SchemaError("representation", item_path, "nested arrays are unsupported")
-                item_name = self.child_type(item, name + ".Row", item_path)
-                if isinstance(self.types.get(item_name), SimpleType):
-                    raise SchemaError("representation", item_path, "primitive list conversion has no verified bidirectional adapter contract")
-                fields.append(Property(field, item_name, lower, upper, field_path, self.description(child)))
-                if "default" in child or "examples" in child:
-                    raise SchemaError("unsupported", field_path, "place collection examples/defaults on the container schema")
+                if wrapped:
+                    table_name = name + "." + type_name(field, field_path)
+                    self.register(table_name, field_path)
+                    self.types[table_name] = ObjectType(table_name, (Property("row", item_name, lower, upper, field_path, repeated=True),), field_path, self.description(child), True)
+                    fields.append(Property(field, table_name, int(field in required), 1, field_path, self.description(child), True))
+                else:
+                    fields.append(Property(field, item_name, lower, upper, field_path, self.description(child), repeated=True))
+                if "default" in child:
+                    self.pending_values.append(CollectionValue(item_name, child["default"], field_path + ".default", lower, upper))
+                if "examples" in child:
+                    if not isinstance(child["examples"], list):
+                        raise SchemaError("value", field_path + ".examples", "expected a list of examples")
+                    for index, value in enumerate(child["examples"]):
+                        self.pending_values.append(CollectionValue(item_name, value, f"{field_path}.examples[{index}]", lower, upper))
             else:
-                # Inline groups receive a semantic name. Referenced groups must
-                # explicitly follow the same adapter naming convention.
+                # Inline groups receive a semantic name. Common group identities
+                # are allocated after every object has been resolved.
                 proposed = name + ".ОбщиеСвойства." + type_name(field, field_path) if child.get("type") == "object" else name + "." + type_name(field, field_path)
                 child_name = self.child_type(child, proposed, field_path)
-                target = self.types.get(child_name)
-                if isinstance(target, ObjectType) and not self.is_table(target) and "ОбщиеСвойства" not in child_name:
-                    raise SchemaError("representation", field_path, "referenced groups require a type name containing ОбщиеСвойства")
                 fields.append(Property(field, child_name, int(field in required), 1, field_path, self.description(child)))
         self.types[name] = ObjectType(name, tuple(fields), path, self.description(schema))
         self.remember_values(schema, name, path)
         return name
+
+    def array_items(self, schema, proposed, path):
+        lower = nonnegative(schema.get("minItems", 0), path + ".minItems")
+        upper = nonnegative(schema["maxItems"], path + ".maxItems") if "maxItems" in schema else None
+        if upper is not None and lower > upper:
+            raise SchemaError("representation", path, "inconsistent array bounds")
+        item_path = path + ".items"
+        item = self.schema(schema.get("items"), item_path)
+        target = item
+        seen = set()
+        while "$ref" in target:
+            key = local_reference(target["$ref"], SCHEMA_REF, self.schemas, item_path + ".$ref")
+            if key in seen:
+                raise SchemaError("alias-cycle", item_path, "cyclic type aliases")
+            seen.add(key)
+            target = self.schema(self.schemas[key], "$.components.schemas." + key)
+        if target.get("type") == "array":
+            raise SchemaError("representation", item_path, "nested arrays are unsupported")
+        return lower, upper, self.child_type(item, proposed, item_path)
 
     def child_type(self, schema, proposed, path):
         if "$ref" in schema:
@@ -642,11 +694,29 @@ class Compiler:
 
     @staticmethod
     def is_table(target):
-        return len(target.properties) == 1 and target.properties[0].upper != 1
+        return target.collection or (len(target.properties) == 1 and target.properties[0].repeated)
 
     def finish(self):
         for key in sorted(self.schemas):
             self.named(key)
+        # A common object can be an exchange root and an embedded group. Keep
+        # the root identity and allocate one shared group identity, including
+        # recursive references, rather than requiring edits to the input YAML.
+        groups = {}
+        for target in tuple(self.types.values()):
+            if not isinstance(target, ObjectType):
+                continue
+            for field in target.properties:
+                child = self.types[field.type_name]
+                if not field.repeated and not field.wrapped_array and isinstance(child, ObjectType) and not self.is_table(child) and "ОбщиеСвойства" not in child.name:
+                    groups[child.name] = "ОбщиеСвойства." + child.name
+        for source, group_name in sorted(groups.items()):
+            self.register(group_name, self.types[source].path + "#group")
+            self.types[group_name] = replace(self.types[source], name=group_name)
+        for name, target in tuple(self.types.items()):
+            if isinstance(target, ObjectType):
+                fields = tuple(replace(field, type_name=groups.get(field.type_name, field.type_name)) if not field.repeated and not field.wrapped_array else field for field in target.properties)
+                self.types[name] = replace(target, properties=fields)
         objects = [v for v in self.types.values() if isinstance(v, ObjectType)]
         # Required containment cycles have no finite object instance. Optional
         # edges and zero-row tables provide valid termination points.
@@ -669,7 +739,7 @@ class Compiler:
                 raise SchemaError("object-cycle", target.path, "required containment has no finite instance")
             for field in target.properties:
                 child = self.types[field.type_name]
-                if field.upper == 1 and isinstance(child, ObjectType) and not self.is_table(child) and "ОбщиеСвойства" not in child.name:
+                if not field.repeated and not field.wrapped_array and isinstance(child, ObjectType) and not self.is_table(child) and "ОбщиеСвойства" not in child.name:
                     raise SchemaError("representation", field.path, "referenced groups require a type name containing ОбщиеСвойства")
         return Model(self.namespace,
                      tuple(sorted((v for v in self.types.values() if isinstance(v, SimpleType)), key=lambda v: v.name)),
@@ -751,6 +821,10 @@ def value_element(model, types, name, value, tag, path, depth=0):
         check_scalar(kind, value, path)
         result.text = scalar_lexical(kind, value)
         return result
+    if target.array_value:
+        if not isinstance(value, list):
+            raise SchemaError("value", path, "expected an array")
+        value = {target.properties[0].name: value}
     if not isinstance(value, dict):
         raise SchemaError("value", path, "expected an object")
     unknown = set(value).difference(field.name for field in target.properties)
@@ -760,7 +834,11 @@ def value_element(model, types, name, value, tag, path, depth=0):
         if field.name not in value:
             continue
         child = value[field.name]
-        if field.upper != 1:
+        if field.wrapped_array:
+            if not isinstance(child, list):
+                raise SchemaError("value", path + "." + field.name, "expected an array")
+            child = {"row": child}
+        if field.repeated:
             if not isinstance(child, list):
                 raise SchemaError("value", path + "." + field.name, "expected an array")
             for index, item in enumerate(child):
@@ -789,7 +867,19 @@ def validate_values(model, root, values):
             element.text = value
             if not validator.validate(element):
                 raise SchemaError("enum", target.path + f".enum[{index}]", str(validator.error_log.last_error))
-    for name, value, path in values:
+    for entry in values:
+        if isinstance(entry, CollectionValue):
+            if not isinstance(entry.value, list):
+                raise SchemaError("value", entry.path, "expected an array")
+            if len(entry.value) < entry.lower or (entry.upper is not None and len(entry.value) > entry.upper):
+                raise SchemaError("value", entry.path, "array length violates minItems/maxItems")
+            for index, value in enumerate(entry.value):
+                path = f"{entry.path}[{index}]"
+                element = value_element(model, types, entry.item_type, value, tags[entry.item_type], path)
+                if not validator.validate(element):
+                    raise SchemaError("value", path, str(validator.error_log.last_error))
+            continue
+        name, value, path = entry
         element = value_element(model, types, name, value, tags[name], path)
         if not validator.validate(element):
             raise SchemaError("value", path, str(validator.error_log.last_error))

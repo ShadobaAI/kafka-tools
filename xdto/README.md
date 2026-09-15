@@ -6,7 +6,7 @@
 | --- | --- |
 | [generator](generator/README.md) | Генерация XSD: один файл `asyncapi2xsd.py`, тесты рядом с ним, зависимости и поддерживаемый пример YAML. |
 | [viewer](viewer/README.md) | HTML-просмотрщик AsyncAPI для Confluence. |
-| [examples/legacy](examples/legacy/README.md) | Прежние YAML-спецификации и соответствующие XSD. |
+| [examples](examples/README.md) | YAML-спецификации и соответствующие XSD. |
 | `viewer/download/attachments/1` | Локальная структура вложений для проверки просмотрщика с `pageId=1`; пустой каталог сохраняется через `.gitkeep`. |
 
 Настройка окружения, команды запуска и поддерживаемая модель описаны в документации генератора. Подключение HTML macro описано в документации просмотрщика.

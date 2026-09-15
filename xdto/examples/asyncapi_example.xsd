@@ -1,0 +1,431 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:tns="http://v8.fsk.ru/example/kfk/1.0" targetNamespace="http://v8.fsk.ru/example/kfk/1.0" elementFormDefault="qualified" attributeFormDefault="unqualified">
+  <xs:simpleType name="AuditLog.NewValue">
+    <xs:restriction base="xs:string"/>
+  </xs:simpleType>
+  <xs:simpleType name="AuditLog.OccurredAt">
+    <xs:restriction base="xs:dateTime"/>
+  </xs:simpleType>
+  <xs:simpleType name="AuditLog.OldValue">
+    <xs:restriction base="xs:string"/>
+  </xs:simpleType>
+  <xs:simpleType name="CatalogItemRef.RefName">
+    <xs:restriction base="xs:string">
+      <xs:maxLength value="100"/>
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:simpleType name="CatalogItems.Aliases.Row">
+    <xs:restriction base="xs:string">
+      <xs:maxLength value="100"/>
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:simpleType name="CatalogItems.Name">
+    <xs:restriction base="xs:string">
+      <xs:minLength value="1"/>
+      <xs:maxLength value="100"/>
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:simpleType name="Contact.Type">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="Email"/>
+      <xs:enumeration value="Phone"/>
+      <xs:enumeration value="Telegram"/>
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:simpleType name="Contact.Value">
+    <xs:restriction base="xs:string">
+      <xs:maxLength value="254"/>
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:simpleType name="CurrencyCode">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="RUB"/>
+      <xs:enumeration value="USD"/>
+      <xs:enumeration value="EUR"/>
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:simpleType name="EntityRef.Name">
+    <xs:restriction base="xs:string">
+      <xs:maxLength value="150"/>
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:simpleType name="EntityRef.Type">
+    <xs:restriction base="xs:string">
+      <xs:minLength value="1"/>
+      <xs:maxLength value="100"/>
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:simpleType name="ItemKind">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="Group"/>
+      <xs:enumeration value="Item"/>
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:simpleType name="LineStatus">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="New"/>
+      <xs:enumeration value="Changed"/>
+      <xs:enumeration value="Deleted"/>
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:simpleType name="MetricValues.Row.Code">
+    <xs:restriction base="xs:string">
+      <xs:minLength value="1"/>
+      <xs:maxLength value="50"/>
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:simpleType name="MetricValues.Row.Value">
+    <xs:restriction base="xs:decimal">
+      <xs:fractionDigits value="2"/>
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:simpleType name="OperationKind">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="Create"/>
+      <xs:enumeration value="Update"/>
+      <xs:enumeration value="Delete"/>
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:simpleType name="Person.Email">
+    <xs:annotation>
+      <xs:documentation>format: email (JSON Schema annotation; XSD string constraints apply)</xs:documentation>
+    </xs:annotation>
+    <xs:restriction base="xs:string">
+      <xs:maxLength value="254"/>
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:simpleType name="Person.Name">
+    <xs:restriction base="xs:string">
+      <xs:maxLength value="150"/>
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:simpleType name="QualityKind">
+    <xs:restriction base="xs:integer">
+      <xs:enumeration value="0"/>
+      <xs:enumeration value="1"/>
+      <xs:enumeration value="2"/>
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:simpleType name="StringListPayload.Row">
+    <xs:restriction base="xs:string">
+      <xs:pattern value="([A-Z_]+)"/>
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:simpleType name="TestDocument.Active">
+    <xs:restriction base="xs:boolean"/>
+  </xs:simpleType>
+  <xs:simpleType name="TestDocument.Amount">
+    <xs:restriction base="xs:decimal">
+      <xs:minInclusive value="0"/>
+      <xs:maxInclusive value="999999999.99"/>
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:simpleType name="TestDocument.CreatedAt">
+    <xs:restriction base="xs:dateTime"/>
+  </xs:simpleType>
+  <xs:simpleType name="TestDocument.Date">
+    <xs:restriction base="xs:date"/>
+  </xs:simpleType>
+  <xs:simpleType name="TestDocument.EventTime">
+    <xs:restriction base="xs:time"/>
+  </xs:simpleType>
+  <xs:simpleType name="TestDocument.ExternalId">
+    <xs:restriction base="xs:string">
+      <xs:minLength value="36"/>
+      <xs:maxLength value="36"/>
+      <xs:pattern value="([0-9a-fA-F-]{36})"/>
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:simpleType name="TestDocument.FixedTags.Row">
+    <xs:restriction base="xs:string">
+      <xs:minLength value="2"/>
+      <xs:maxLength value="30"/>
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:simpleType name="TestDocument.Lines.Row.Description">
+    <xs:restriction base="xs:string">
+      <xs:maxLength value="200"/>
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:simpleType name="TestDocument.Lines.Row.LineNo">
+    <xs:restriction base="xs:integer">
+      <xs:minInclusive value="1"/>
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:simpleType name="TestDocument.Lines.Row.Price">
+    <xs:restriction base="xs:decimal">
+      <xs:minInclusive value="0"/>
+      <xs:fractionDigits value="2"/>
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:simpleType name="TestDocument.Lines.Row.Qty">
+    <xs:restriction base="xs:decimal">
+      <xs:minInclusive value="0"/>
+      <xs:fractionDigits value="3"/>
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:simpleType name="TestDocument.Lines.Row.ОбщиеСвойства.Attributes.Color">
+    <xs:restriction base="xs:string">
+      <xs:maxLength value="30"/>
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:simpleType name="TestDocument.Lines.Row.ОбщиеСвойства.Attributes.Size">
+    <xs:restriction base="xs:string">
+      <xs:maxLength value="30"/>
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:simpleType name="TestDocument.LongCounter">
+    <xs:restriction base="xs:long">
+      <xs:minInclusive value="0"/>
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:simpleType name="TestDocument.Number">
+    <xs:restriction base="xs:string">
+      <xs:minLength value="1"/>
+      <xs:maxLength value="20"/>
+      <xs:pattern value="([A-Z0-9-]+)"/>
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:simpleType name="TestDocument.Priority">
+    <xs:restriction base="xs:integer">
+      <xs:enumeration value="1"/>
+      <xs:enumeration value="2"/>
+      <xs:enumeration value="3"/>
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:simpleType name="TestDocument.Quantity">
+    <xs:restriction base="xs:int">
+      <xs:minInclusive value="0"/>
+      <xs:maxInclusive value="1000000"/>
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:simpleType name="TestDocument.Ratio">
+    <xs:restriction base="xs:float">
+      <xs:minExclusive value="0"/>
+      <xs:maxInclusive value="1"/>
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:simpleType name="TestDocument.RoundedAmount">
+    <xs:restriction base="xs:decimal">
+      <xs:minInclusive value="0"/>
+      <xs:maxExclusive value="1000000"/>
+      <xs:fractionDigits value="2"/>
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:simpleType name="TestDocument.Score">
+    <xs:restriction base="xs:double">
+      <xs:minInclusive value="0"/>
+      <xs:maxInclusive value="100"/>
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:simpleType name="TestDocument.Status">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="Draft"/>
+      <xs:enumeration value="Posted"/>
+      <xs:enumeration value="Deleted"/>
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:simpleType name="TestDocument.Tags.Row">
+    <xs:restriction base="xs:string">
+      <xs:maxLength value="50"/>
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:simpleType name="TestDocument.Values.Row">
+    <xs:restriction base="xs:decimal">
+      <xs:minInclusive value="0"/>
+      <xs:fractionDigits value="3"/>
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:simpleType name="TestDocument.ОбщиеСвойства.Dimensions.Depth">
+    <xs:restriction base="xs:decimal">
+      <xs:minInclusive value="0"/>
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:simpleType name="TestDocument.ОбщиеСвойства.Dimensions.Height">
+    <xs:restriction base="xs:decimal">
+      <xs:minInclusive value="0"/>
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:simpleType name="TestDocument.ОбщиеСвойства.Dimensions.Unit">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="mm"/>
+      <xs:enumeration value="cm"/>
+      <xs:enumeration value="m"/>
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:simpleType name="TestDocument.ОбщиеСвойства.Dimensions.Width">
+    <xs:restriction base="xs:decimal">
+      <xs:minInclusive value="0"/>
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:simpleType name="UUID">
+    <xs:annotation>
+      <xs:documentation>UUID identifier</xs:documentation>
+    </xs:annotation>
+    <xs:restriction base="xs:string">
+      <xs:length value="36"/>
+      <xs:pattern value="[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"/>
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:complexType name="AuditLog">
+    <xs:sequence>
+      <xs:element name="eventId" type="tns:UUID" minOccurs="1" maxOccurs="1" nillable="false"/>
+      <xs:element name="occurredAt" type="tns:AuditLog.OccurredAt" minOccurs="1" maxOccurs="1" nillable="false"/>
+      <xs:element name="entity" type="tns:ОбщиеСвойства.EntityRef" minOccurs="1" maxOccurs="1" nillable="false"/>
+      <xs:element name="operation" type="tns:OperationKind" minOccurs="1" maxOccurs="1" nillable="false"/>
+      <xs:element name="oldValue" type="tns:AuditLog.OldValue" minOccurs="0" maxOccurs="1" nillable="false"/>
+      <xs:element name="newValue" type="tns:AuditLog.NewValue" minOccurs="0" maxOccurs="1" nillable="false"/>
+      <xs:element name="actor" type="tns:ОбщиеСвойства.Person" minOccurs="0" maxOccurs="1" nillable="false"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="CatalogItemRef">
+    <xs:sequence>
+      <xs:element name="refId" type="tns:UUID" minOccurs="1" maxOccurs="1" nillable="false"/>
+      <xs:element name="refName" type="tns:CatalogItemRef.RefName" minOccurs="0" maxOccurs="1" nillable="false"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="CatalogItems">
+    <xs:sequence>
+      <xs:element name="itemId" type="tns:UUID" minOccurs="1" maxOccurs="1" nillable="false"/>
+      <xs:element name="name" type="tns:CatalogItems.Name" minOccurs="1" maxOccurs="1" nillable="false"/>
+      <xs:element name="kind" type="tns:ItemKind" minOccurs="1" maxOccurs="1" nillable="false"/>
+      <xs:element name="parent" type="tns:ОбщиеСвойства.CatalogItemRef" minOccurs="0" maxOccurs="1" nillable="false"/>
+      <xs:element name="aliases" type="tns:CatalogItems.Aliases.Row" minOccurs="0" maxOccurs="10" nillable="false"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="Contact">
+    <xs:sequence>
+      <xs:element name="type" type="tns:Contact.Type" minOccurs="1" maxOccurs="1" nillable="false"/>
+      <xs:element name="value" type="tns:Contact.Value" minOccurs="1" maxOccurs="1" nillable="false"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="ContactList">
+    <xs:sequence>
+      <xs:element name="row" type="tns:Contact" minOccurs="0" maxOccurs="5" nillable="false"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="DictionaryCodes">
+    <xs:sequence>
+      <xs:element name="row" type="tns:CurrencyCode" minOccurs="1" maxOccurs="20" nillable="false"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="EntityRef">
+    <xs:sequence>
+      <xs:element name="type" type="tns:EntityRef.Type" minOccurs="1" maxOccurs="1" nillable="false"/>
+      <xs:element name="id" type="tns:UUID" minOccurs="1" maxOccurs="1" nillable="false"/>
+      <xs:element name="name" type="tns:EntityRef.Name" minOccurs="0" maxOccurs="1" nillable="false"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="MetricValues">
+    <xs:sequence>
+      <xs:element name="row" type="tns:MetricValues.Row" minOccurs="1" maxOccurs="50" nillable="false"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="MetricValues.Row">
+    <xs:sequence>
+      <xs:element name="code" type="tns:MetricValues.Row.Code" minOccurs="1" maxOccurs="1" nillable="false"/>
+      <xs:element name="value" type="tns:MetricValues.Row.Value" minOccurs="1" maxOccurs="1" nillable="false"/>
+      <xs:element name="quality" type="tns:QualityKind" minOccurs="0" maxOccurs="1" nillable="false"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="Person">
+    <xs:sequence>
+      <xs:element name="personId" type="tns:UUID" minOccurs="1" maxOccurs="1" nillable="false"/>
+      <xs:element name="name" type="tns:Person.Name" minOccurs="1" maxOccurs="1" nillable="false"/>
+      <xs:element name="email" type="tns:Person.Email" minOccurs="0" maxOccurs="1" nillable="false">
+        <xs:annotation>
+          <xs:documentation>format: email (JSON Schema annotation; XSD string constraints apply)</xs:documentation>
+        </xs:annotation>
+      </xs:element>
+      <xs:element name="manager" type="tns:ОбщиеСвойства.Person" minOccurs="0" maxOccurs="1" nillable="false"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="StringListPayload">
+    <xs:sequence>
+      <xs:element name="row" type="tns:StringListPayload.Row" minOccurs="0" maxOccurs="10" nillable="false"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="TestDocument">
+    <xs:sequence>
+      <xs:element name="id" type="tns:UUID" minOccurs="1" maxOccurs="1" nillable="false"/>
+      <xs:element name="externalId" type="tns:TestDocument.ExternalId" minOccurs="0" maxOccurs="1" nillable="false"/>
+      <xs:element name="number" type="tns:TestDocument.Number" minOccurs="1" maxOccurs="1" nillable="false"/>
+      <xs:element name="date" type="tns:TestDocument.Date" minOccurs="1" maxOccurs="1" nillable="false"/>
+      <xs:element name="createdAt" type="tns:TestDocument.CreatedAt" minOccurs="0" maxOccurs="1" nillable="false"/>
+      <xs:element name="eventTime" type="tns:TestDocument.EventTime" minOccurs="0" maxOccurs="1" nillable="false"/>
+      <xs:element name="amount" type="tns:TestDocument.Amount" minOccurs="1" maxOccurs="1" nillable="false"/>
+      <xs:element name="roundedAmount" type="tns:TestDocument.RoundedAmount" minOccurs="1" maxOccurs="1" nillable="false"/>
+      <xs:element name="ratio" type="tns:TestDocument.Ratio" minOccurs="0" maxOccurs="1" nillable="false"/>
+      <xs:element name="score" type="tns:TestDocument.Score" minOccurs="0" maxOccurs="1" nillable="false"/>
+      <xs:element name="quantity" type="tns:TestDocument.Quantity" minOccurs="0" maxOccurs="1" nillable="false"/>
+      <xs:element name="longCounter" type="tns:TestDocument.LongCounter" minOccurs="0" maxOccurs="1" nillable="false"/>
+      <xs:element name="active" type="tns:TestDocument.Active" minOccurs="1" maxOccurs="1" nillable="false"/>
+      <xs:element name="status" type="tns:TestDocument.Status" minOccurs="1" maxOccurs="1" nillable="false"/>
+      <xs:element name="priority" type="tns:TestDocument.Priority" minOccurs="1" maxOccurs="1" nillable="false"/>
+      <xs:element name="currency" type="tns:CurrencyCode" minOccurs="1" maxOccurs="1" nillable="false"/>
+      <xs:element name="owner" type="tns:ОбщиеСвойства.Person" minOccurs="1" maxOccurs="1" nillable="false"/>
+      <xs:element name="contacts" type="tns:ContactList" minOccurs="0" maxOccurs="1" nillable="false"/>
+      <xs:element name="tags" type="tns:TestDocument.Tags.Row" minOccurs="0" maxOccurs="unbounded" nillable="false"/>
+      <xs:element name="fixedTags" type="tns:TestDocument.FixedTags.Row" minOccurs="1" maxOccurs="3" nillable="false"/>
+      <xs:element name="values" type="tns:TestDocument.Values.Row" minOccurs="0" maxOccurs="5" nillable="false"/>
+      <xs:element name="statusHistory" type="tns:LineStatus" minOccurs="1" maxOccurs="10" nillable="false"/>
+      <xs:element name="dimensions" type="tns:TestDocument.ОбщиеСвойства.Dimensions" minOccurs="0" maxOccurs="1" nillable="false"/>
+      <xs:element name="lines" type="tns:TestDocument.Lines" minOccurs="1" maxOccurs="1" nillable="false"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="TestDocument.Lines">
+    <xs:sequence>
+      <xs:element name="row" type="tns:TestDocument.Lines.Row" minOccurs="1" maxOccurs="100" nillable="false"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="TestDocument.Lines.Row">
+    <xs:sequence>
+      <xs:element name="lineNo" type="tns:TestDocument.Lines.Row.LineNo" minOccurs="1" maxOccurs="1" nillable="false"/>
+      <xs:element name="productId" type="tns:UUID" minOccurs="1" maxOccurs="1" nillable="false"/>
+      <xs:element name="description" type="tns:TestDocument.Lines.Row.Description" minOccurs="0" maxOccurs="1" nillable="false"/>
+      <xs:element name="qty" type="tns:TestDocument.Lines.Row.Qty" minOccurs="1" maxOccurs="1" nillable="false"/>
+      <xs:element name="price" type="tns:TestDocument.Lines.Row.Price" minOccurs="1" maxOccurs="1" nillable="false"/>
+      <xs:element name="lineStatus" type="tns:LineStatus" minOccurs="0" maxOccurs="1" nillable="false"/>
+      <xs:element name="attributes" type="tns:TestDocument.Lines.Row.ОбщиеСвойства.Attributes" minOccurs="0" maxOccurs="1" nillable="false"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="TestDocument.Lines.Row.ОбщиеСвойства.Attributes">
+    <xs:sequence>
+      <xs:element name="color" type="tns:TestDocument.Lines.Row.ОбщиеСвойства.Attributes.Color" minOccurs="0" maxOccurs="1" nillable="false"/>
+      <xs:element name="size" type="tns:TestDocument.Lines.Row.ОбщиеСвойства.Attributes.Size" minOccurs="0" maxOccurs="1" nillable="false"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="TestDocument.ОбщиеСвойства.Dimensions">
+    <xs:sequence>
+      <xs:element name="width" type="tns:TestDocument.ОбщиеСвойства.Dimensions.Width" minOccurs="1" maxOccurs="1" nillable="false"/>
+      <xs:element name="height" type="tns:TestDocument.ОбщиеСвойства.Dimensions.Height" minOccurs="1" maxOccurs="1" nillable="false"/>
+      <xs:element name="depth" type="tns:TestDocument.ОбщиеСвойства.Dimensions.Depth" minOccurs="0" maxOccurs="1" nillable="false"/>
+      <xs:element name="unit" type="tns:TestDocument.ОбщиеСвойства.Dimensions.Unit" minOccurs="0" maxOccurs="1" nillable="false"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="ОбщиеСвойства.CatalogItemRef">
+    <xs:sequence>
+      <xs:element name="refId" type="tns:UUID" minOccurs="1" maxOccurs="1" nillable="false"/>
+      <xs:element name="refName" type="tns:CatalogItemRef.RefName" minOccurs="0" maxOccurs="1" nillable="false"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="ОбщиеСвойства.EntityRef">
+    <xs:sequence>
+      <xs:element name="type" type="tns:EntityRef.Type" minOccurs="1" maxOccurs="1" nillable="false"/>
+      <xs:element name="id" type="tns:UUID" minOccurs="1" maxOccurs="1" nillable="false"/>
+      <xs:element name="name" type="tns:EntityRef.Name" minOccurs="0" maxOccurs="1" nillable="false"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="ОбщиеСвойства.Person">
+    <xs:sequence>
+      <xs:element name="personId" type="tns:UUID" minOccurs="1" maxOccurs="1" nillable="false"/>
+      <xs:element name="name" type="tns:Person.Name" minOccurs="1" maxOccurs="1" nillable="false"/>
+      <xs:element name="email" type="tns:Person.Email" minOccurs="0" maxOccurs="1" nillable="false">
+        <xs:annotation>
+          <xs:documentation>format: email (JSON Schema annotation; XSD string constraints apply)</xs:documentation>
+        </xs:annotation>
+      </xs:element>
+      <xs:element name="manager" type="tns:ОбщиеСвойства.Person" minOccurs="0" maxOccurs="1" nillable="false"/>
+    </xs:sequence>
+  </xs:complexType>
+</xs:schema>
