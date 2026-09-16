@@ -7,26 +7,9 @@ description: Create, format, review, run, and debug Kafka YAxUnit tests using th
 
 ## Pattern routing
 
-Select artifact invariants, operation and actual mechanisms before designing, changing or judging a test. Load the union of matching pattern IDs once with `v8std_get_pattern`; require `found=true` and `body_truncated=false`, falling back to the complete same-ID `v8std_get_page`. Missing required evidence blocks the dependent decision/change. Reuse patterns across phases; search `collections=["yaxunit"]` only for an unresolved concept, and use `v8std_get_api_card` for a known module/member.
+For design, creation, change, review, debug, or migration, call policy MCP `select_yaxunit_requirements` with the operation and union of explicit, classified, and observed mechanisms. Load each returned exact ID once via `v8std_get_pattern`; require `found=true` and `body_truncated=false`, or read the complete same-ID page. A missing pattern or unknown mechanism blocks the dependent decision. Reuse a valid selection across phases. Run/report-only work needs no authoring patterns.
 
-| Scenario or mechanism | Required pattern IDs |
-|---|---|
-| Create a test or change its behavior | `yaxunit:patterns:authoring-baseline` |
-| Create a test common module | `authoring-baseline`, `test-module`, `naming` |
-| Design/change/review module structure, test/helper placement or exported test contract | `test-module` |
-| Introduce/change/review module or test naming | `naming` |
-| Design/change/review registration or parameters | `registration-and-parameters`; `test-module` for the registration entrypoint contract |
-| Assertion-focused or non-trivial assertion change | `assertions` |
-| Assert database/register presence, absence, count, fields, or rows | `assertions`; add `predicates-and-queries` only for a non-trivial predicate |
-| Create or fill test data | `test-data`; add `data-isolation` for persistent records |
-| Configure `ВТранзакции` or `УдалениеТестовыхДанных` | `data-isolation` |
-| Use mocks | `mocking` |
-| Use predicates or query helpers | `predicates-and-queries` |
-| Use file or XDTO test dependencies | `dependencies` |
-| Use hooks or client/server context state | `lifecycle-and-contexts` |
-| Review, debug, or migrate an existing test | `test-analysis-and-migration` |
-
-Unqualified IDs use the `yaxunit:patterns:` prefix. For review/migration, select mechanisms within requested scope; do not load `authoring-baseline` by default. Run/report-only work needs no authoring patterns. Resolve uncovered mechanisms instead of assuming the table is exhaustive. Minimal examples do not replace general standards or work policy.
+Before a test mutation, validate a complete proposal ledger with `validate_compliance`. After mutation, inspect the actual test, include newly observed mechanisms, and validate the result ledger against the same selection digest or reselect with an explicit applicability reason. Pattern retrieval alone does not prove compliance. Use `v8std_get_api_card` for a known module/member; use bounded YAxUnit search only for an unresolved concept. General BSL change requirements still use $1c-standards/$1c-code-change.
 
 ## Authoring constraints
 

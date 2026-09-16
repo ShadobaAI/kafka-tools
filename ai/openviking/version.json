@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 3,
+  "package": "openviking",
+  "releasePolicy": "latest-stable",
+  "platform": "linux",
+  "metadataUrl": "https://pypi.org/pypi/openviking/json",
+  "image": "ghcr.io/volcengine/openviking"
+}

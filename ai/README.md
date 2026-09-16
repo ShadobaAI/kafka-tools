@@ -4,6 +4,38 @@
 
 Каталог `tools/ai` содержит общую AI-инфраструктуру фиксированного Kafka workspace:
 установщик, `code-index`, общие 1С-skills, routing guard и regression-тесты.
+Новый [policy subsystem](policy/README.md) содержит versioned exact-selector registry
+и read-only MCP; штатный installer доставляет его декларацию вместе с OpenViking MCP.
+Доставкой shared skills, MCP declarations и routing guard владеет `install.cmd`.
+`node .\tools\ai\doctor.mjs` из корня Kafka выполняет fail-closed preflight без установки.
+Live runtime gates пока не подтверждены; `not-ready` не означает готовность production cutover.
+Doctor принимает `--project-root <root>`: допустим корень workspace либо корень
+любого отдельного Git-репозитория внутри него. Это соответствует открытию Codex
+из `adapter/adapter`, `conversion/KFK`, `tests/unit/unit`, `tools` и других Kafka
+repositories; установленные MCP-пути не зависят от текущего каталога.
+Doctor выбирает только назначенный EDT-контур: adapter — `kfk-edt`, conversion —
+`conv-edt`, unit — `unit-edt`. Workspace root требует все три контура; для
+`tools`, `tasks`, `tests/reports` и `tests/ui` EDT не требуется. Неизвестный или
+вложенный корень отклоняется до runtime-проверок. Наличие runtime-файлов и URL
+не подтверждает readiness: непроверенные gates сохраняют `unverified`.
+Экспортируемый `checkCodeIndexHealth` проверяет managed MCP health contract,
+единственную регистрацию каждого required alias и точное совпадение обоих
+reported paths с canonical checkout. CLI вызывает `health` через установленный
+managed stdio launcher из `KAFKA_CODE_INDEX_HOME` с `-SkipDaemonBootstrap`:
+daemon не запускается и не перезапускается. Сессия ограничена 10 секундами и
+1 MiB ответа; ошибки transport/protocol, stale paths и неполные ответы дают
+`error`. Для non-1C repositories code-index не требуется. BSL LS проверяется для configured adapter owner; явно
+настроенные дополнительные endpoints требуют отдельной проверки.
+Windows entrypoint `tools\ai\doctor.cmd` вызывает этот же preflight. Полный
+`install.cmd` проверяет последний стабильный OpenViking runtime, устанавливает обновление, проверяет provider через
+официальный `doctor`, запускает локальный server, выполняет initial Git sync и только
+после успешных MCP smoke checks устанавливает reconciliation hooks. При первом запуске
+на новом ПК официальный `init` интерактивно запрашивает provider/model и credentials;
+повторная установка использует существующую user-owned конфигурацию и runtime.
+`tools\ai\update-openviking.cmd` предназначен для последующей ручной перестройки
+производного Git-backed index; runtime он не устанавливает и не перезапускает.
+Hooks ставятся во все девять Kafka-owned repositories из workspace manifest;
+upstream checkout `tests/unit/yaxunit` намеренно исключён.
 EDT и BSL LS остаются repository-local и настраиваются в репозиториях-владельцах.
 
 Навыки и политика EDT опираются на live API назначенного сервера и его `get_tool_guide`.
@@ -39,6 +71,24 @@ EDT и BSL LS остаются repository-local и настраиваются в
 установщик сравнивает версии `bsl-indexer` и BSL Language Server из
 `runtime\windows` с canonical GitHub releases и загружает проверенный artifact,
 только если локальный компонент отсутствует или отличается от опубликованного.
+OpenViking и Ollama запускаются только в Docker Desktop (Linux containers + Compose).
+Installer сверяет версию официального образа с latest-stable в PyPI и сохраняет
+image digest. Windows Python и wheel-параметры больше не поддерживаются.
+Локальное состояние находится в `<CodexHome>\openviking-docker`, данные и модели —
+в отдельных Docker volumes. Перед загрузкой образов и моделей запрашивается
+подтверждение с указанием моделей и их размеров. По умолчанию используется CPU;
+`-OpenVikingGpu` включает NVIDIA GPU reservation (требуется доступ GPU из Docker).
+API OpenViking публикуется только на loopback:1933; в локальном managed-режиме
+Ollama не публикует порт на Windows.
+Если Ollama уже работает на GPU физического хоста, передайте
+`-OllamaUrl http://gpu-host:11434` (или `KAFKA_OLLAMA_URL`): в ВМ запускается только
+OpenViking, модели и второй контейнер Ollama не скачиваются. Адрес сохраняется
+для повторного запуска. Обе модели должны быть заранее установлены на хосте.
+Пошаговая [установка в Hyper-V ВМ с Ollama на GPU физического хоста](openviking/INSTALL-WINDOWS-HYPERV.md)
+включает запуск контейнера, модели, firewall, проверку GPU и команду установщика.
+Подробности и команды диагностики — в [OpenViking README](openviking/README.md).
+`-SkipOpenVikingRuntime` явно пропускает runtime, provider,
+server, initial sync, OpenViking MCP smoke и Git hooks.
 
 Для закрытого контура можно передать оба файла явно:
 
@@ -123,8 +173,12 @@ managed executable и ранее работавший daemon. Удалённые
 Для любых новых или изменённых BSL обязательны общие стандарты и дополнительная
 рабочая политика из `v8std` по стабильным ID `corporate:work:*`.
 
-Контекст загружается по этапам: routing → нужный skill → общий селектор
-`1c-code-change/references/requirements.md` → применимые подразделы v8std.
+В текущей установленной схеме контекст загружается по этапам: routing → нужный
+skill → `1c-code-change/references/requirements.md` → применимые подразделы v8std.
+Canonical thin skills в `.codex/skills` используют policy MCP с detector/selector
+и compliance ledger. Installer доставляет их и read-only custom agent
+`.codex/agents/kafka-reviewer.toml`; отдельного staged layout больше нет.
+Установка новой конфигурации не доказывает live-приёмку SPEC-0012.
 Селектор используется до выбора решения: через `1c-standards` для дизайна и
 нормативного анализа, через `1c-code-change` для изменений. Учитываются тип
 артефакта, операция и фактические механизмы; чистому поиску нормы не нужны.
@@ -150,5 +204,44 @@ Get-ChildItem -LiteralPath .\tools\ai\tests -Filter 'test-*.ps1' |
 проверки в репозитории-владельце.
 `smoke-code-index-runtime.ps1` является отдельной live-проверкой.
 
+Для SPEC-0012 из корня Kafka дополнительно запустите:
+
+```powershell
+$env:V8STD_REPO = '<путь к checkout v8std>'
+node .\tools\ai\tests\test-policy.mjs
+node .\tools\ai\tests\test-doctor.mjs
+node .\tools\ai\tests\benchmark-context.mjs
+```
+
+`benchmark-context.mjs` измеряет только байты исходников/schema; фактические
+Codex tool schemas и токены требуют live-проверки после установки.
+
 Подробная архитектура, правила переноса и критерии готовности описаны в
 [PORTING.md](PORTING.md); политика runtime — в [runtime/README.md](runtime/README.md).
+
+## Доставка runtime declarations SPEC-0012
+
+`install.cmd` устанавливает `kafka-policy` и `kafka-openviking` в существующий shared
+managed MCP block, а reviewer — в `<CodexHome>/agents/kafka-reviewer.toml`.
+Повторная установка не создаёт второй block; конфликтующие одноимённые MCP вне
+managed block отклоняются по существующей политике installer. Repository-local
+EDT и BSL LS остаются отдельными владельцами конфигурации.
+
+`-OpenVikingStateDir <absolute-path>` задаёт developer-local disposable state.
+По умолчанию используется `KAFKA_OPENVIKING_STATE_DIR`, а при отсутствии переменной
+— `<CodexHome>/openviking`. Путь фиксируется в MCP args вместе с workspace root.
+Для ручного `update-openviking.cmd` задайте ту же директорию через
+`KAFKA_OPENVIKING_STATE_DIR`. Node command берётся из проверенного runtime normal
+install либо из `-NodePath`/PATH при `-ConfigurationOnly`.
+
+`-ConfigurationOnly` проверяет только доставку конфигурации и ресурсов: runtime,
+provider, server, initial sync и hooks в этом режиме не устанавливаются. Обычный
+повторный запуск всегда проверяет обновление и переиспользует runtime, если latest
+уже установлен. Существующая provider-конфигурация не удаляется
+и не перезаписывается; ошибка `doctor` требует её исправить и повторить установку.
+Production cutover всё ещё требует отдельной live acceptance на целевой машине.
+
+`test-installation.ps1` запускает `test-managed-mcp.mjs --config <installed-config>`:
+реальные installed stdio servers проверяются из постороннего cwd через initialize
+и tools/list. Проверяются точные allowlists и read-only reviewer. Backend queries,
+Codex custom-agent discovery и runtime authority readiness проверяются отдельно.

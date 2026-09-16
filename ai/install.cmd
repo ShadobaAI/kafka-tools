@@ -64,7 +64,11 @@ param(
     [string]$BslLanguageServerJar,
     [string]$NodePath = $env:CODE_INDEX_NODE,
     [string]$JavaPath = $env:BSL_LANGUAGE_SERVER_JAVA,
+    [string]$OpenVikingStateDir = $env:KAFKA_OPENVIKING_STATE_DIR,
+    [switch]$OpenVikingGpu,
+    [string]$OllamaUrl = $env:KAFKA_OLLAMA_URL,
     [switch]$ConfigurationOnly,
+    [switch]$SkipOpenVikingRuntime,
     [switch]$SkipDaemonStart,
     [ValidateRange(60, 3600)][int]$IndexReadyTimeoutSeconds = 1800,
     [ValidateRange(60, 3600)][int]$McpReadyTimeoutSeconds = 600
@@ -507,6 +511,11 @@ else {
     $CodexHome = [System.IO.Path]::GetFullPath($CodexHome)
 }
 
+if ([string]::IsNullOrWhiteSpace($OpenVikingStateDir)) {
+    $OpenVikingStateDir = Join-Path $CodexHome 'openviking-docker'
+}
+$OpenVikingStateDir = [System.IO.Path]::GetFullPath($OpenVikingStateDir)
+
 $conversionDataBaseRelativePath = 'conversion\' + [string][char]0x041A + [string][char]0x0414
 $setupStepCount = if ($ConfigurationOnly) { 2 } else { 6 }
 $requiredWorkspacePaths = @(
@@ -534,6 +543,7 @@ Write-SetupOk "Kafka workspace is complete: $WorkspaceRoot"
 Write-SetupOk "Codex home is ready for installation: $CodexHome"
 
 $downloadRoot = $null
+$installationSucceeded = $false
 try {
 if (-not $ConfigurationOnly) {
     Write-SetupStep '2/6. Checking Node.js and Java'
@@ -548,7 +558,7 @@ if (-not $ConfigurationOnly) {
     Write-SetupOk "Node.js $nodeVersion is ready."
     Write-SetupOk 'Java is ready.'
 
-    Write-SetupStep '3/6. Preparing bsl-indexer and BSL Language Server'
+    Write-SetupStep '3/6. Preparing bsl-indexer, BSL Language Server, and OpenViking'
     $managedIndexer = Join-Path $CodexHome 'code-index\bsl-indexer.exe'
     $managedJar = Join-Path $CodexHome 'bsl-ls\bsl-language-server-exec.jar'
     $bundledRuntimeRoot = Join-Path $ToolkitRoot 'runtime\windows'
@@ -686,6 +696,28 @@ if (-not $ConfigurationOnly) {
         throw "BSL Language Server artifact is not a non-empty JAR file: '$jar'."
     }
     Write-SetupOk 'BSL Language Server is ready.'
+
+    if ($SkipOpenVikingRuntime) {
+        Write-SetupWarning 'OpenViking runtime installation, provider readiness, server start, and initial sync were explicitly skipped.'
+    }
+    else {
+        $bootstrap = Join-Path $ToolkitRoot 'openviking\docker-runtime.mjs'
+        $bootstrapArguments = @($bootstrap, '--state-dir', $OpenVikingStateDir)
+        if ($OpenVikingGpu) { $bootstrapArguments += '--gpu' }
+        if (-not [string]::IsNullOrWhiteSpace($OllamaUrl)) { $bootstrapArguments += @('--ollama-url', $OllamaUrl) }
+        & $node @bootstrapArguments
+        if ($LASTEXITCODE -ne 0) { throw 'OpenViking/Ollama Docker setup failed.' }
+        $runtimeRecordFile = Join-Path $OpenVikingStateDir 'runtime.json'
+        $runtimeRecord = Get-Content -LiteralPath $runtimeRecordFile -Raw -Encoding UTF8 | ConvertFrom-Json
+        $resolvedOpenVikingVersion = $runtimeRecord.version
+        Write-SetupOk "OpenViking $resolvedOpenVikingVersion Docker service and Ollama provider are ready."
+
+        & $node (Join-Path $ToolkitRoot 'openviking\git-sync.mjs') `
+            --workspace-root $WorkspaceRoot `
+            --state-dir $OpenVikingStateDir
+        if ($LASTEXITCODE -ne 0) { throw 'OpenViking initial Git reconciliation failed.' }
+        Write-SetupOk 'OpenViking committed Git sources are synchronized.'
+    }
 }
 
 $configurationStepNumber = if ($ConfigurationOnly) { 2 } else { 4 }
@@ -699,6 +731,7 @@ if (-not (Test-Path -LiteralPath $WorkspaceRoot -PathType Container)) {
 
 $sourceConfig = Join-Path $sourceRoot '.codex\config.toml'
 $sourceSkills = Join-Path $sourceRoot '.codex\skills'
+$sourceCustomAgents = Join-Path $sourceRoot '.codex\agents'
 $sourceAgents = Join-Path $sourceRoot 'AGENTS.md'
 $sourceWorkspacePolicy = Join-Path $sourceRoot 'workspace-policy.json'
 $sourceCodeIndexConfig = Join-Path $sourceRoot 'code-index\daemon.toml.template'
@@ -710,6 +743,9 @@ $sourceCodeIndexMcpFiles = @(
 foreach ($requiredPath in @(
     $sourceConfig,
     $sourceSkills,
+    $sourceCustomAgents,
+    (Join-Path $sourceRoot 'policy\read-only-mcp.mjs'),
+    (Join-Path $sourceRoot 'openviking\read-only-mcp.mjs'),
     $sourceAgents,
     $sourceWorkspacePolicy,
     $sourceCodeIndexConfig
@@ -1216,6 +1252,12 @@ $escapedWorkspaceRoot = $WorkspaceRoot.Replace('\', '\\').Replace('"', '\"')
 $codeIndexHome = Join-Path $CodexHome 'code-index'
 $escapedCodeIndexHome = $codeIndexHome.Replace('\', '\\').Replace('"', '\"')
 $managedBlock = $managedBlock.Replace('__CODE_INDEX_HOME__', $escapedCodeIndexHome)
+$managedNode = if (-not $ConfigurationOnly) { $node } elseif ([string]::IsNullOrWhiteSpace($NodePath)) { 'node' } else { $NodePath }
+$escapedNode = $managedNode.Replace('\', '\\').Replace('"', '\"')
+$escapedOpenVikingState = $OpenVikingStateDir.Replace('\', '\\').Replace('"', '\"')
+$managedBlock = $managedBlock.Replace('__NODE_PATH__', $escapedNode).Replace('__OPENVIKING_STATE_DIR__', $escapedOpenVikingState)
+$managedBlock = $managedBlock.Replace('__AI_ROOT__', $escapedSourceRoot).Replace('__WORKSPACE_ROOT__', $escapedWorkspaceRoot)
+if ($managedBlock -match '__[A-Z_]+__') { throw 'Unresolved managed MCP placeholder.' }
 $guardBlock = $guardBlock.Replace('__AI_ROOT__', $escapedSourceRoot)
 $guardBlock = $guardBlock.Replace('__WORKSPACE_ROOT__', $escapedWorkspaceRoot)
 if ($managedBlock.Contains('__CODE_INDEX_HOME__') -or $guardBlock.Contains('__AI_ROOT__') -or $guardBlock.Contains('__WORKSPACE_ROOT__')) {
@@ -1265,6 +1307,8 @@ if ($preservedV8stdBaseSettings.Count -gt 0 -or $preservedV8stdNestedTables.Coun
 $unmanagedConfig = [regex]::Replace($existingConfig, $blockPattern, '').TrimEnd()
 $unmanagedConfig = [regex]::Replace($unmanagedConfig, $guardBlockPattern, '').TrimEnd()
 $conflictingGroups = @(
+    @{ Header = '[mcp_servers.kafka-policy]'; Pattern = '(?ms)^\[mcp_servers\.kafka-policy(?:\.[^\]]+)?\]\r?\n.*?(?=^\[|\z)' },
+    @{ Header = '[mcp_servers.kafka-openviking]'; Pattern = '(?ms)^\[mcp_servers\.kafka-openviking(?:\.[^\]]+)?\]\r?\n.*?(?=^\[|\z)' },
     @{ Header = '[mcp_servers.v8std]'; Pattern = '(?ms)^\[mcp_servers\.v8std(?:\.[^\]]+)?\]\r?\n.*?(?=^\[|\z)' },
     @{ Header = '[mcp_servers.code-index]'; Pattern = '(?ms)^\[mcp_servers\.code-index(?:\.[^\]]+)?\]\r?\n.*?(?=^\[|\z)' }
 )
@@ -1419,6 +1463,17 @@ foreach ($sourceSkillItem in $managedSkills) {
     Copy-Item -LiteralPath $sourceSkill -Destination $targetSkill -Recurse -Force
 }
 
+$targetCustomAgents = Join-Path $CodexHome 'agents'
+New-Item -ItemType Directory -Path $targetCustomAgents -Force | Out-Null
+foreach ($sourceAgentFile in Get-ChildItem -LiteralPath $sourceCustomAgents -Filter '*.toml' -File) {
+    $targetAgentFile = Join-Path $targetCustomAgents $sourceAgentFile.Name
+    if ((Test-Path -LiteralPath $targetAgentFile) -and
+        (Get-FileHash -LiteralPath $targetAgentFile).Hash -eq (Get-FileHash -LiteralPath $sourceAgentFile.FullName).Hash) { continue }
+    if (Test-Path -LiteralPath $targetAgentFile) {
+        Backup-ManagedPath -Path $targetAgentFile -RelativeBackupPath (Join-Path 'agents' $sourceAgentFile.Name)
+    }
+    Copy-Item -LiteralPath $sourceAgentFile.FullName -Destination $targetAgentFile -Force
+}
 $targetWorkspaceAgents = Join-Path $WorkspaceRoot 'AGENTS.md'
 if (Test-Path -LiteralPath $targetWorkspaceAgents) {
     $currentAgents = Get-Content -LiteralPath $targetWorkspaceAgents -Raw -Encoding UTF8
@@ -1441,6 +1496,7 @@ if (-not $SuppressRestartNotice) {
 }
 
 if ($ConfigurationOnly) {
+    $installationSucceeded = $true
     Write-Output ''
     Write-Output 'RESULT: configuration-only setup completed successfully.'
     Write-Output '  - Codex configuration, policy, hooks, and skills: ready'
@@ -1582,6 +1638,33 @@ try {
         $v8stdUrl = Get-McpServerUrl -ConfigPath $targetConfig -ServerName 'v8std'
         Wait-HttpMcpServer -Uri $v8stdUrl -Description 'v8std MCP' -TimeoutSeconds $McpReadyTimeoutSeconds
         Write-SetupOk 'v8std MCP is ready.'
+
+        if (-not $SkipOpenVikingRuntime) {
+            $policyToolCount = Test-StdioMcpServer `
+                -Executable $node `
+                -ArgumentList @((Join-Path $ToolkitRoot 'policy\read-only-mcp.mjs')) `
+                -WorkingDirectory $WorkspaceRoot `
+                -Description 'Kafka policy MCP' `
+                -RequiredTools @('detect_1c_mechanisms', 'select_1c_requirements', 'select_yaxunit_requirements', 'validate_compliance') `
+                -TimeoutSeconds $McpReadyTimeoutSeconds
+            $openVikingToolCount = Test-StdioMcpServer `
+                -Executable $node `
+                -ArgumentList @(
+                    (Join-Path $ToolkitRoot 'openviking\read-only-mcp.mjs'),
+                    '--workspace-root', $WorkspaceRoot,
+                    '--state-dir', $OpenVikingStateDir
+                ) `
+                -WorkingDirectory $WorkspaceRoot `
+                -Description 'Kafka OpenViking read-only MCP' `
+                -RequiredTools @('find', 'search', 'read', 'list', 'tree') `
+                -TimeoutSeconds $McpReadyTimeoutSeconds
+            Write-SetupOk "Kafka policy/OpenViking MCP surfaces are ready ($policyToolCount/$openVikingToolCount tools)."
+            & $node (Join-Path $ToolkitRoot 'openviking\install-hooks.mjs') `
+                --workspace-root $WorkspaceRoot `
+                --state-dir $OpenVikingStateDir
+            if ($LASTEXITCODE -ne 0) { throw 'OpenViking Git hook installation failed.' }
+            Write-SetupOk 'OpenViking Git reconciliation hooks are installed.'
+        }
     }
     else {
         Write-SetupWarning 'Daemon startup and MCP readiness were skipped (-SkipDaemonStart).'
@@ -1670,12 +1753,19 @@ catch {
     throw "Setup failed; previous runtime state was restored: $setupFailure"
 }
 
+$installationSucceeded = $true
 Write-Output ''
 Write-Output 'RESULT: installation completed successfully.'
 Write-Output "  - Setup complete: Node.js $nodeVersion, bsl-indexer $indexerVersion, Java available"
 Write-Output "  - Codex configuration, policy, hooks, and skills: ready"
 Write-Output "  - Managed bsl-indexer: '$managedIndexer' (updated: $indexerInstalled)"
 Write-Output "  - Managed BSL LS JAR: '$managedJar' (updated: $jarInstalled)"
+if ($SkipOpenVikingRuntime) {
+    Write-Output '  - OpenViking runtime/integration explicitly skipped'
+}
+else {
+    Write-Output "  - OpenViking $resolvedOpenVikingVersion (latest at install time): runtime, provider doctor, server, Git sync, MCP, and hooks ready"
+}
 Write-Output "  - Old Kafka indexes removed: $removedIndexCount of $managedIndexCount managed paths"
 if ($SkipDaemonStart) {
     Write-Output '  - Daemon startup was skipped by request; MCP readiness was not checked'

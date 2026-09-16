@@ -10,6 +10,7 @@ Bind the exact project, alias or root from project instructions. Check only tool
 | Unresolved need | Authority / next skill |
 |---|---|
 | Indexed discovery, structure, references, impact | read-only code-index / $1c-code-index |
+| Historical architecture, SDD/ADR, documented constraints or handoff | read-only OpenViking Git context; require ready committed-HEAD sources |
 | Live source/metadata, primary diagnostics | assigned EDT-MCP |
 | Source/metadata change or change review | assigned EDT-MCP / $1c-code-change |
 | Platform API/version/context | assigned EDT-MCP / $1c-platform-docs |
@@ -22,7 +23,7 @@ Bind the exact project, alias or root from project instructions. Check only tool
 
 Load only the current route. Design and change review must select applicable requirements before accepting a solution; implementation must do so before writing. Reuse that selection across phases. Pure source discovery needs no normative corpus; it must not silently become a design or compliance conclusion.
 
-One fact has one primary authority. Do not repeat sufficient evidence in another MCP. EDT owns live state/platform truth; conflicting indexed/analyzer evidence is invalid until freshness is re-established. Reuse session evidence until a relevant mutation, restart, error or contradiction invalidates it.
+One fact has one primary authority. Do not repeat sufficient evidence in another MCP. OpenViking is only a disposable hint for committed project history, never current source/metadata, normative rules, platform APIs, or call graphs. If its source state is stale/error, stop that retrieval instead of scanning broad workspace files. EDT owns live state/platform truth; conflicting indexed/analyzer evidence is invalid until freshness is re-established. Reuse session evidence until a relevant mutation, restart, error or contradiction invalidates it.
 
 For EDT, use `list_toolsets` to establish visibility and enable only the needed group when progressive disclosure is active. Visibility is not permission. Preserve returned operation identifiers; follow an existing `jobId` with `get_job_status`, not by restarting its owning operation. Read `structuredContent` when present and embedded resource text from tool guides; a short text acknowledgment alone is not the result.
 

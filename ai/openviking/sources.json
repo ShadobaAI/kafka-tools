@@ -1,0 +1,71 @@
+{
+  "schemaVersion": 1,
+  "namespace": "viking://resources/kafka-git",
+  "hookRepositories": [
+    { "id": "kafka-adapter", "root": "adapter/adapter" },
+    { "id": "kafka-adapter-base", "root": "adapter/base" },
+    { "id": "kafka-adapter-examples", "root": "adapter/examples" },
+    { "id": "kafka-adapter-conv", "root": "conversion/KFK" },
+    { "id": "kafka-adapter-tests-reports", "root": "tests/reports" },
+    { "id": "kafka-adapter-tests-ui", "root": "tests/ui" },
+    { "id": "kafka-adapter-tests-unit", "root": "tests/unit/unit" },
+    { "id": "kafka-tools", "root": "tools" },
+    { "id": "kfk-tasks", "root": "tasks" }
+  ],
+  "repositories": [
+    {
+      "id": "kfk-tasks",
+      "root": "tasks",
+      "include": ["sdd/**/*.md", "adr/**/*.md", "work/*.md"],
+      "exclude": ["work/README.md", "work/template.md"]
+    },
+    {
+      "id": "kafka-adapter",
+      "root": "adapter/adapter",
+      "include": ["README.md", "docs/**/*.md"],
+      "exclude": []
+    },
+    {
+      "id": "kafka-adapter-base",
+      "root": "adapter/base",
+      "include": ["README.md", "docs/**/*.md"],
+      "exclude": []
+    },
+    {
+      "id": "kafka-adapter-examples",
+      "root": "adapter/examples",
+      "include": ["README.md", "docs/**/*.md"],
+      "exclude": []
+    },
+    {
+      "id": "kafka-adapter-conv",
+      "root": "conversion/KFK",
+      "include": ["README.md", "docs/**/*.md"],
+      "exclude": []
+    },
+    {
+      "id": "kafka-adapter-tests-unit",
+      "root": "tests/unit/unit",
+      "include": ["README.md", "docs/**/*.md"],
+      "exclude": []
+    },
+    {
+      "id": "kafka-adapter-tests-reports",
+      "root": "tests/reports",
+      "include": ["README.md", "docs/**/*.md"],
+      "exclude": []
+    },
+    {
+      "id": "kafka-adapter-tests-ui",
+      "root": "tests/ui",
+      "include": ["README.md", "docs/**/*.md"],
+      "exclude": []
+    },
+    {
+      "id": "kafka-tools",
+      "root": "tools",
+      "include": ["ai/README.md", "ai/PORTING.md", "ai/runtime/README.md", "ai/openviking/README.md"],
+      "exclude": []
+    }
+  ]
+}

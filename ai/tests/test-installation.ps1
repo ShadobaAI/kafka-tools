@@ -351,6 +351,9 @@ try {
     & $portableInstaller `
         -CodexHome $temporaryCodexHome `
         -ConfigurationOnly | Out-Null
+    if (Test-Path -LiteralPath (Join-Path $temporaryCodexHome 'openviking-docker')) {
+        throw 'Configuration-only setup installed or modified OpenViking runtime.'
+    }
 
     foreach ($relativePath in $managedIndexRelativePaths) {
         $oldIndexRoot = Join-Path (Join-Path $temporaryRoot $relativePath) '.code-index'
@@ -368,6 +371,8 @@ try {
     ) {
         throw 'Installer left unresolved path placeholders in config.toml.'
     }
+    & node (Join-Path $sourcePackage 'tests\test-managed-mcp.mjs') --config $installedConfigPath
+    if ($LASTEXITCODE -ne 0) { throw 'Installed policy/OpenViking MCP smoke failed.' }
     $escapedPackagePath = $portablePackage.Replace('\', '\\')
     $escapedWorkspacePath = $temporaryRoot.Replace('\', '\\')
     if (-not $installedConfig.Contains($escapedPackagePath)) {
@@ -498,6 +503,7 @@ try {
         -BslLanguageServerJar $fakeJar `
         -NodePath $fakeNode `
         -JavaPath $fakeJava `
+        -SkipOpenVikingRuntime `
         -SkipDaemonStart) -join "`n"
 
     foreach ($managedFile in @(
@@ -528,12 +534,13 @@ try {
     foreach ($expectedOutput in @(
         '==> 1/6. Checking workspace layout and installation destinations',
         '==> 2/6. Checking Node.js and Java',
-        '==> 3/6. Preparing bsl-indexer and BSL Language Server',
+        '==> 3/6. Preparing bsl-indexer, BSL Language Server, and OpenViking',
         '==> 4/6. Installing Codex configuration, policy, hooks, and skills',
         '==> 5/6. Rebuilding Kafka code-index data and waiting for registered paths',
         '[OK] Node.js 18.20.0 is ready.',
         'Old Kafka indexes removed: 7 of 7 managed paths',
         '[WARNING] Daemon startup and MCP readiness were skipped (-SkipDaemonStart).',
+        '[WARNING] OpenViking runtime installation, provider readiness, server start, and initial sync were explicitly skipped.',
         'RESULT: installation completed successfully.'
     )) {
         if (-not $output.Contains($expectedOutput)) {
@@ -547,6 +554,7 @@ try {
         -BslLanguageServerJar $fakeJar `
         -NodePath $fakeNode `
         -JavaPath $fakeJava `
+        -SkipOpenVikingRuntime `
         -SkipDaemonStart) -join "`n"
     if (
         $secondOutput -notmatch 'Managed bsl-indexer:.*updated: False' -or
@@ -597,6 +605,24 @@ try {
     )) {
         if (-not $setupSource.Contains($readinessFragment)) {
             throw "Setup is missing post-install readiness fragment: $readinessFragment"
+        }
+    }
+    foreach ($openVikingFragment in @(
+        'openviking\docker-runtime.mjs',
+        'OpenViking/Ollama Docker setup failed',
+        '[switch]$OpenVikingGpu',
+        '[string]$OllamaUrl = $env:KAFKA_OLLAMA_URL',
+        "'--ollama-url', `$OllamaUrl",
+        'openviking\git-sync.mjs',
+        "-RequiredTools @('find', 'search', 'read', 'list', 'tree')",
+        'openviking\install-hooks.mjs',
+        '[switch]$SkipOpenVikingRuntime',
+        "'--state-dir', `$OpenVikingStateDir",
+        "Join-Path `$CodexHome 'openviking-docker'",
+        "Join-Path `$OpenVikingStateDir 'runtime.json'"
+    )) {
+        if (-not $setupSource.Contains($openVikingFragment)) {
+            throw "Setup is missing OpenViking full-install fragment: $openVikingFragment"
         }
     }
     $persistentConfigIndex = $setupSource.IndexOf('$targetConfig = Join-Path $CodexHome')

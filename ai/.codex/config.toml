@@ -1,7 +1,7 @@
 #:schema https://developers.openai.com/codex/config-schema.json
 
 # BEGIN SHARED-1C-AI MANAGED
-# This block is installed idempotently by tools/ai/install.ps1.
+# This block is installed idempotently by tools/ai/install.cmd.
 
 [mcp_servers.v8std]
 url = "http://127.0.0.1:8766/mcp"
@@ -66,6 +66,27 @@ enabled_tools = [
   "bsl_sql",
 ]
 
+[mcp_servers.kafka-policy]
+command = "__NODE_PATH__"
+args = ["__AI_ROOT__\\policy\\read-only-mcp.mjs"]
+enabled = true
+required = false
+startup_timeout_sec = 10
+tool_timeout_sec = 60
+default_tools_approval_mode = "approve"
+description = "Deterministic exact requirement selection and pre/post compliance"
+enabled_tools = ["detect_1c_mechanisms", "select_1c_requirements", "select_yaxunit_requirements", "validate_compliance"]
+
+[mcp_servers.kafka-openviking]
+command = "__NODE_PATH__"
+args = ["__AI_ROOT__\\openviking\\read-only-mcp.mjs", "--workspace-root", "__WORKSPACE_ROOT__", "--state-dir", "__OPENVIKING_STATE_DIR__"]
+enabled = true
+required = false
+startup_timeout_sec = 10
+tool_timeout_sec = 120
+default_tools_approval_mode = "approve"
+description = "Bounded read-only Git-backed historical context; reconciles committed HEAD before use"
+enabled_tools = ["find", "search", "read", "list", "tree"]
 # END SHARED-1C-AI MANAGED
 
 # BEGIN KAFKA-AI GUARD

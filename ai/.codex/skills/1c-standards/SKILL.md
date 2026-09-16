@@ -5,7 +5,7 @@ description: Apply v8std requirements to 1C design, normative analysis, diagnost
 
 # 1C Standards
 
-Use configured v8std for standards/policy, never live-project or platform truth. For design or normative analysis of an artifact, read the shared [requirements selector](../1c-code-change/references/requirements.md) once scope is known; apply only decision-relevant rows. A change already classified by $1c-code-change reuses that selection, without another search. Read-only design needs no mutation diagnostics or write steps.
+Use configured v8std for standards/policy, never live-project or platform truth. For design or normative analysis of an artifact, follow the shared [requirements workflow](../1c-code-change/references/requirements.md) once scope is known: policy MCP detects mechanisms and selects exact requirements; v8std supplies their normative text. A change already classified by $1c-code-change reuses that selection, without another search. Read-only design needs no mutation diagnostics or write steps.
 
 | Evidence needed | Retrieval |
 |---|---|
