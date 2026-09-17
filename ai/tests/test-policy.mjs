@@ -55,8 +55,54 @@ for (const line of corporateTable.split(/\r?\n/).filter((value) => value.startsW
   }
 }
 for (const id of generalTable.match(/std\d+/g) ?? []) legacySelectors.add(id);
+// Replacements from v8std docs/corporate/work/README.md; legacy fixtures stay unchanged.
+const selectorReplacements = {
+  "corporate:work:bsl-formatting:overview#Длина строки": [
+    "std444"
+  ],
+  "corporate:work:bsl-formatting:overview#Параметры": [
+    "std444"
+  ],
+  "corporate:work:bsl-formatting:overview#Операторы и этапы": [
+    "std456",
+    "corporate:work:bsl-formatting:overview#Логические этапы"
+  ],
+  "corporate:work:bsl-type-transparency:overview#Локальные переменные": [
+    "corporate:work:bsl-type-transparency:overview#Переменные"
+  ],
+  "corporate:work:bsl-type-transparency:overview#Переменные модуля": [
+    "corporate:work:bsl-type-transparency:overview#Переменные"
+  ],
+  "corporate:work:module-organization:overview#Клиент-серверное взаимодействие": [
+    "std636",
+    "std487"
+  ],
+  "corporate:work:query-conventions:overview#Форматирование": [
+    "std437"
+  ],
+  "corporate:work:query-conventions:overview#Проверка наличия": [
+    "std438"
+  ],
+  "corporate:work:query-conventions:overview#Запросы в цикле": [
+    "std436"
+  ],
+  "corporate:work:query-conventions:overview#Предопределенные значения": [
+    "std443",
+    "std697"
+  ],
+  "corporate:work:error-reporting:overview#Перехват": [
+    "std499"
+  ],
+  "corporate:work:error-reporting:overview#Классификация ошибки": [
+    "std499"
+  ],
+  "corporate:work:error-reporting:overview#Представление и журнал": [
+    "std499"
+  ]
+};
+const currentLegacySelectors = new Set([...legacySelectors].flatMap((id) => selectorReplacements[id] ?? [id]));
 const migrated1C = new Set(registry.oneC.rules.flatMap((rule) => rule.selectors));
-assert.deepEqual([...legacySelectors].filter((selector) => !migrated1C.has(selector)), []);
+assert.deepEqual([...currentLegacySelectors].filter((selector) => !migrated1C.has(selector)), []);
 const legacyYaxunit = fs.readFileSync(path.join(fixtureRoot, "legacy-yaxunit-routing.md"), "utf8")
   .split(/## Pattern routing\r?\n/)[1];
 const migratedYaxunit = new Set(registry.yaxunit.rules.flatMap((rule) => rule.selectors));
@@ -78,7 +124,7 @@ const query = select("oneC", { artifact: "bsl", operation: "change",
 assert.ok(query.recommended.includes("std436"));
 assert.ok(query.mandatory.includes("std438"));
 assert.ok(query.mandatory.includes("std437"));
-assert.ok(query.mandatory.includes("corporate:work:query-conventions:overview#Запросы в цикле"));
+assert.ok(!query.mandatory.includes("std436"));
 assert.equal(query.mandatory.filter((id) => id === "std437").length, 1);
 assert.deepEqual(query.mechanisms, ["existence_query", "query_in_loop", "query_text"]);
 assert.equal(query.digest, select("oneC", { artifact: "bsl", operation: "change",
@@ -124,10 +170,10 @@ const current = { detection: queryDetection };
 assert.equal(validateCompliance(query, ledger, current, registry).status, "passed");
 assert.throws(() => validateCompliance(query, ledger.slice(1), current, registry), /coverage mismatch/);
 assert.throws(() => validateCompliance(query, [{ ...ledger[0], status: "unresolved" }, ...ledger.slice(1)], current, registry), /unresolved or violated/);
-// A permitted std436 exception cannot waive the mandatory corporate justification.
-const loopRule = "corporate:work:query-conventions:overview#Запросы в цикле";
+// A recommendation exception cannot waive mandatory query formatting.
+const mandatoryQueryRule = "std437";
 for (const status of ["violated", "deviated", "not-applicable"]) {
-  const rejected = ledger.map((entry) => entry.rule_id === loopRule ?
+  const rejected = ledger.map((entry) => entry.rule_id === mandatoryQueryRule ?
     { ...entry, status, reason: "portion processing under std436 section 2" } : entry);
   assert.throws(() => validateCompliance(query, rejected, current, registry), /unresolved or violated/);
 }
