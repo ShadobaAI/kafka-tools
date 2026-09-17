@@ -11,6 +11,20 @@ const registry = loadRegistry();
 assert.deepEqual(visibleTools().map((item) => item.name),
   ["detect_1c_mechanisms", "select_1c_requirements", "select_yaxunit_requirements", "validate_compliance"]);
 assert.ok(visibleTools().every((item) => item.annotations.readOnlyHint));
+const yaxunitProperties = visibleTools().find((item) => item.name === "select_yaxunit_requirements")
+  .inputSchema.properties;
+for (const field of ["mechanisms", "classifiedMechanisms", "detectedMechanisms"]) {
+  assert.deepEqual(yaxunitProperties[field].items.enum, registry.yaxunit.mechanisms);
+  assert.ok(yaxunitProperties[field].items.enum.includes("test_module"));
+  assert.ok(!yaxunitProperties[field].items.enum.includes("test-module"));
+  assert.ok(callTool("select_yaxunit_requirements", {
+    operation: "review", mechanisms: [], [field]: ["test_module"],
+  }, registry).mandatory.includes("yaxunit:patterns:test-module"));
+  assert.throws(() => callTool("select_yaxunit_requirements", {
+    operation: "review", mechanisms: [], [field]: ["test-module"],
+  }, registry), /unknown required mechanism: test-module/);
+}
+assert.equal(yaxunitProperties.unknownMechanisms.items.enum, undefined);
 assert.equal(registry.oneC.rules.length, 48);
 assert.equal(registry.yaxunit.rules.length, 16);
 const absent = Object.fromEntries(criticalMechanisms.map((name) =>

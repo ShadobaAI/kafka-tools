@@ -13,6 +13,11 @@ const mechanismInput = {
   unknownMechanisms: { type: "array", items: { type: "string" } },
   detection: { type: "object" },
 };
+const yaxunitMechanisms = loadRegistry().yaxunit.mechanisms;
+const yaxunitMechanismInput = Object.fromEntries(
+  ["mechanisms", "classifiedMechanisms", "detectedMechanisms"].map((name) =>
+    [name, { type: "array", items: { type: "string", enum: yaxunitMechanisms } }]),
+);
 const tools = [
   { name: "detect_1c_mechanisms", description: "Classify critical mechanisms from authorized evidence. Unproven absence stays unknown.",
     annotations: readOnly, inputSchema: { type: "object", properties: {
@@ -26,7 +31,7 @@ const tools = [
   { name: "select_yaxunit_requirements", description: "Select exact YAxUnit pattern IDs for a test operation and mechanisms.",
     annotations: readOnly, inputSchema: { type: "object", properties: {
       operation: { enum: ["design", "create", "change", "review", "debug", "migrate", "run", "report"] },
-      ...mechanismInput,
+      ...mechanismInput, ...yaxunitMechanismInput,
     }, required: ["operation", "mechanisms"], additionalProperties: false } },
   { name: "validate_compliance", description: "Verify complete mandatory ledger coverage against the unchanged selection digest and current mechanisms.",
     annotations: readOnly, inputSchema: { type: "object", properties: {

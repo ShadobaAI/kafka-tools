@@ -36,6 +36,11 @@ node .\tools\ai\policy\read-only-mcp.mjs
 читать, а нормативный текст и условия применения берутся по возвращённым
 точным ID из `v8std`.
 
+Для `select_yaxunit_requirements` MCP-схема массивов `mechanisms`,
+`classifiedMechanisms` и `detectedMechanisms` содержит `items.enum` из
+`registry.json` → `yaxunit.mechanisms`. Значения механизмов (например,
+`test_module`) отличаются от ID документов (`yaxunit:patterns:test-module`).
+
 Проверка:
 
 ```powershell
