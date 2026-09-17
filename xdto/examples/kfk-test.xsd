@@ -73,7 +73,7 @@
       <xs:element name="comment" type="xs:string" nillable="true"/>
     </xs:sequence>
   </xs:complexType>
-  <xs:complexType name="TestRegisterRs">
+  <xs:complexType name="TestRegisterRS">
     <xs:sequence>
       <xs:element name="period" type="xs:dateTime"/>
       <xs:element name="recorder" type="tns:UUID"/>

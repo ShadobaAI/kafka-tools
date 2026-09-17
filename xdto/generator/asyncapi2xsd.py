@@ -456,6 +456,42 @@ def local_reference(ref, prefix, definitions, path):
     return name
 
 
+def name_words(name):
+    """Split identifiers without breaking uppercase abbreviations."""
+    for part in re.split(r"[._-]", name):
+        start = 0
+        for index in range(1, len(part)):
+            current, previous = part[index], part[index - 1]
+            if current.isupper() and (previous.islower() or
+                    (previous.isupper() and index + 1 < len(part) and part[index + 1].islower())):
+                yield part[start:index]
+                start = index
+        if part:
+            yield part[start:]
+
+
+def channel_type_name(stem, schema_key, schemas, path):
+    """Recover abbreviation spelling only from the payload's schema reference chain."""
+    abbreviations = {}
+    seen = set()
+    key = schema_key
+    while True:
+        if key in seen:
+            raise SchemaError("alias-cycle", "$.components.schemas." + key, "cyclic type aliases")
+        seen.add(key)
+        for word in name_words(key):
+            if len(word) > 1 and word.isupper():
+                abbreviations[word.casefold()] = word
+        schema = schemas[key]
+        if not isinstance(schema, dict) or "$ref" not in schema:
+            break
+        key = local_reference(schema["$ref"], SCHEMA_REF, schemas, "$.components.schemas." + key + ".$ref")
+    xml_name(stem, path)
+    result = "".join(abbreviations.get(word.casefold(), word[0].upper() + word[1:])
+                     for word in name_words(stem))
+    return xml_name(result, path)
+
+
 def channel_names(document, schemas, prefix, suffix):
     channels = document.get("channels", {})
     if not isinstance(channels, dict):
@@ -489,7 +525,7 @@ def channel_names(document, schemas, prefix, suffix):
                 stem = stem[len(prefix):]
             if suffix and stem.endswith(suffix):
                 stem = stem[:-len(suffix)]
-            proposed = type_name(stem, path + ".address")
+            proposed = channel_type_name(stem, schema_key, schemas, path + ".address")
             if schema_key in result and result[schema_key] != proposed:
                 raise SchemaError("name-conflict", path, f"schema {schema_key!r} has conflicting channel names")
             result[schema_key] = proposed
