@@ -3,8 +3,8 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { loadManifest, inventory, localClient } from "./openviking/git-sync.mjs";
-import { loadRegistry } from "./policy/selector.mjs";
-import { visibleTools } from "./policy/read-only-mcp.mjs";
+import { readInstalledConfigs } from "./mcp/installed-config.mjs";
+import { probeConfiguredMcp } from "./mcp/doctor-probes.mjs";
 import { withStdioMcp, jsonToolResult } from "./mcp/stdio-client.mjs";
 
 const aiRoot = path.dirname(fileURLToPath(import.meta.url));
@@ -91,7 +91,10 @@ export async function probeCodeIndex(env, aliases) {
   } catch (error) { return { status: "error", detail: error.message }; }
 }
 
-export async function diagnose(env = process.env, projectRoot = process.cwd(), { codeIndexProbe = probeCodeIndex } = {}) {
+export async function diagnose(env = process.env, projectRoot = process.cwd(), {
+  configLoader = readInstalledConfigs, mcpProbe = probeConfiguredMcp,
+  openVikingProbe = probeOpenViking, progress = () => {},
+} = {}) {
   const checks = {};
   checks.projectRoot = checkProjectRoot(projectRoot);
   const route = runtimeRoute(projectRoot);
@@ -99,51 +102,106 @@ export async function diagnose(env = process.env, projectRoot = process.cwd(), {
   if (checks.projectRoot.status !== "ready" || route.status !== "ready") {
     return { status: "not-ready", checks };
   }
-  checks.workspace = path.resolve(env.KAFKA_PROJECTS_ROOT ?? "") === workspaceRoot ?
-    { status: "ready" } : { status: "missing", detail: "KAFKA_PROJECTS_ROOT must name this workspace" };
-  try {
-    const registry = loadRegistry();
-    const names = visibleTools().map((item) => item.name);
-    if (!names.includes("detect_1c_mechanisms") || !names.includes("validate_compliance")) throw new Error("required tools missing");
-    checks.policy = { status: "ready", version: registry.registryVersion, tools: names.length };
-  } catch (error) { checks.policy = { status: "error", detail: error.message }; }
-  const requiredEnv = ["KAFKA_OPENVIKING_STATE_DIR", "V8STD_MCP_URL"];
-  if (route.aliases.length) requiredEnv.push("KAFKA_CODE_INDEX_HOME");
-  for (const name of requiredEnv) {
-    checks[name] = env[name] ? { status: "ready" } : { status: "missing", detail: `${name} is unset` };
+  progress("Чтение настроек MCP через Codex CLI...");
+  const configs = configLoader(env, projectRoot, route, workspaceRoot);
+  for (const [name, config] of Object.entries(configs)) {
+    progress(`Проверка ${name}...`);
+    const contour = contours.find((item) => item.server === name);
+    checks[name] = await mcpProbe(name, config, env, { checkCodeIndexHealth, aliases: route.aliases,
+      workspaceRoot, edt: contour ? { roots: contour.roots, port: { "kfk-edt": 8765, "conv-edt": 8767, "unit-edt": 8768 }[name] } : undefined });
+    if (name === "kafka-openviking" && checks[name].status === "ready") {
+      progress("Проверка runtime и данных OpenViking...");
+      checks.openviking = await openVikingProbe(config);
+    }
   }
-  checks.codeIndex = route.aliases.length ? await codeIndexProbe(env, route.aliases) : { status: "not-required" };
-  if (env.KAFKA_OPENVIKING_STATE_DIR) {
-    try {
-      const stateDir = path.resolve(env.KAFKA_OPENVIKING_STATE_DIR);
-      const { manifest, runtime, digest } = loadManifest(undefined, path.join(stateDir, "runtime.json"));
-      const state = JSON.parse(fs.readFileSync(path.join(stateDir, "state.json"), "utf8"));
-      const current = inventory(workspaceRoot, manifest);
-      const status = compareOpenVikingState(state, current, digest, runtime.version,
-        fs.existsSync(path.join(stateDir, "dirty")));
-      if (status === "ready") await localClient(stateDir).ready(runtime.version);
-      checks.openviking = { status };
-    } catch (error) { checks.openviking = { status: "stale", detail: error.message }; }
+  for (const name of ["kafka-policy", "kafka-openviking", "v8std", ...route.edt,
+    ...route.bslLsOwners.map((owner) => `bsl-ls:${owner}`), ...(route.aliases.length ? ["code-index"] : [])]) {
+    checks[name] ??= { status: "missing", detail: "MCP не зарегистрирован в назначенной конфигурации." };
   }
-  checks.edt = route.edt.length ? { status: "unverified", servers: route.edt,
-    detail: "readiness requires live assigned MCP evidence" } : { status: "not-required" };
-  checks.bslLs = route.bslLsOwners.length ? { status: "unverified", owners: route.bslLsOwners,
-    detail: "repository-local BSL LS requires live MCP check" } : { status: "not-required",
-    detail: "no BSL LS configured by the canonical route; explicitly configured endpoints still require verification" };
-  checks.v8std = { status: "unverified", detail: "endpoint configuration is not normative corpus readiness" };
-  checks.distribution = { status: "unverified", detail: "installer-owned skills/MCP/guard require installed-profile verification" };
   return { status: Object.values(checks).every((item) => ["ready", "not-required"].includes(item.status)) ? "ready" : "not-ready", checks };
+}
+
+export async function probeOpenViking(config) {
+  const option = (flag) => {
+    const indexes = (config.args ?? []).flatMap((arg, index) => arg === flag ? [index] : []);
+    return indexes.length === 1 ? config.args[indexes[0] + 1] : undefined;
+  };
+  const stateDir = option("--state-dir"), configuredRoot = option("--workspace-root");
+  if (!stateDir || !path.isAbsolute(stateDir) || !configuredRoot || path.resolve(configuredRoot).toLowerCase() !== workspaceRoot.toLowerCase()) {
+    return { status: "error", detail: "Проверьте --state-dir и --workspace-root в args MCP kafka-openviking." };
+  }
+  for (const file of ["runtime.json", "state.json"]) {
+    if (!fs.existsSync(path.join(stateDir, file))) return { status: "missing", detail: `В настроенном state-dir отсутствует ${file}. Проверьте args MCP и завершение установки OpenViking.` };
+  }
+  let stage = "metadata";
+  try {
+    const { manifest, runtime, digest } = loadManifest(undefined, path.join(stateDir, "runtime.json"));
+    const state = JSON.parse(fs.readFileSync(path.join(stateDir, "state.json"), "utf8"));
+    stage = "inventory";
+    const status = compareOpenVikingState(state, inventory(workspaceRoot, manifest), digest, runtime.version,
+      fs.existsSync(path.join(stateDir, "dirty")));
+    stage = "runtime";
+    await localClient(stateDir).ready(runtime.version);
+    return { status, detail: status === "ready" ? "Runtime готов; данные соответствуют committed HEAD." :
+      "Runtime отвечает, но Git-контекст устарел. Обновите его через update-openviking.cmd с тем же state-dir." };
+  } catch (error) {
+    const details = {
+      metadata: "Некорректные runtime.json/state.json OpenViking или несовместимая версия runtime. Проверьте выбранный state-dir и завершение установки.",
+      inventory: "Не удалось сверить OpenViking с committed Git inventory. Проверьте доступ к репозиториям workspace.",
+      runtime: Number.isInteger(error.status) ? `OpenViking runtime вернул HTTP ${error.status}. Проверьте Docker-сервис, авторизацию и /ready.` :
+        "OpenViking runtime не подтвердил /health и /ready. Проверьте Docker-сервис, версию, embedding и хранилище; сервисы автоматически не запускались.",
+    };
+    return { status: "error", detail: details[stage] };
+  }
+}
+
+export function formatReport(result) {
+  const labels = {
+    projectRoot: "Каталог проекта", route: "Маршрут проверок", workspace: "Корень Kafka workspace",
+    "kafka-policy": "Правила toolkit (MCP)", "code-index": "Индекс исходного кода", openviking: "OpenViking: runtime и данные",
+    "kafka-openviking": "OpenViking (MCP)",
+    edt: "EDT", bslLs: "BSL Language Server", v8std: "База стандартов v8std",
+    distribution: "Установленные skills, MCP и защитные правила",
+  };
+  const statuses = {
+    ready: "OK", "not-required": "НЕ ТРЕБУЕТСЯ", missing: "НЕ НАСТРОЕНО",
+    stale: "ТРЕБУЕТ ПРОВЕРКИ / ОБНОВЛЕНИЯ", error: "ОШИБКА", unverified: "НЕ ПРОВЕРЕНО",
+  };
+  const lines = ["Диагностика Kafka toolkit", result.status === "ready" ?
+    "Итог: готовность подтверждена." : "Итог: готовность НЕ подтверждена."];
+  const groups = [
+    ["Проблемы настройки и ошибки", (status) => !["ready", "not-required", "unverified"].includes(status)],
+    ["Что ещё не проверено (это не означает неисправность)", (status) => status === "unverified"],
+    ["Успешные и необязательные проверки", (status) => ["ready", "not-required"].includes(status)],
+  ];
+  for (const [title, matches] of groups) {
+    const entries = Object.entries(result.checks).filter(([, check]) => matches(check.status));
+    if (!entries.length) continue;
+    lines.push("", `${title}:`);
+    for (const [name, check] of entries) {
+      lines.push(`  [${statuses[check.status] ?? check.status}] ${labels[name] ?? name}`);
+      if (check.detail) lines.push(`    ${check.detail}`);
+      if (check.servers?.length) lines.push(`    Серверы: ${check.servers.join(", ")}`);
+      if (check.owners?.length) lines.push(`    Проекты: ${check.owners.join(", ")}`);
+    }
+  }
+  if (Object.values(result.checks).some((check) => check.status === "missing")) {
+    lines.push("", "Следующий шаг: проверьте регистрацию MCP и доверие к проекту в Codex; см. tools/ai/README.md.");
+  }
+  return `${lines.join("\n")}\n`;
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const args = process.argv.slice(2);
+  const human = args[0] === "--human";
+  if (human) args.shift();
   const projectRoot = args.length === 0 ? process.cwd() :
     args.length === 2 && args[0] === "--project-root" ? args[1] : null;
   if (!projectRoot) {
-    process.stderr.write("usage: node doctor.mjs [--project-root KAFKA_ROOT_OR_REPOSITORY_ROOT]\n");
+    process.stderr.write("usage: node doctor.mjs [--human] [--project-root KAFKA_ROOT_OR_REPOSITORY_ROOT]\n");
     process.exitCode = 2;
-  } else diagnose(process.env, projectRoot).then((result) => {
-    process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+  } else diagnose(process.env, projectRoot, { progress: human ? (message) => process.stderr.write(`${message}\n`) : () => {} }).then((result) => {
+    process.stdout.write(human ? formatReport(result) : `${JSON.stringify(result, null, 2)}\n`);
     if (result.status !== "ready") process.exitCode = 1;
   }).catch((error) => { process.stderr.write(`doctor: ${error.message}\n`); process.exitCode = 1; });
 }

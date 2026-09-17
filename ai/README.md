@@ -8,7 +8,15 @@
 и read-only MCP; штатный installer доставляет его декларацию вместе с OpenViking MCP.
 Доставкой shared skills, MCP declarations и routing guard владеет `install.cmd`.
 `node .\tools\ai\doctor.mjs` из корня Kafka выполняет fail-closed preflight без установки.
-Live runtime gates пока не подтверждены; `not-ready` не означает готовность production cutover.
+Doctor читает установленную конфигурацию через `codex mcp get --json`:
+shared MCP — из пользовательского профиля (`CODEX_HOME`, если задан) с учётом
+project overrides при выборе конкретного репозитория, EDT и
+BSL LS — из каталогов назначенных владельцев. Требуется доступный в PATH Codex CLI.
+Codex сам разбирает TOML и учитывает доверие к проекту; непризнанный или недоверенный
+project config не подменяется guessed URL. Значения credentials и полный config
+в отчёт не выводятся. Переменные `KAFKA_CODE_INDEX_HOME`,
+`KAFKA_OPENVIKING_STATE_DIR` и `V8STD_MCP_URL` для doctor больше не обязательны:
+используются command/args/env/URL установленного MCP.
 Doctor принимает `--project-root <root>`: допустим корень workspace либо корень
 любого отдельного Git-репозитория внутри него. Это соответствует открытию Codex
 из `adapter/adapter`, `conversion/KFK`, `tests/unit/unit`, `tools` и других Kafka
@@ -17,23 +25,52 @@ Doctor выбирает только назначенный EDT-контур: ad
 `conv-edt`, unit — `unit-edt`. Workspace root требует все три контура; для
 `tools`, `tasks`, `tests/reports` и `tests/ui` EDT не требуется. Неизвестный или
 вложенный корень отклоняется до runtime-проверок. Наличие runtime-файлов и URL
-не подтверждает readiness: непроверенные gates сохраняют `unverified`.
+не подтверждает readiness: выполняются MCP handshake и контрольные запросы.
 Экспортируемый `checkCodeIndexHealth` проверяет managed MCP health contract,
 единственную регистрацию каждого required alias и точное совпадение обоих
 reported paths с canonical checkout. CLI вызывает `health` через установленный
-managed stdio launcher из `KAFKA_CODE_INDEX_HOME` с `-SkipDaemonBootstrap`:
-daemon не запускается и не перезапускается. Сессия ограничена 10 секундами и
+managed stdio launcher из MCP args с `-SkipDaemonBootstrap`:
+daemon не запускается и не перезапускается. Вся сессия ограничена 10–120 секундами
+(по максимуму `startup_timeout_sec` и `tool_timeout_sec`) и
 1 MiB ответа; ошибки transport/protocol, stale paths и неполные ответы дают
-`error`. Для non-1C repositories code-index не требуется. BSL LS проверяется для configured adapter owner; явно
-настроенные дополнительные endpoints требуют отдельной проверки.
-Windows entrypoint `tools\ai\doctor.cmd` вызывает этот же preflight. Полный
+`error`. Для non-1C repositories code-index не требуется.
+EDT проверяется через `get_server_status` и `list_projects`: назначенный порт,
+точные пути, открытые проекты в состоянии `ready`. BSL LS проверяется запросом
+`global_member_search` в назначенном root, без анализа исходников. Дополнительный
+`bsl-ls` учитывается, если он объявлен для выбранного проекта или владельца контура.
+Для v8std читается контрольный документ через `v8std_get_summary`; policy выполняет
+контрольный запрос selector. Для OpenViking отдельно проверяются MCP, runtime
+`/health` и `/ready`, а также свежесть Git inventory по state-dir из MCP args.
+Синхронизация, bootstrap и перезапуск сервисов не выполняются.
+HTTP-клиент поддерживает Streamable HTTP с JSON/SSE ответами, configured headers
+и bearer token из env; сохранённый OAuth Codex и legacy SSE transport не используются.
+`ready` означает успех этих проверок MCP/runtime, а не полную приёмку продукта,
+диагностику исходников или аудит всех установленных skills/hooks. Полная проверка
+профиля остаётся в штатных installation tests.
+Windows entrypoint `tools\ai\doctor.cmd` выводит результаты preflight с русскими
+пояснениями, отдельно показывает ошибки настройки и непроверенные компоненты и ждёт нажатия
+клавиши перед закрытием окна. Для автоматического запуска задайте
+`KAFKA_AI_NO_PAUSE=1`; код завершения doctor сохраняется после паузы.
+Для JSON используйте `node tools/ai/doctor.mjs`; для текстового отчёта —
+`node tools/ai/doctor.mjs --human`. Статус `not-ready` означает, что готовность
+не подтверждена, а `unverified` — что проверка не выполнена, а не отказ сервиса.
+При запуске без аргументов из `tools\ai` (в том числе двойным щелчком в Проводнике)
+проверяется корень Kafka workspace. Из других каталогов сохраняется текущий
+каталог; явный `--project-root <root>` имеет приоритет. Полный
 `install.cmd` проверяет последний стабильный OpenViking runtime, устанавливает обновление, проверяет provider через
 официальный `doctor`, запускает локальный server, выполняет initial Git sync и только
 после успешных MCP smoke checks устанавливает reconciliation hooks. При первом запуске
 на новом ПК официальный `init` интерактивно запрашивает provider/model и credentials;
 повторная установка использует существующую user-owned конфигурацию и runtime.
-`tools\ai\update-openviking.cmd` предназначен для последующей ручной перестройки
-производного Git-backed index; runtime он не устанавливает и не перезапускает.
+`tools\ai\update-openviking.cmd` по умолчанию обновляет производный Git-backed
+index инкрементально: записывает только новые и изменённые документы committed HEAD
+и удаляет исчезнувшие. Неизменённые документы повторно не индексируются.
+Полная перестройка запускается явно: `tools\ai\update-openviking.cmd --rebuild`.
+Если состояние отсутствует, осталось незавершённым после сбоя или несовместимо
+с Git/runtime/manifest, обычный запуск останавливается до изменения индекса
+и предлагает `--rebuild`. Runtime скрипт не устанавливает и не перезапускает.
+Окно остаётся открытым до нажатия клавиши, в том числе при ошибке настройки.
+Для автоматического запуска задайте `KAFKA_AI_NO_PAUSE=1`; код завершения сохраняется.
 Hooks ставятся во все девять Kafka-owned repositories из workspace manifest;
 upstream checkout `tests/unit/yaxunit` намеренно исключён.
 EDT и BSL LS остаются repository-local и настраиваются в репозиториях-владельцах.
@@ -63,7 +100,11 @@ EDT и BSL LS остаются repository-local и настраиваются в
 временный файл, запускает её штатным Windows PowerShell 5.1 и удаляет временный файл.
 Отдельный `setup.ps1` не используется. Git Bash и PowerShell 7 не требуются.
 
-Установщик проверяет полную структуру Kafka, Node.js 18+ и Java. Явный `-NodePath`
+Для BSL LS источник параметров запуска — `adapter/adapter/.codex/config.toml`. Перед подготовкой runtime установщик требует абсолютные пути к proxy, `cwd`, `--root` и явно заданной `--java`; `cwd` и `--root` должны указывать на checkout адаптера. Проверяется Java 25 или новее именно из `--java`. Если передан `-JavaPath` или задан `BSL_LANGUAGE_SERVER_JAVA`, он должен совпадать с этим путём. Локальный конфиг не перезаписывается: ошибка сообщает, что требуется исправить владельцу репозитория.
+
+Проверка BSL LS использует `command`, `args` и `cwd` из этой регистрации, начиная из постороннего каталога, и выполняет `initialize`/`tools/list`. Поддерживается явная форма с двойными кавычками и массивом строк `args` (в том числе многострочным); таблица `env` и неподдерживаемый синтаксис отклоняются, а не подменяются тестовыми настройками.
+
+Установщик проверяет полную структуру Kafka, Node.js 18+ и Java 25+. Явный `-NodePath`
 имеет высший приоритет; иначе сначала используется `%ProgramFiles%\nodejs\node.exe`,
 и только затем первый `node` из `PATH`. Node.js здесь нужен
 для локальных JavaScript proxy `code-index` и BSL LS; к Kafka broker он отношения не
@@ -230,8 +271,10 @@ EDT и BSL LS остаются отдельными владельцами ко�
 `-OpenVikingStateDir <absolute-path>` задаёт developer-local disposable state.
 По умолчанию используется `KAFKA_OPENVIKING_STATE_DIR`, а при отсутствии переменной
 — `<CodexHome>/openviking`. Путь фиксируется в MCP args вместе с workspace root.
-Для ручного `update-openviking.cmd` задайте ту же директорию через
-`KAFKA_OPENVIKING_STATE_DIR`. Node command берётся из проверенного runtime normal
+`update-openviking.cmd` берёт каталог из args установленного shared MCP
+`kafka-openviking` через Codex CLI и проверяет совпадение workspace.
+`KAFKA_OPENVIKING_STATE_DIR` позволяет явно переопределить каталог абсолютным путём;
+при таком переопределении Codex CLI не требуется. Node command берётся из проверенного runtime normal
 install либо из `-NodePath`/PATH при `-ConfigurationOnly`.
 
 `-ConfigurationOnly` проверяет только доставку конфигурации и ресурсов: runtime,

@@ -99,5 +99,6 @@ export function jsonToolResult(result) {
   if (result?.structuredContent) return result.structuredContent;
   const blocks = result?.content?.filter((item) => item.type === "text");
   if (blocks?.length !== 1) throw new Error("MCP tool result is not one JSON object");
-  return JSON.parse(blocks[0].text);
+  try { return JSON.parse(blocks[0].text); }
+  catch { throw new Error("MCP tool result contains invalid JSON"); }
 }

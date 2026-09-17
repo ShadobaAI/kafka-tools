@@ -274,7 +274,7 @@ export function localClient(stateDir) {
   return client;
 }
 
-export async function reconcile({ workspaceRoot, stateDir, client, forceRebuild = false,
+export async function reconcile({ workspaceRoot, stateDir, client, forceRebuild = false, allowRebuild = true,
                                   manifestFile = sourcePath, runtimeFile, progress = () => {} }) {
   const activeRuntimeFile = runtimeFile ?? path.join(stateDir, "runtime.json");
   const { manifest, runtime, digest } = loadManifest(manifestFile, activeRuntimeFile);
@@ -289,6 +289,12 @@ export async function reconcile({ workspaceRoot, stateDir, client, forceRebuild 
     const previous = readState(stateFile);
     const changes = plan(current, previous, digest, runtime.version,
       forceRebuild || fs.existsSync(dirtyFile));
+    if (changes.rebuild && !allowRebuild) {
+      const error = new Error("Нужна полная перестройка: состояние отсутствует, незавершено или несовместимо с текущими Git/runtime/manifest. Индекс не изменён. Для явного запуска используйте update-openviking.cmd --rebuild.");
+      error.code = "OPENVIKING_REBUILD_REQUIRED";
+      throw error;
+    }
+    progress(`Режим: ${changes.rebuild ? "полная перестройка" : "инкрементальный"}; документов к записи: ${changes.writes.length}; отдельных удалений: ${changes.deletes.length}.`);
     if (changes.rebuild || changes.deletes.length || changes.writes.length) {
       fs.writeFileSync(dirtyFile, "rebuild-required\n");
     }
@@ -328,7 +334,7 @@ export async function reconcile({ workspaceRoot, stateDir, client, forceRebuild 
       writes: changes.writes.length, deletes: changes.deletes.length,
       revisions: Object.fromEntries(Object.values(current).map((item) => [item.id, item.revision])) };
   } catch (error) {
-    fs.writeFileSync(path.join(stateDir, "dirty"), "rebuild-required\n");
+    if (error.code !== "OPENVIKING_REBUILD_REQUIRED") fs.writeFileSync(path.join(stateDir, "dirty"), "rebuild-required\n");
     throw error;
   } finally {
     fs.rmdirSync(lock);

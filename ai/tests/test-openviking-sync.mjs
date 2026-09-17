@@ -100,6 +100,11 @@ class MockOpenViking {
 }
 
 const client = new MockOpenViking();
+await assert.rejects(reconcile({ workspaceRoot, stateDir, client, allowRebuild: false }), /--rebuild/);
+assert.equal(client.writes.length, 0);
+assert.equal(client.removals.length, 0);
+assert.equal(fs.existsSync(path.join(stateDir, "dirty")), false);
+assert.equal(fs.existsSync(path.join(stateDir, "sync.lock")), false);
 const first = await reconcile({ workspaceRoot, stateDir, client });
 assert.equal(first.status, "ready");
 assert.equal(first.mode, "rebuild");
@@ -108,17 +113,30 @@ assert.deepEqual(client.removals, [[manifest.namespace, true]]);
 const stateFile = path.join(stateDir, "state.json");
 const stateBefore = fs.readFileSync(stateFile, "utf8");
 
-const second = await reconcile({ workspaceRoot, stateDir, client });
+const second = await reconcile({ workspaceRoot, stateDir, client, allowRebuild: false });
 assert.equal(second.mode, "incremental");
 assert.equal(second.writes, 0);
 assert.equal(second.deletes, 0);
 assert.equal(fs.readFileSync(stateFile, "utf8"), stateBefore);
+
+fs.writeFileSync(stateFile, JSON.stringify(previousModified));
+const writesBefore = client.writes.length, removalsBefore = client.removals.length;
+const incremental = await reconcile({ workspaceRoot, stateDir, client, allowRebuild: false });
+assert.equal(incremental.mode, "incremental");
+assert.equal(incremental.writes, 1);
+assert.equal(client.writes.length, writesBefore + 1);
+assert.equal(client.removals.length, removalsBefore);
 
 client.failAfter = client.writes.length;
 await assert.rejects(reconcile({ workspaceRoot, stateDir, client, forceRebuild: true }),
   /simulated partial sync failure/);
 assert.equal(fs.readFileSync(stateFile, "utf8"), stateBefore, "partial failure must not publish a new revision");
 assert.equal(fs.existsSync(path.join(stateDir, "sync.lock")), false);
+assert.equal(fs.existsSync(path.join(stateDir, "dirty")), true);
+const failedWrites = client.writes.length, failedRemovals = client.removals.length;
+await assert.rejects(reconcile({ workspaceRoot, stateDir, client, allowRebuild: false }), /--rebuild/);
+assert.equal(client.writes.length, failedWrites);
+assert.equal(client.removals.length, failedRemovals);
 assert.equal(fs.existsSync(path.join(stateDir, "dirty")), true);
 client.failAfter = Infinity;
 const recovered = await reconcile({ workspaceRoot, stateDir, client });

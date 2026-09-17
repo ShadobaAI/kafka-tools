@@ -1,8 +1,8 @@
 @echo off
 setlocal
-if not defined KAFKA_OPENVIKING_STATE_DIR (
-  echo KAFKA_OPENVIKING_STATE_DIR is required for the local OpenViking index. 1>&2
-  exit /b 2
-)
-node "%~dp0openviking\git-sync.mjs" --workspace-root "%~dp0..\.." --state-dir "%KAFKA_OPENVIKING_STATE_DIR%" --rebuild
-exit /b %ERRORLEVEL%
+node "%~dp0update-openviking.mjs" %*
+set "UPDATE_EXIT_CODE=%ERRORLEVEL%"
+
+echo.
+if /I not "%KAFKA_AI_NO_PAUSE%"=="1" pause
+exit /b %UPDATE_EXIT_CODE%

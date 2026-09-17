@@ -216,6 +216,73 @@ function Assert-MinimumVersion {
     return $actualVersion
 }
 
+function Get-BslLsLaunchConfiguration {
+    param([Parameter(Mandatory)][string]$Content)
+
+    # Read the supported repository launch format, never silently reconstruct it.
+    $section = [regex]::Match($Content, '(?ms)^\[mcp_servers\.bsl-ls\]\s*\r?\n(?<body>.*?)(?=^\[|\z)')
+    if (-not $section.Success) { throw 'Repository config is missing [mcp_servers.bsl-ls].' }
+    $body = $section.Groups['body'].Value
+    if ($body -notmatch '(?m)^enabled\s*=\s*true\s*$') { throw 'Repository bsl-ls must be enabled.' }
+    if ($Content -match '(?m)^\[mcp_servers\.bsl-ls\.env\]') {
+        throw 'BSL LS readiness does not support an env table; use explicit launch arguments.'
+    }
+    $values = @{}
+    foreach ($key in @('command', 'cwd', 'args')) {
+        $pattern = if ($key -eq 'args') { '(?ms)^args\s*=\s*(\[.*?\])\s*(?:#.*)?$' }
+                   else { '(?m)^' + $key + '\s*=\s*("(?:[^"\\]|\\.)*")\s*(?:#.*)?$' }
+        $match = [regex]::Match($body, $pattern)
+        if (-not $match.Success) { throw "BSL LS $key must use double-quoted strings (args: an array)." }
+        try {
+            $json = $match.Groups[1].Value -replace ',\s*\]', ']'
+            $values[$key] = ConvertFrom-Json -InputObject $json -ErrorAction Stop
+        }
+        catch { throw "Unsupported BSL LS $key syntax in repository config." }
+    }
+    $argv = @($values.args)
+    if ($argv.Count -lt 1 -or @($argv | Where-Object { $_ -isnot [string] }).Count) {
+        throw 'BSL LS args must be a nonempty array of strings.'
+    }
+    $absolutePathPattern = '^(?:[A-Za-z]:[\\/]|[\\/]{2}[^\\/]+[\\/][^\\/]+(?:[\\/]|$))'
+    if ($values.cwd -notmatch $absolutePathPattern -or $argv[0] -notmatch $absolutePathPattern) {
+        throw 'BSL LS cwd and proxy path must be absolute; relative paths resolve against the Codex application directory.'
+    }
+    $options = @{}
+    for ($i = 1; $i -lt $argv.Count; $i += 2) {
+        if ($i + 1 -ge $argv.Count -or $argv[$i] -notin @('--root', '--java', '--jar', '--configuration') -or
+            $options.ContainsKey($argv[$i])) { throw 'Invalid or duplicate BSL LS launch option.' }
+        $options[$argv[$i]] = $argv[$i + 1]
+        if ($argv[$i + 1] -notmatch $absolutePathPattern) {
+            throw "BSL LS $($argv[$i]) must be an absolute path."
+        }
+    }
+    foreach ($required in @('--root', '--java')) {
+        if (-not $options.ContainsKey($required)) { throw "BSL LS requires explicit $required in repository config." }
+    }
+    if ([IO.Path]::GetFullPath($values.cwd) -ne [IO.Path]::GetFullPath($options['--root'])) {
+        throw 'BSL LS cwd must match --root.'
+    }
+    return [pscustomobject]@{
+        Command = [string]$values.command
+        Arguments = [string[]]$argv
+        WorkingDirectory = [string]$values.cwd
+        Root = [string]$options['--root']
+        Java = [string]$options['--java']
+    }
+}
+
+function Assert-BslLsJavaVersion {
+    param([Parameter(Mandatory)][string]$Executable)
+    $result = Invoke-NativeCommand -Executable $Executable -ArgumentList @('-version')
+    $output = $result.Output -join ' '
+    if ($result.ExitCode -ne 0 -or $output -notmatch '(?:openjdk|java) version "(?<major>\d+)(?:[.+"-])') {
+        throw "BSL LS Java version could not be determined for '$Executable'."
+    }
+    $major = [int]$Matches.major
+    if ($major -lt 25) { throw "BSL LS requires Java 25 or newer; configured Java is $major." }
+    return $major
+}
+
 function Get-SemanticVersion {
     param(
         [Parameter(Mandatory)][string]$Value,
@@ -549,14 +616,21 @@ if (-not $ConfigurationOnly) {
     Write-SetupStep '2/6. Checking Node.js and Java'
     $node = Resolve-NodePath -RequestedPath $NodePath
     $nodeVersion = Assert-MinimumVersion -Executable $node -MinimumVersion ([version]'18.0.0') -Description 'Node.js'
-    $java = Resolve-CommandPath -RequestedPath $JavaPath -CommandName 'java' -Description 'Java executable'
-    $javaResult = Invoke-NativeCommand -Executable $java -ArgumentList @('-version')
-    $javaOutput = $javaResult.Output -join ' '
-    if ($javaResult.ExitCode -ne 0) {
-        throw "Java runtime check failed for '$java': $javaOutput"
+    $adapterRoot = Join-Path $WorkspaceRoot 'adapter\adapter'
+    $bslLsConfigPath = Join-Path $adapterRoot '.codex\config.toml'
+    $bslLsLaunch = Get-BslLsLaunchConfiguration -Content (
+        Get-Content -LiteralPath $bslLsConfigPath -Raw -Encoding UTF8)
+    if ([IO.Path]::GetFullPath($bslLsLaunch.Root) -ne [IO.Path]::GetFullPath($adapterRoot)) {
+        throw 'Repository bsl-ls --root does not match the adapter checkout.'
     }
+    $java = Resolve-ExistingFile -Path $bslLsLaunch.Java -Description 'Configured BSL LS Java'
+    if (-not [string]::IsNullOrWhiteSpace($JavaPath) -and
+        (Resolve-ExistingFile -Path $JavaPath -Description 'Requested Java') -ne $java) {
+        throw '-JavaPath differs from repository bsl-ls --java. Update the repository configuration first.'
+    }
+    $javaMajor = Assert-BslLsJavaVersion -Executable $java
     Write-SetupOk "Node.js $nodeVersion is ready."
-    Write-SetupOk 'Java is ready.'
+    Write-SetupOk "Configured BSL LS Java $javaMajor is ready."
 
     Write-SetupStep '3/6. Preparing bsl-indexer, BSL Language Server, and OpenViking'
     $managedIndexer = Join-Path $CodexHome 'code-index\bsl-indexer.exe'
@@ -1612,27 +1686,19 @@ try {
             -TimeoutSeconds $McpReadyTimeoutSeconds
         Write-SetupOk "code-index MCP is ready ($codeIndexToolCount tools)."
 
-        $adapterRoot = Join-Path $WorkspaceRoot 'adapter\adapter'
-        $bslLsProxy = Join-Path $adapterRoot '.codex\mcp\bsl-ls-proxy.mjs'
-        $bslLsConfiguration = Join-Path $adapterRoot '.bsl-language-server.json'
-        foreach ($requiredBslLsPath in @($bslLsProxy, $bslLsConfiguration)) {
-            if (-not (Test-Path -LiteralPath $requiredBslLsPath -PathType Leaf)) {
-                throw "Required BSL LS source is missing: '$requiredBslLsPath'."
-            }
+        # Use the actual registration, not an independently reconstructed command.
+        # A foreign parent cwd exposes accidental dependencies on installer location.
+        Push-Location ([IO.Path]::GetTempPath())
+        try {
+            $bslLsToolCount = Test-StdioMcpServer `
+                -Executable $bslLsLaunch.Command `
+                -ArgumentList $bslLsLaunch.Arguments `
+                -WorkingDirectory $bslLsLaunch.WorkingDirectory `
+                -Description 'Repository-configured BSL LS MCP' `
+                -RequiredTools @('analyze_file', 'document_symbols') `
+                -TimeoutSeconds $McpReadyTimeoutSeconds
         }
-        $bslLsToolCount = Test-StdioMcpServer `
-            -Executable $node `
-            -ArgumentList @(
-                $bslLsProxy,
-                '--root', $adapterRoot,
-                '--configuration', $bslLsConfiguration,
-                '--jar', $managedJar,
-                '--java', $java
-            ) `
-            -WorkingDirectory $adapterRoot `
-            -Description 'BSL LS MCP' `
-            -RequiredTools @('analyze_file', 'document_symbols') `
-            -TimeoutSeconds $McpReadyTimeoutSeconds
+        finally { Pop-Location }
         Write-SetupOk "BSL LS MCP is ready ($bslLsToolCount tools)."
 
         $v8stdUrl = Get-McpServerUrl -ConfigPath $targetConfig -ServerName 'v8std'

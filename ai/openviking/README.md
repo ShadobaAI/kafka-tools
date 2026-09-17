@@ -94,9 +94,16 @@ Live acceptance is recorded in `tasks/sdd/spec-0012-docker-runtime-addendum.md`.
 Static checks alone do not prove successful provider setup or deployment.
 
 After installation, `tools\ai\update-openviking.cmd` can be run from any Kafka
-repository or the workspace root to rebuild the derived state on demand.
-The command verifies the selected local server version/readiness, then rebuilds
-the disposable Kafka Git namespace from committed `HEAD` and confirms every
-document exists. It does **not** install or restart the OpenViking package and
-has not been exercised against a live runtime. A failed rebuild leaves the
-source state stale; the next run rebuilds again.
+repository or the workspace root to update the derived state incrementally.
+The launcher resolves `--state-dir` from the installed shared `kafka-openviking`
+MCP using Codex CLI and rejects a mismatching `--workspace-root`. An absolute
+`KAFKA_OPENVIKING_STATE_DIR` explicitly overrides this lookup. The console waits
+for a key afterwards unless `KAFKA_AI_NO_PAUSE=1` is set.
+The command verifies the selected local server version/readiness, then writes only
+new or changed committed Git blobs and deletes removed documents. Unchanged documents
+are checked for existence but are not re-embedded. It prints the planned write/delete
+counts before processing. Use `update-openviking.cmd --rebuild` explicitly to recreate
+the entire Kafka Git namespace. Missing, dirty or incompatible state makes the default
+launcher stop before changing the index and request this explicit rebuild.
+It does **not** install or restart OpenViking. Existing installer/hook/MCP reconciliation
+keeps its recovery behavior; this opt-in rebuild rule applies to the manual updater.
