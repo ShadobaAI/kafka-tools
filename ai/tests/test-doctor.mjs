@@ -52,6 +52,7 @@ for (const relative of ["adapter/adapter", "conversion/KFK", "tests/unit/unit", 
 assert.equal(checkProjectRoot(os.tmpdir()).status, "error");
 assert.deepEqual(runtimeRoute(path.join(workspaceRoot, "conversion/KFK")).edt, ["conv-edt"]);
 assert.deepEqual(runtimeRoute(path.join(workspaceRoot, "tests/unit/unit")).edt, ["unit-edt"]);
+assert.deepEqual(runtimeRoute(path.join(workspaceRoot, "tests/unit/yaxunit")).edt, ["unit-edt"]);
 assert.deepEqual(runtimeRoute(path.join(workspaceRoot, "adapter/base")).edt, ["kfk-edt"]);
 assert.deepEqual(runtimeRoute(path.join(workspaceRoot, "tools")).edt, []);
 assert.equal(runtimeRoute(path.join(workspaceRoot, "tools/ai")).status, "error");
@@ -78,6 +79,22 @@ assert.equal(liveRoute.status, "ready");
 assert.equal(openVikingCalls, 1);
 assert.equal(observed.find((item) => item.name === "code-index").options.aliases.length, 7);
 assert.equal(observed.filter((item) => item.options.edt).length, 3);
+const unitEdt = observed.find((item) => item.name === "unit-edt").options.edt;
+const unitProjects = { success: true, projects: ["base", "examples", "unit", "yaxunit/exts/yaxunit"].map((root) => ({
+  path: path.join(workspaceRoot, "tests/unit", root), state: "ready", open: true, edtProject: true,
+})) };
+const unitRoots = unitEdt.roots.map((root) => path.join(workspaceRoot, root));
+assert.equal(unitEdt.port, 8768);
+assert.equal(checkEdtProjects({ running: true, port: 8768 }, unitProjects, unitRoots, unitEdt.port).status, "ready");
+for (const change of [
+  (value) => { value.projects[3].path = path.join(workspaceRoot, "tests/unit/yaxunit"); },
+  (value) => { value.projects[3].open = false; },
+  (value) => { value.projects[3].state = "building"; },
+]) {
+  const value = structuredClone(unitProjects);
+  change(value);
+  assert.equal(checkEdtProjects({ running: true, port: 8768 }, value, unitRoots, unitEdt.port).status, "error");
+}
 for (const [relative, edt, aliases] of [["tools", [], []],
   ["conversion/KFK", ["conv-edt"], ["kfk-conv", "kfk-conv-kd"]],
   ["adapter/adapter", ["kfk-edt"], ["kfk", "kfk-base", "kfk-examples"]]]) {

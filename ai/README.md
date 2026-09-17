@@ -35,7 +35,9 @@ daemon не запускается и не перезапускается. Вс�
 1 MiB ответа; ошибки transport/protocol, stale paths и неполные ответы дают
 `error`. Для non-1C repositories code-index не требуется.
 EDT проверяется через `get_server_status` и `list_projects`: назначенный порт,
-точные пути, открытые проекты в состоянии `ready`. BSL LS проверяется запросом
+точные пути, открытые проекты в состоянии `ready`. Для YAxUnit путь EDT-проекта —
+`tests/unit/yaxunit/exts/yaxunit`; корень репозитория и code-index остаётся
+`tests/unit/yaxunit`. BSL LS проверяется запросом
 `global_member_search` в назначенном root, без анализа исходников. Дополнительный
 `bsl-ls` учитывается, если он объявлен для выбранного проекта или владельца контура.
 Для v8std читается контрольный документ через `v8std_get_summary`; policy выполняет

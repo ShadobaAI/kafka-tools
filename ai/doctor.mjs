@@ -13,7 +13,7 @@ const policy = JSON.parse(fs.readFileSync(path.join(aiRoot, "workspace-policy.js
 const contours = [
   { server: "kfk-edt", roots: ["adapter/adapter", "adapter/base", "adapter/examples"], aliases: ["kfk", "kfk-base", "kfk-examples"], bslLsOwner: "adapter/adapter" },
   { server: "conv-edt", roots: ["conversion/KFK", "conversion/КД"], aliases: ["kfk-conv", "kfk-conv-kd"], bslLsOwner: null },
-  { server: "unit-edt", roots: ["tests/unit/base", "tests/unit/examples", "tests/unit/unit", "tests/unit/yaxunit"], aliases: ["kfk", "kfk-base", "kfk-examples", "kfk-unit", "kfk-yaxunit"], bslLsOwner: null },
+  { server: "unit-edt", roots: ["tests/unit/base", "tests/unit/examples", "tests/unit/unit", "tests/unit/yaxunit"], edtRoots: ["tests/unit/base", "tests/unit/examples", "tests/unit/unit", "tests/unit/yaxunit/exts/yaxunit"], aliases: ["kfk", "kfk-base", "kfk-examples", "kfk-unit", "kfk-yaxunit"], bslLsOwner: null },
 ];
 const repositoryRoots = new Set([...policy.protectedRepositoryRoots, "tools", "tasks", "tests/reports", "tests/ui"]);
 
@@ -108,7 +108,7 @@ export async function diagnose(env = process.env, projectRoot = process.cwd(), {
     progress(`Проверка ${name}...`);
     const contour = contours.find((item) => item.server === name);
     checks[name] = await mcpProbe(name, config, env, { checkCodeIndexHealth, aliases: route.aliases,
-      workspaceRoot, edt: contour ? { roots: contour.roots, port: { "kfk-edt": 8765, "conv-edt": 8767, "unit-edt": 8768 }[name] } : undefined });
+      workspaceRoot, edt: contour ? { roots: contour.edtRoots ?? contour.roots, port: { "kfk-edt": 8765, "conv-edt": 8767, "unit-edt": 8768 }[name] } : undefined });
     if (name === "kafka-openviking" && checks[name].status === "ready") {
       progress("Проверка runtime и данных OpenViking...");
       checks.openviking = await openVikingProbe(config);
