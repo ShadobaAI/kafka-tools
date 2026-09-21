@@ -6,6 +6,7 @@ import { loadManifest, inventory, localClient } from "./openviking/git-sync.mjs"
 import { readInstalledConfigs } from "./mcp/installed-config.mjs";
 import { probeConfiguredMcp } from "./mcp/doctor-probes.mjs";
 import { withStdioMcp, jsonToolResult } from "./mcp/stdio-client.mjs";
+import { checkPolicyProfile } from "./policy/profile.mjs";
 
 const aiRoot = path.dirname(fileURLToPath(import.meta.url));
 const workspaceRoot = path.resolve(aiRoot, "..", "..");
@@ -93,7 +94,7 @@ export async function probeCodeIndex(env, aliases) {
 
 export async function diagnose(env = process.env, projectRoot = process.cwd(), {
   configLoader = readInstalledConfigs, mcpProbe = probeConfiguredMcp,
-  openVikingProbe = probeOpenViking, progress = () => {},
+  openVikingProbe = probeOpenViking, profileProbe = checkPolicyProfile, progress = () => {},
 } = {}) {
   const checks = {};
   checks.projectRoot = checkProjectRoot(projectRoot);
@@ -118,6 +119,7 @@ export async function diagnose(env = process.env, projectRoot = process.cwd(), {
     ...route.bslLsOwners.map((owner) => `bsl-ls:${owner}`), ...(route.aliases.length ? ["code-index"] : [])]) {
     checks[name] ??= { status: "missing", detail: "MCP не зарегистрирован в назначенной конфигурации." };
   }
+  if (checks["kafka-policy"].status === "ready") checks.distribution = profileProbe(env);
   return { status: Object.values(checks).every((item) => ["ready", "not-required"].includes(item.status)) ? "ready" : "not-ready", checks };
 }
 

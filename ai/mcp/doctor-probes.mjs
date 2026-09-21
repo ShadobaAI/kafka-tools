@@ -2,8 +2,13 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { withStdioMcp, jsonToolResult } from "./stdio-client.mjs";
 import { withHttpMcp } from "./http-client.mjs";
+import { checkPolicySurface } from "../policy/profile.mjs";
 
 export async function listTools(request, config) {
+  return (await listToolSurface(request, config)).visible;
+}
+
+export async function listToolSurface(request, config) {
   const tools = [], cursors = new Set();
   let cursor;
   do {
@@ -17,7 +22,19 @@ export async function listTools(request, config) {
     if (cursor !== undefined && (typeof cursor !== "string" || !cursor || cursors.has(cursor) || cursors.size >= 20)) throw new Error("Некорректная пагинация MCP.");
     if (cursor) cursors.add(cursor);
   } while (cursor);
-  return tools.filter((tool) => (!config.enabled_tools || config.enabled_tools.includes(tool.name)) && !config.disabled_tools?.includes(tool.name));
+  return { server: tools, visible: tools.filter((tool) => (!config.enabled_tools || config.enabled_tools.includes(tool.name)) && !config.disabled_tools?.includes(tool.name)) };
+}
+
+export function describeEdtExposure(surface) {
+  const management = ["list_toolsets", "enable_toolset", "get_tool_guide"];
+  const names = surface.server.map((tool) => tool.name), visible = surface.visible.map((tool) => tool.name);
+  const missing = management.filter((name) => !names.includes(name));
+  const hidden = management.filter((name) => names.includes(name) && !visible.includes(name));
+  return { serverToolCount: names.length, visibleToolCount: visible.length,
+    toolsetsAdvertised: missing.length === 0, managementHidden: hidden,
+    status: "unverified", detail: hidden.length ? "Client filter скрывает управление toolsets; безопасный enable path не подтверждён."
+      : missing.length ? "Progressive disclosure недоступен через объявленный MCP surface; server preference не подтверждён."
+      : "Toolsets объявлены; server preference и переход к минимальному surface требуют проверки по live guide. Настройки не изменялись." };
 }
 
 export async function withConfiguredMcp(config, use, env = process.env, { codeIndex = false } = {}) {
@@ -83,7 +100,8 @@ export function checkBslResponse(result) {
 export async function probeConfiguredMcp(name, config, env, { checkCodeIndexHealth, aliases = [], inspect, edt, workspaceRoot } = {}) {
   try {
     return await withConfiguredMcp(config, async ({ request }) => {
-      const tools = await listTools(request, config);
+      const surface = await listToolSurface(request, config);
+      const tools = surface.visible;
       if (!tools.length) throw new Error("MCP не предоставляет доступных инструментов.");
       if (inspect) return inspect({ request, tools });
       if (edt) {
@@ -91,7 +109,9 @@ export async function probeConfiguredMcp(name, config, env, { checkCodeIndexHeal
         const status = jsonToolResult(await request("tools/call", { name: "get_server_status", arguments: {} }));
         if (status.running !== true || status.port !== edt.port) return { status: "error", detail: "EDT не подтвердил running на назначенном порту." };
         const projects = jsonToolResult(await request("tools/call", { name: "list_projects", arguments: { format: "json" } }));
-        return checkEdtProjects(status, projects, edt.roots.map((root) => path.join(workspaceRoot, root)), edt.port);
+        const result = checkEdtProjects(status, projects, edt.roots.map((root) => path.join(workspaceRoot, root)), edt.port);
+        const exposure = describeEdtExposure(surface);
+        return { ...result, exposure, detail: `${result.detail} Tool exposure: ${exposure.visibleToolCount}/${exposure.serverToolCount}. ${exposure.detail}` };
       }
       if (name.startsWith("bsl-ls:")) {
         requireTools(tools, ["global_member_search"]);
@@ -110,6 +130,7 @@ export async function probeConfiguredMcp(name, config, env, { checkCodeIndexHeal
         return checkCodeIndexHealth(jsonToolResult(await request("tools/call", { name: "health", arguments: {} })), aliases);
       }
       if (name === "kafka-policy") {
+        checkPolicySurface(tools);
         requireTools(tools, ["detect_1c_mechanisms", "select_1c_requirements", "select_yaxunit_requirements", "validate_compliance"]);
         const result = jsonToolResult(await request("tools/call", { name: "select_yaxunit_requirements",
           arguments: { operation: "run", mechanisms: [] } }));

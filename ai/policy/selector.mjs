@@ -2,7 +2,8 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { criticalMechanisms } from "./detector.mjs";
+import { criticalMechanisms, expandDetection } from "./detector.mjs";
+import { validateSchema, ledgerItemSchema } from "./schema.mjs";
 
 const registryPath = path.join(path.dirname(fileURLToPath(import.meta.url)), "registry.json");
 const implications = {
@@ -94,6 +95,7 @@ export function select(kind, input, registry = loadRegistry()) {
     throw new Error("invalid selection request");
   }
   const group = registry[kind];
+  input = { ...input, detection: expandDetection(input.detection) };
   if (kind === "oneC") {
     const detection = input.detection;
     if (!detection || typeof detection.sourceRef !== "string" || !detection.sourceRef.trim() ||
@@ -142,7 +144,14 @@ export function select(kind, input, registry = loadRegistry()) {
     ...(kind === "oneC" ? { detectionSourceRef: input.detection.sourceRef } : {}) };
 }
 
-export function validateCompliance(selection, ledger, current = {}, registry = loadRegistry()) {
+export function validateCompliance(selection, ledger, current = {}, registry = loadRegistry(), phase = "proposal") {
+  try {
+    if (!["proposal", "result"].includes(phase)) throw new Error("invalid compliance phase");
+    return { ...checkCompliance(selection, ledger, current, registry), phase };
+  } catch (error) { throw new Error(`${phase}: ${error.message}`); }
+}
+
+function checkCompliance(selection, ledger, current, registry) {
   if (!selection || typeof selection !== "object" || !Array.isArray(ledger)) throw new Error("invalid compliance request");
   if (selection.registryVersion !== registry.registryVersion || selection.schemaVersion !== registry.schemaVersion) {
     throw new Error("stale policy registry selection");
@@ -183,5 +192,6 @@ export function validateCompliance(selection, ledger, current = {}, registry = l
       throw new Error(`recommended requirement lacks a valid status or deviation reason: ${id}`);
     }
   }
+  for (const entry of ledger) validateSchema(ledgerItemSchema, entry, "ledger item");
   return { status: "passed", digest: selection.digest, checked: selection.mandatory.length };
 }

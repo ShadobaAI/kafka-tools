@@ -259,6 +259,28 @@ node .\tools\ai\tests\benchmark-context.mjs
 `benchmark-context.mjs` измеряет только байты исходников/schema; фактические
 Codex tool schemas и токены требуют live-проверки после установки.
 
+Проверки policy и orchestration:
+
+```powershell
+node .\tools\ai\tests\test-policy-contract.mjs
+node .\tools\ai\tests\test-orchestration.mjs
+node .\tools\ai\tests\benchmark-orchestration.mjs
+```
+
+Контракт [policy protocol 2.0.0](policy/README.md) добавляет строгие ledger и
+assessments, proposal/result, компактную передачу detection без потери evidence.
+Skills задают обязательный bounded reuse (1–3 terms, до 5 candidates по умолчанию),
+безопасное восстановление в разрешённом scope и консервативные L/M/H tiers.
+Повторные selection/retrieval при неизменной применимости не нужны.
+
+Doctor сравнивает actual policy schema и managed skill-файлы с текущим комплектом;
+mixed installation даёт `error`. Проверка ограничена файлами policy contract и
+не заменяет общий аудит skills/hooks. Для EDT выводятся число server/visible tools,
+наличие management tools и явный `exposure.status: unverified`, пока server
+preference и безопасный enable path не проверены по live guide. Readiness проектов
+и проверка progressive disclosure — разные результаты; настройки не меняются.
+Синтетический benchmark не измеряет реальную LLM-сессию или startup tool schemas.
+
 Подробная архитектура, правила переноса и критерии готовности описаны в
 [PORTING.md](PORTING.md); политика runtime — в [runtime/README.md](runtime/README.md).
 

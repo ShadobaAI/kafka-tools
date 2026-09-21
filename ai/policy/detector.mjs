@@ -20,11 +20,32 @@ const cues = {
   predefined_values: /(?<![\p{L}\p{N}_])(?:ПредопределенноеЗначение|ПредопределённоеЗначение)\s*\(/iu,
 };
 
+// A compact result retains every assessment and unresolved status. It is not a
+// proof token: callers still supply authorized evidence and selection rechecks it.
+export function expandDetection(input) {
+  if (input?.format !== "compact-v1") return input;
+  if (Object.keys(input).some((key) => !["format", "sourceRef", "coverage"].includes(key)) ||
+      !Array.isArray(input.coverage) || input.coverage.length !== criticalMechanisms.length) {
+    throw new Error("invalid compact detection");
+  }
+  const coverage = {};
+  for (const row of input.coverage) {
+    if (!Array.isArray(row) || row.length !== 3 || !criticalMechanisms.includes(row[0]) ||
+        Object.hasOwn(coverage, row[0]) || !["present", "absent", "unknown"].includes(row[1]) ||
+        typeof row[2] !== "string" || !row[2].trim()) throw new Error("invalid compact detection assessment");
+    coverage[row[0]] = { status: row[1], evidence: row[2] };
+  }
+  return { sourceRef: input.sourceRef, coverage,
+    detectedMechanisms: criticalMechanisms.filter((name) => coverage[name].status === "present"),
+    unknownMechanisms: criticalMechanisms.filter((name) => coverage[name].status === "unknown") };
+}
+
 export function detectMechanisms(input) {
   if (!input || typeof input !== "object" || Array.isArray(input) ||
       typeof input.sourceRef !== "string" || !input.sourceRef.trim() ||
       (input.sourceText !== undefined && typeof input.sourceText !== "string") ||
-      !input.assessments || typeof input.assessments !== "object" || Array.isArray(input.assessments)) {
+      !input.assessments || typeof input.assessments !== "object" || Array.isArray(input.assessments) ||
+      (input.format !== undefined && !["verbose", "compact"].includes(input.format))) {
     throw new Error("detector requires a sourceRef and structured assessments");
   }
   const extra = Object.keys(input.assessments).filter((key) => !criticalMechanisms.includes(key));
@@ -45,5 +66,7 @@ export function detectMechanisms(input) {
     if (status === "present") detectedMechanisms.push(mechanism);
     if (status === "unknown") unknownMechanisms.push(mechanism);
   }
+  if (input.format === "compact") return { format: "compact-v1", sourceRef: input.sourceRef,
+    coverage: criticalMechanisms.map((name) => [name, coverage[name].status, coverage[name].evidence]) };
   return { sourceRef: input.sourceRef, coverage, detectedMechanisms, unknownMechanisms };
 }

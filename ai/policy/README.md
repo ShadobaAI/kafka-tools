@@ -42,6 +42,55 @@ node .\tools\ai\policy\read-only-mcp.mjs
 `registry.json` → `yaxunit.mechanisms`. Значения механизмов (например,
 `test_module`) отличаются от ID документов (`yaxunit:patterns:test-module`).
 
+## Контракт SPEC-0014
+
+Версия MCP policy protocol — `2.0.0`; registry version не меняется, поскольку
+применимость и сила требований сохранены. `validate_compliance` принимает
+`phase: proposal | result` и возвращает phase также в ошибках. Для совместимости
+пропущенная phase означает `proposal`; managed skills всегда передают её явно.
+Ledger запрещает неизвестные поля, требует непустые `rule_id`, `selection_digest`,
+`target`, `evidence` и статус `passed` для mandatory. Recommended допускает
+`passed` либо `deviated` с непустым `reason`. Схема отвергает `compliant` и
+`satisfied` до проверки применимости. Контекстные ограничения (сила селектора,
+дубли строк, digest, изменившиеся механизмы) проверяет runtime.
+
+`detect_1c_mechanisms` поддерживает `format: compact`: ответ `compact-v1` содержит
+sourceRef и все 13 именованных `[mechanism, status, evidence]` оценок. Selection
+и compliance принимают обе формы; исходная verbose остаётся default для старых
+callers. Unknown, неполное покрытие и противоречия по-прежнему блокируют работу.
+Compact — перенос полных оценок без повторных derived-массивов, не proof token,
+кэш или доказательство свежести. Digest selection связывает применимость;
+source/evidence остаются в запросе и проверяются отдельно.
+
+L/M/H определяются консервативно в skill, без нового MCP и persistent state.
+Низкий риск сокращает повторный detection/selection/retrieval только при
+доказанно неизменной применимости; проверки proposal/result, EDT diagnostics,
+concurrency и выбранные нормы обязательны. Изменение реального результата
+требует новой оценки, а не механической замены sourceRef.
+
+Installer уже копирует managed skills с backup/rollback. Его regression теперь
+проверяет фактически опубликованную stdio schema и согласованность скопированных
+skills с policy. Doctor выявляет mixed profile до признания установки готовой.
+Обновлять MCP и skills следует одним запуском штатного installer и перезапуском
+Codex; редактирование только файла MCP при старых skills не является rollout.
+
+```powershell
+node .\tools\ai\tests\test-policy-contract.mjs
+node .\tools\ai\tests\test-orchestration.mjs
+node .\tools\ai\tests\benchmark-orchestration.mjs
+```
+
+Benchmark использует frozen pre-change traces `tests/fixtures/orchestration-baseline.json`
+и реальные policy functions с синтетическими ответами остальных authorities.
+Считаются JSON bytes tool name/arguments и результата без transport envelope и
+startup `tools/list`; это не billed tokens и не доказательство поведения LLM.
+Пять сценариев одинаковы до/после: adapter, conversion, unit, reports и UI.
+До изменения policy baseline создаётся однократно через `--capture-baseline`;
+существующий baseline не перезаписывается. Legacy traces намеренно моделируют
+наблюдавшиеся лишние retrieval/selection и guessing `compliant → satisfied → passed`.
+Trace oracle проверяет разрешённые/запрещённые последовательности, но не является
+исполняемым контроллером агента. Live-приёмка остаётся отдельной проверкой.
+
 Проверка:
 
 ```powershell

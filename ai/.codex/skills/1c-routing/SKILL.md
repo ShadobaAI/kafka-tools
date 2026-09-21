@@ -25,6 +25,15 @@ Load only the current route. Design and change review must select applicable req
 
 One fact has one primary authority. Do not repeat sufficient evidence in another MCP. OpenViking is only a disposable hint for committed project history, never current source/metadata, normative rules, platform APIs, or call graphs. If its source state is stale/error, stop that retrieval instead of scanning broad workspace files. EDT owns live state/platform truth; conflicting indexed/analyzer evidence is invalid until freshness is re-established. Reuse session evidence until a relevant mutation, restart, error or contradiction invalidates it.
 
-For EDT, use `list_toolsets` to establish visibility and enable only the needed group when progressive disclosure is active. Visibility is not permission. Preserve returned operation identifiers; follow an existing `jobId` with `get_job_status`, not by restarting its owning operation. Read `structuredContent` when present and embedded resource text from tool guides; a short text acknowledgment alone is not the result.
+For EDT, start with minimal core/read essentials and the task's required groups.
+Establish actual tools and `list_toolsets` once when unknown; use the live guide
+for version-sensitive enable semantics. Reuse successfully enabled toolsets until
+restart/reconnect, explicit relevant error or contradictory status. Diagnose
+server-disabled/unsupported progressive disclosure or broad exposure explicitly;
+never invent a server preference or edit user-owned settings to fix it. Client
+filtering must retain management and every sanctioned required operation.
+Visibility is not permission. Preserve operation identifiers; follow an existing
+`jobId` with `get_job_status`, never restart its owning write after a timeout.
+Read `structuredContent` and embedded guide resources; acknowledgment is not the result.
 
 For an explicit MCP surface/security audit only, read [references/tool-policy.md](references/tool-policy.md).

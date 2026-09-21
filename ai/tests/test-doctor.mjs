@@ -65,6 +65,7 @@ const configured = (_env, _root, route) => Object.fromEntries([
 ].map((name) => [name, fixtureConfig]));
 let observed = [], openVikingCalls = 0;
 const readyDependencies = {
+  profileProbe: () => ({ status: "ready" }),
   configLoader: configured,
   mcpProbe: async (name, config, env, options) => {
     assert.equal(config, fixtureConfig);
@@ -240,5 +241,10 @@ for (const [script, pattern, options] of [
   await assert.rejects(withStdioMcp(process.execPath, ["-e", script], () => null, options), pattern);
 }
 assert.throws(() => jsonToolResult({ isError: true }), /tool returned error/);
+const mixedProfile = await diagnose({}, path.join(workspaceRoot, "tools"), {
+  ...readyDependencies, profileProbe: () => ({ status: "error", detail: "fixture mixed profile" }),
+});
+assert.equal(mixedProfile.status, "not-ready");
+assert.equal(mixedProfile.checks.distribution.status, "error");
 await runHttpTests();
 process.stdout.write("doctor: state freshness and fail-closed preflight passed\n");

@@ -22,7 +22,7 @@ for (const field of ["mechanisms", "classifiedMechanisms", "detectedMechanisms"]
   }, registry).mandatory.includes("yaxunit:patterns:test-module"));
   assert.throws(() => callTool("select_yaxunit_requirements", {
     operation: "review", mechanisms: [], [field]: ["test-module"],
-  }, registry), /unknown required mechanism: test-module/);
+  }, registry), /expected one of/);
 }
 assert.equal(yaxunitProperties.unknownMechanisms.items.enum, undefined);
 assert.equal(registry.oneC.rules.length, 48);

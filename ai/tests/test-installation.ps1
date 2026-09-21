@@ -481,7 +481,7 @@ try {
     $fakeJava = Join-Path $temporaryRoot 'java.cmd'
     [System.IO.File]::WriteAllText(
         $fakeJava,
-        "@echo off`r`necho openjdk version 21.0.0 1>&2`r`nexit /b 0`r`n",
+        "@echo off`r`necho openjdk version `"25.0.0`" 1>&2`r`nexit /b 0`r`n",
         [System.Text.Encoding]::ASCII
     )
     $fakeIndexer = Join-Path $temporaryRoot 'bsl-indexer.cmd'
@@ -492,6 +492,22 @@ try {
     )
     $fakeJar = Join-Path $temporaryRoot 'bsl-language-server-exec.jar'
     [System.IO.File]::WriteAllBytes($fakeJar, [byte[]](0x50, 0x4b, 0x03, 0x04))
+
+    # Full setup now requires the repository-owned BSL LS registration and Java 25.
+    # Keep this fixture aligned with that contract; do not use the user's config.
+    $fixtureAdapterRoot = Join-Path $temporaryRoot 'adapter\adapter'
+    $fixtureConfigDirectory = Join-Path $fixtureAdapterRoot '.codex'
+    New-Item -ItemType Directory -Path $fixtureConfigDirectory -Force | Out-Null
+    $fixtureArguments = @((Join-Path $fixtureConfigDirectory 'mcp\bsl-ls-proxy.mjs'),
+        '--root', $fixtureAdapterRoot, '--java', $fakeJava)
+    $fixtureConfig = @(
+        '[mcp_servers.bsl-ls]', 'enabled = true',
+        ('command = ' + (ConvertTo-Json -InputObject $fakeNode -Compress)),
+        ('cwd = ' + (ConvertTo-Json -InputObject $fixtureAdapterRoot -Compress)),
+        ('args = ' + (ConvertTo-Json -InputObject $fixtureArguments -Compress))
+    ) -join "`r`n"
+    [System.IO.File]::WriteAllText((Join-Path $fixtureConfigDirectory 'config.toml'),
+        $fixtureConfig + "`r`n", [System.Text.UTF8Encoding]::new($false))
 
     $portableInstaller = Join-Path $portablePackage 'install.cmd'
     $embeddedInstaller = Join-Path $temporaryRoot 'embedded-setup.ps1'
@@ -505,6 +521,8 @@ try {
         -JavaPath $fakeJava `
         -SkipOpenVikingRuntime `
         -SkipDaemonStart) -join "`n"
+
+    if ($LASTEXITCODE -ne 0) { throw "Fixture setup failed: $output" }
 
     foreach ($managedFile in @(
         (Join-Path $temporaryCodexHome 'code-index\bsl-indexer.exe'),

@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
 import { withStdioMcp } from "../mcp/stdio-client.mjs";
+import { checkPolicySurface, checkPolicyProfile } from "../policy/profile.mjs";
 
 const args = process.argv.slice(2);
 assert.equal(args.length, 2);
@@ -27,6 +28,10 @@ for (const [name, names] of Object.entries(expected)) {
   const tools = await withStdioMcp(command, argv, async ({ request }) =>
     (await request("tools/list")).tools, { cwd: os.tmpdir(), timeout: 5000 });
   assert.deepEqual(tools.map((item) => item.name), names);
+  if (name === "kafka-policy") {
+    checkPolicySurface(tools);
+    assert.equal(checkPolicyProfile({ CODEX_HOME: path.dirname(configPath) }).status, "ready");
+  }
   assert.ok(tools.every((item) => item.annotations.readOnlyHint && !item.annotations.destructiveHint));
 }
 const reviewer = fs.readFileSync(path.join(path.dirname(configPath), "agents/kafka-reviewer.toml"), "utf8");
