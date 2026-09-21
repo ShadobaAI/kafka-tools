@@ -240,5 +240,53 @@ class AdapterTests(unittest.TestCase):
             self.assertEqual(event, ("done", 0))
 
 
+
+class SettingsTransferTests(unittest.TestCase):
+    setUp = AdapterTests.setUp
+    def test_transfer_replaces_cache_and_roundtrips(self):
+        cache = self.root / "cache.env"
+        exported = self.root / "settings.json"
+        b.save_settings(cache, dict(self.values, theme="Dark"))
+        source = dict(self.values, theme="Light", index_timeout="240")
+        b.export_settings(exported, source)
+        imported = b.import_settings(exported, cache)
+        self.assertEqual(imported, b.load_settings(cache))
+        self.assertEqual(imported["theme"], "Light")
+        self.assertEqual(imported["index_timeout"], "240")
+        self.assertEqual(set(json.loads(exported.read_text(encoding="utf-8"))["settings"]), set(b.DEFAULTS)-{"rebuild"})
+
+    def test_bad_import_preserves_cache(self):
+        cache = self.root / "cache.env"
+        exported = self.root / "settings.json"
+        b.save_settings(cache, self.values)
+        previous = cache.read_bytes()
+        b.export_settings(exported, self.values)
+        payload = json.loads(exported.read_text(encoding="utf-8"))
+        cases = [{}, dict(payload, format="other/settings-v1"),
+                 dict(payload, settings=dict(payload["settings"], unknown="x")),
+                 dict(payload, settings=dict(payload["settings"], human="false")),
+                 dict(payload, settings=dict(payload["settings"], theme="invalid")),
+                 dict(payload, settings=dict(payload["settings"], index_timeout="1")),
+                 dict(payload, settings={})]
+        for item in cases:
+            exported.write_text(json.dumps(item), encoding="utf-8")
+            with self.assertRaises(ValueError):
+                b.import_settings(exported, cache)
+            self.assertEqual(cache.read_bytes(), previous)
+        exported.write_text('{"format":"x","format":"y"}', encoding="utf-8")
+        with self.assertRaises(ValueError):
+            b.import_settings(exported, cache)
+        self.assertEqual(cache.read_bytes(), previous)
+
+    def test_failed_import_write_preserves_cache(self):
+        cache, exported = self.root / "cache.env", self.root / "settings.json"
+        b.save_settings(cache, self.values)
+        b.export_settings(exported, dict(self.values, theme="Light"))
+        previous = cache.read_bytes()
+        with patch.object(b.os, "replace", side_effect=OSError("locked")), self.assertRaises(OSError):
+            b.import_settings(exported, cache)
+        self.assertEqual(cache.read_bytes(), previous)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -484,3 +484,61 @@ class Runner:
             lock.release()
             self.emit("done", result)
             # UI resets busy only after consuming done, so it cannot mix event streams.
+
+
+SETTINGS_FORMAT = "kafka-ai/settings-v1"
+
+
+def checked_transfer(values):
+    expected = set(DEFAULTS) - {"rebuild"}
+    if not isinstance(values, dict) or set(values) != expected:
+        raise ValueError("Набор полей настроек не соответствует этой версии приложения.")
+    for key, value in values.items():
+        if type(value) is not type(DEFAULTS[key]) or isinstance(value, str) and any(ord(c) < 32 for c in value):
+            raise ValueError("Некорректный тип или значение настройки: " + key)
+    if values["theme"] not in ("System", "Light", "Dark"):
+        raise ValueError("Неизвестная тема оформления.")
+    for key in ("index_timeout", "mcp_timeout"):
+        if not re.fullmatch(r"[0-9]+", values[key]) or not 60 <= int(values[key]) <= 3600:
+            raise ValueError("Таймауты: целые числа от 60 до 3600 секунд.")
+    validate_url(values["ollama"])
+    result = dict(values)
+    if "rebuild" in DEFAULTS:
+        result["rebuild"] = False
+    return result
+
+
+def export_settings(path, values):
+    safe = checked_transfer({k: values[k] for k in DEFAULTS if k != "rebuild"})
+    safe.pop("rebuild", None)
+    payload = json.dumps({"format": SETTINGS_FORMAT, "settings": safe}, ensure_ascii=False, indent=2) + "\n"
+    temporary = None
+    try:
+        with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", dir=path.parent, delete=False, suffix=".tmp") as stream:
+            temporary = Path(stream.name)
+            stream.write(payload)
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(temporary, path)
+    finally:
+        if temporary is not None:
+            temporary.unlink(missing_ok=True)
+
+
+def import_settings(path, cache):
+    if path.stat().st_size > 1024 * 1024:
+        raise ValueError("Файл настроек слишком большой.")
+    def unique_object(pairs):
+        result = {}
+        for key, value in pairs:
+            if key in result:
+                raise ValueError("Повторяющееся поле: " + key)
+            result[key] = value
+        return result
+    payload = json.loads(path.read_text(encoding="utf-8-sig"), object_pairs_hook=unique_object)
+    if not isinstance(payload, dict) or set(payload) != {"format", "settings"} or payload["format"] != SETTINGS_FORMAT:
+        raise ValueError("Формат настроек принадлежит другому приложению или версии.")
+    values = checked_transfer(payload["settings"])
+    # Atomic replacement: validation/write failures preserve the previous cache.
+    save_settings(cache, values)
+    return values

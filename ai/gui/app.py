@@ -13,7 +13,7 @@ from tkinter import filedialog, messagebox
 import customtkinter as ctk
 
 from backend import (ACTIONS, ACTION_FIELDS, PARAMETERS, Runner, load_settings, save_settings,
-                     settings_path, default_settings, validate, redact)
+                     settings_path, default_settings, validate, redact, export_settings, import_settings)
 
 
 # Fields: key, title, guidance, file/directory picker. Defaults belong to backend.
@@ -116,6 +116,10 @@ class App(ctk.CTk):
                      text_color=("#536174", "#a6b2c5")).pack(padx=20, pady=8, anchor="w")
         self.save_button = ctk.CTkButton(sidebar, text="Сохранить настройки", command=self.save)
         self.save_button.pack(side="bottom", padx=14, pady=20, fill="x")
+        self.import_button = ctk.CTkButton(sidebar, text="Импорт настроек…", command=self.import_config)
+        self.import_button.pack(side="bottom", padx=14, pady=4, fill="x")
+        self.export_button = ctk.CTkButton(sidebar, text="Экспорт настроек…", command=self.export_config)
+        self.export_button.pack(side="bottom", padx=14, pady=4, fill="x")
         self.settings_notice = ctk.CTkLabel(sidebar, text="Автосохранение включено", wraplength=192, justify="left")
         self.settings_notice.pack(side="bottom", padx=14, pady=4, fill="x")
         ctk.CTkButton(sidebar, text="Сохранить журнал…", command=self.export_log).pack(side="bottom", padx=14, pady=4, fill="x")
@@ -239,6 +243,43 @@ class App(ctk.CTk):
         except (OSError, ValueError) as error:
             messagebox.showerror("Настройки не сохранены", str(error), parent=self)
 
+    def export_config(self):
+        if self.runner.busy:
+            return
+        path = filedialog.asksaveasfilename(parent=self, title="Экспорт настроек", defaultextension=".json",
+                                          initialfile="kafka-ai-settings.json", initialdir=str(self.config_path.parent),
+                                          filetypes=[("Настройки JSON", "*.json")])
+        if path:
+            try:
+                export_settings(Path(path), self.values())
+                self.append("Настройки экспортированы.")
+            except (OSError, ValueError) as error:
+                messagebox.showerror("Экспорт не выполнен", str(error), parent=self)
+
+    def import_config(self):
+        if self.runner.busy:
+            return
+        path = filedialog.askopenfilename(parent=self, title="Импорт — заменить настройки кэша",
+                                         initialdir=str(self.config_path.parent), filetypes=[("Настройки JSON", "*.json")])
+        if not path:
+            return
+        try:
+            values = import_settings(Path(path), self.config_path)
+        except (OSError, ValueError) as error:
+            messagebox.showerror("Импорт не выполнен", str(error), parent=self)
+            return
+        if self._autosave_after is not None:
+            self.after_cancel(self._autosave_after)
+            self._autosave_after = None
+        for key, value in values.items():
+            self.variables[key].set(value)
+        if self._autosave_after is not None:
+            self.after_cancel(self._autosave_after)
+            self._autosave_after = None
+        self.change_theme(values["theme"])
+        self.settings_notice.configure(text="Кэш заменён импортированными настройками")
+        self.append("Настройки импортированы: кэш и поля формы заменены. Операции не запускались.")
+
     def schedule_save(self, *_):
         if self._autosave_after is not None:
             self.after_cancel(self._autosave_after)
@@ -319,7 +360,7 @@ class App(ctk.CTk):
             self.append("ОШИБКА: " + str(error))
 
     def set_busy(self, busy):
-        for widget in [*self.controls, *self.navigation.values(), self.run_button, self.save_button]:
+        for widget in [*self.controls, *self.navigation.values(), self.run_button, self.save_button, self.import_button, self.export_button]:
             widget.configure(state="disabled" if busy else "normal")
         if busy:
             self.progress.start()
@@ -417,6 +458,19 @@ def smoke(app, report):
     autosave_checked = [False]
     previous_timeout = app.variables["index_timeout"].get()
     assert app.config_path.is_file(), "Defaults cache was not created on startup"
+    transfer = report.with_suffix(".export.json")
+    old_save, old_open = filedialog.asksaveasfilename, filedialog.askopenfilename
+    try:
+        filedialog.asksaveasfilename = lambda **kwargs: str(transfer)
+        app.export_config()
+        app.variables["index_timeout"].set("1802")
+        filedialog.askopenfilename = lambda **kwargs: str(transfer)
+        app.import_config()
+        assert app.variables["index_timeout"].get() == previous_timeout
+        assert load_settings(app.config_path)["index_timeout"] == previous_timeout
+        assert not app.runner.busy
+    finally:
+        filedialog.asksaveasfilename, filedialog.askopenfilename = old_save, old_open
     app.variables["index_timeout"].set("1801")
 
     def heartbeat():
@@ -511,7 +565,7 @@ def smoke(app, report):
                                          "error_recovery": recovery_test[0],
                                          "confirmations": confirmations_checked[0],
                                          "embedded_runtime": embedded_runtime,
-                                         "settings_cache": autosave_checked[0],
+                                         "settings_cache": autosave_checked[0], "settings_transfer": True,
                                          "frozen": bool(getattr(sys, "frozen", False))}), encoding="utf-8")
             app.destroy()
         except Exception as error:
