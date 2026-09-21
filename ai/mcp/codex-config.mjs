@@ -47,11 +47,20 @@ export function scopedReader(read = readCodexConfig) {
 }
 
 export async function requestConfig(cwd, env = process.env, launch = spawn) {
+  const result = await requestCodex(cwd, env, "config/read", { cwd: path.resolve(cwd), includeLayers: true }, launch);
+  return { config: { mcp_servers: result.config.mcp_servers ?? {} },
+    layers: (result.layers ?? []).map(layer => ({ disabledReason: Boolean(layer?.disabledReason),
+      config: { mcp_servers: layer?.config?.mcp_servers ?? {} } })) };
+}
+
+// Private protocol response: callers must never log configuration contents.
+export async function requestCodex(cwd, env, method, params, launch = spawn) {
   const windows = process.platform === "win32";
   const command = windows ? path.join(env.SystemRoot ?? "C:\\Windows", "System32/WindowsPowerShell/v1.0/powershell.exe") : "codex";
   const args = windows ? ["-NoLogo", "-NoProfile", "-NonInteractive", "-Command",
     "[Console]::InputEncoding=[Text.UTF8Encoding]::new($false); [Console]::OutputEncoding=[Text.UTF8Encoding]::new($false); $OutputEncoding=[Console]::OutputEncoding; if (-not (Get-Command codex -ErrorAction SilentlyContinue)) { exit 127 }; & codex app-server --listen stdio://; exit $LASTEXITCODE"] : ["app-server", "--listen", "stdio://"];
   const child = launch(command, args, { cwd, env, windowsHide: true, stdio: ["pipe", "pipe", "pipe"] });
+  const closed = new Promise(resolve => child.once("close", resolve));
   let buffer = "", total = 0, finished = false, timer;
   try {
     return await new Promise((resolve, reject) => {
@@ -76,13 +85,11 @@ export async function requestConfig(cwd, env = process.env, launch = spawn) {
           if (msg.id === 1) {
             if (msg.error || !msg.result) return stop(fail("cli_failed"));
             send({ method: "initialized" });
-            send({ id: 2, method: "config/read", params: { cwd: path.resolve(cwd), includeLayers: true } });
+            send({ id: 2, method, params });
           } else if (msg.id === 2) {
-            if (msg.error || !msg.result?.config || typeof msg.result.config !== "object" || Array.isArray(msg.result.config) || (msg.result.layers != null && !Array.isArray(msg.result.layers))) return stop(fail("configuration_malformed"));
-            // Keep only MCP data; provider/authentication settings are not needed.
-            stop(null, { config: { mcp_servers: msg.result.config.mcp_servers ?? {} },
-              layers: (msg.result.layers ?? []).map(layer => ({ disabledReason: Boolean(layer?.disabledReason),
-                config: { mcp_servers: layer?.config?.mcp_servers ?? {} } })) });
+            if (msg.error || !msg.result) return stop(fail("configuration_malformed"));
+            if (method === "config/read" && (!msg.result.config || typeof msg.result.config !== "object" || Array.isArray(msg.result.config) || (msg.result.layers != null && !Array.isArray(msg.result.layers)))) return stop(fail("configuration_malformed"));
+            stop(null, msg.result);
           }
         }
       });
@@ -91,7 +98,7 @@ export async function requestConfig(cwd, env = process.env, launch = spawn) {
   } finally {
     clearTimeout(timer); child.stdin.end();
     if (child.exitCode === null) {
-      await Promise.race([new Promise(resolve => child.once("exit", resolve)), new Promise(resolve => setTimeout(resolve, 1000))]);
+      await Promise.race([closed, new Promise(resolve => setTimeout(resolve, 1000))]);
       if (child.exitCode === null && child.pid) {
         if (windows) spawnSync(path.join(env.SystemRoot ?? "C:\\Windows", "System32/taskkill.exe"), ["/pid", String(child.pid), "/t", "/f"], { windowsHide: true, stdio: "ignore", timeout: 3000 });
         else child.kill("SIGKILL");

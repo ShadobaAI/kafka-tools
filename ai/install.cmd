@@ -633,6 +633,11 @@ try {
 } catch {
     throw 'Node.js 18+ is required but was not found, could not start, or has an unsupported version. Install Node.js LTS from https://nodejs.org/, restart the terminal and GUI, then check: node --version. Or specify -NodePath with the full path to node.exe. Setup stopped before runtime/configuration/index changes.'
 }
+    if (-not $SkipDaemonStart) {
+        . (Join-Path $ToolkitRoot 'mcp\codex-project-trust.ps1')
+        $trustRoots = @('adapter\adapter', 'conversion\KFK', 'tests\unit\unit') | ForEach-Object { Join-Path $WorkspaceRoot $_ }
+        Confirm-CodexProjectTrust -Node $node -ToolkitRoot $ToolkitRoot -ProjectRoots $trustRoots -ProfileHome $CodexHome
+    }
     $adapterRoot = Join-Path $WorkspaceRoot 'adapter\adapter'
     $bslLsConfigPath = Join-Path $adapterRoot '.codex\config.toml'
     $bslLsLaunch = Get-BslLsLaunchConfiguration -Content (
