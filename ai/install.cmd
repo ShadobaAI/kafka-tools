@@ -78,7 +78,12 @@ $ErrorActionPreference = 'Stop'
 
 trap {
     Write-Output ''
-    Write-Output ("[ERROR] Installation did not complete: {0}" -f $_.Exception.Message)
+    $failureMessage = "[ERROR] Installation did not complete: {0}" -f $_.Exception.Message
+    Write-Output $failureMessage
+    if ($env:KAFKA_AI_GUI_STAGES) {
+        try { [IO.File]::AppendAllText($env:KAFKA_AI_GUI_STAGES, $failureMessage + [Environment]::NewLine, [Text.UTF8Encoding]::new($false)) }
+        catch { Write-Warning 'Could not send the installation error to GUI.' }
+    }
     exit 1
 }
 
@@ -622,8 +627,12 @@ $installationSucceeded = $false
 try {
 if (-not $ConfigurationOnly) {
     Write-SetupStep '2/6. Checking Node.js and Java'
+try {
     $node = Resolve-NodePath -RequestedPath $NodePath
     $nodeVersion = Assert-MinimumVersion -Executable $node -MinimumVersion ([version]'18.0.0') -Description 'Node.js'
+} catch {
+    throw 'Node.js 18+ is required but was not found, could not start, or has an unsupported version. Install Node.js LTS from https://nodejs.org/, restart the terminal and GUI, then check: node --version. Or specify -NodePath with the full path to node.exe. Setup stopped before runtime/configuration/index changes.'
+}
     $adapterRoot = Join-Path $WorkspaceRoot 'adapter\adapter'
     $bslLsConfigPath = Join-Path $adapterRoot '.codex\config.toml'
     $bslLsLaunch = Get-BslLsLaunchConfiguration -Content (

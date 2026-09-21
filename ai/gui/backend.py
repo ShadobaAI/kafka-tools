@@ -311,11 +311,21 @@ def prerequisites(values, action, emit):
         return None
     node = resolve_node(values, action)
     if not node:
-        raise RuntimeError("Не найден Node.js 18+. Установите его или укажите путь к node.exe.")
-    probe([node, "--version"], "Node.js", 18)
+        raise RuntimeError("Node.js не найден. Установите Node.js LTS с https://nodejs.org/ (требуется 18+), перезапустите терминал и GUI, затем проверьте: node --version. Либо укажите полный путь к node.exe в форме.")
+    try:
+        probe([node, "--version"], "Node.js", 18)
+    except RuntimeError as error:
+        raise RuntimeError("Node.js не запускается или его версия ниже 18. Установите Node.js LTS с https://nodejs.org/, "
+                           "перезапустите GUI и проверьте: node --version. Либо исправьте путь к node.exe.") from error
     dependencies = ["git"] if action in ("doctor", "viking", "install") else []
     if action == "doctor" or (action == "viking" and not (values["state"] or os.environ.get("KAFKA_OPENVIKING_STATE_DIR"))):
-        dependencies.append("codex")
+        try:
+            probe([powershell(), "-NoLogo", "-NoProfile", "-NonInteractive", "-Command",
+                   "if (-not (Get-Command codex -ErrorAction SilentlyContinue)) { exit 127 }; exit 0"], "Codex CLI")
+        except RuntimeError as error:
+            raise RuntimeError("Codex CLI недоступен. Установите: npm install -g @openai/codex. "
+                               "Перезапустите терминал и GUI, проверьте: codex --version. "
+                               "Если CLI уже установлен, проверьте PATH. Операция не запущена.") from error
     for name in dependencies:
         if not shutil.which(name):
             raise RuntimeError(f"Не найден {name} в PATH. Установите его и перезапустите GUI.")
@@ -383,9 +393,10 @@ def prepare(values, action, directory, node):
         "$global:LASTEXITCODE = 0\n"
         "$parameters = @{\n" + "\n".join(literals) + "\n}\n"
         "try { & " + ps_quote(script) + " @parameters; if ($?) { $result = 0 } else { $result = 1 } }\n"
-        "catch { Write-Host $_.Exception.Message; $result = 1 }\n"
+        "catch { Write-Host $_.Exception.Message; $result = 1; "
+        + ("[IO.File]::AppendAllText(" + ps_quote(stages) + ", '[ERROR] ' + $_.Exception.Message + [Environment]::NewLine, [Text.UTF8Encoding]::new($false))" if stages else "") + " }\n"
         + ("if ($result -ne 0) {\n"
-           "[IO.File]::AppendAllText(" + ps_quote(stages) + ", 'Ошибка установки. Прочитайте консоль и нажмите Enter.' + [Environment]::NewLine, [Text.UTF8Encoding]::new($false))\n"
+           "[IO.File]::AppendAllText(" + ps_quote(stages) + ", '[ERROR] Ошибка установки. Подробности выше; нажмите Enter в консоли для завершения.' + [Environment]::NewLine, [Text.UTF8Encoding]::new($false))\n"
            "Read-Host 'Installation failed. Press Enter to return to GUI'\n}\n"
            if action == "install" else "") + "exit $result\n", encoding="utf-8-sig")
     env["PSModulePath"] = ""
@@ -405,6 +416,10 @@ class Runner:
 
     def emit(self, kind, value):
         self.events.put((kind, value))
+
+    def emit_stage(self, value):
+        text = redact(value)
+        self.emit("error" if text.startswith("[ERROR]") else "stage", text)
 
     def start(self, values, action):
         with self._start_lock:
@@ -456,11 +471,11 @@ class Runner:
                             pending += stream.read(8192)
                             while b"\n" in pending:
                                 line, pending = pending.split(b"\n", 1)
-                                self.emit("stage", redact(line.decode("utf-8-sig", errors="replace").strip()))
+                                self.emit_stage(line.decode("utf-8-sig", errors="replace").strip())
                             if process.poll() is not None:
                                 tail = pending + stream.read()
                                 if tail:
-                                    self.emit("stage", redact(tail.decode("utf-8-sig", errors="replace").strip()))
+                                    self.emit_stage(tail.decode("utf-8-sig", errors="replace").strip())
                                 break
                             time.sleep(.2)
                 else:

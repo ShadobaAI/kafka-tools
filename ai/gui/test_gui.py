@@ -87,6 +87,24 @@ class AdapterTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("Ошибка установки", stages.read_text(encoding="utf-8"))
 
+    def test_powershell_error_details_reach_gui(self):
+        command, env, stages = b.prepare(self.values, "install", self.output, "node.exe")
+        source = (TOOLKIT / "install.cmd").read_text(encoding="utf-8-sig")
+        trap = source[source.index("trap {"):source.index("\n}\n", source.index("trap {")) + 3]
+        for fixture in ("throw 'Ошибка fixture: отсутствует Codex CLI'",
+                        "function Assert-CRMPath { param($Path, $WorkspaceRoot) }\n" + trap + "throw 'Ошибка fixture: отсутствует Codex CLI'"):
+            stages.unlink(missing_ok=True)
+            (self.output / "operation.ps1").write_text(fixture, encoding="utf-8-sig")
+            result = subprocess.run(command, env=env, input=b"\n", capture_output=True, timeout=15, creationflags=b.NO_WINDOW)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("Ошибка fixture: отсутствует Codex CLI", stages.read_text(encoding="utf-8"))
+        runner = b.Runner()
+        runner.emit_stage("[ERROR] Codex CLI missing token=SECRET")
+        kind, message = runner.events.get_nowait()
+        self.assertEqual(kind, "error")
+        self.assertIn("Codex CLI missing", message)
+        self.assertNotIn("SECRET", message)
+
     def test_doctor_formats_and_rebuild(self):
         self.values["human"] = False
         command, _, _ = b.prepare(self.values, "doctor", self.output, "node.exe")
@@ -204,6 +222,20 @@ class AdapterTests(unittest.TestCase):
              patch.object(b, "resolve_node", return_value="node.exe"), \
              patch.object(b.shutil, "which", side_effect=lambda name: "git.exe" if name == "git" else None):
             b.prerequisites(dict(self.values, state=str(self.root / "state")), "viking", lambda *_: None)
+
+    def test_missing_or_old_node_has_actionable_error(self):
+        with patch.object(b, "resolve_node", return_value=None), self.assertRaisesRegex(RuntimeError, "https://nodejs.org/"):
+            b.prerequisites(self.values, "doctor", lambda *_: None)
+        with patch.object(b, "resolve_node", return_value="node.exe"), patch.object(b, "probe", side_effect=RuntimeError("old version")), self.assertRaisesRegex(RuntimeError, "node --version"):
+            b.prerequisites(self.values, "doctor", lambda *_: None)
+
+    def test_missing_codex_doctor_has_install_command(self):
+        def check(command, description, minimum=None):
+            if description == "Codex CLI":
+                raise RuntimeError("missing")
+            return b"v24.0.0"
+        with patch.object(b, "resolve_node", return_value="node.exe"), patch.object(b, "probe", side_effect=check), self.assertRaisesRegex(RuntimeError, "npm install -g @openai/codex"):
+            b.prerequisites(self.values, "doctor", lambda *_: None)
 
     def test_action_form_coverage(self):
         from app import FORM_KEYS, SWITCHES
