@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import { withToolkitOperation } from "./mcp/toolkit-operation-lock.mjs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
@@ -202,7 +203,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   if (!projectRoot) {
     process.stderr.write("usage: node doctor.mjs [--human] [--project-root KAFKA_ROOT_OR_REPOSITORY_ROOT]\n");
     process.exitCode = 2;
-  } else diagnose(process.env, projectRoot, { progress: human ? (message) => process.stderr.write(`${message}\n`) : () => {} }).then((result) => {
+  } else withToolkitOperation(() => diagnose(process.env, projectRoot, { progress: human ? (message) => process.stderr.write(`${message}\n`) : () => {} })).then((result) => {
     process.stdout.write(human ? formatReport(result) : `${JSON.stringify(result, null, 2)}\n`);
     if (result.status !== "ready") process.exitCode = 1;
   }).catch((error) => { process.stderr.write(`doctor: ${error.message}\n`); process.exitCode = 1; });

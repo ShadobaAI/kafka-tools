@@ -82,9 +82,17 @@ trap {
     exit 1
 }
 
+. (Join-Path $ToolkitRoot 'mcp\toolkit-operation-lock.ps1')
+# Keep the handle alive through the whole invocation, including interactive steps.
+$script:KafkaToolkitOperationMutex = Enter-KafkaToolkitOperation
+
 function Write-SetupStep {
     param([Parameter(Mandatory)][string]$Message)
 
+    # Optional GUI progress channel: stages only, never native output or credentials.
+    if ($env:KAFKA_AI_GUI_STAGES) {
+        [IO.File]::AppendAllText($env:KAFKA_AI_GUI_STAGES, $Message + [Environment]::NewLine, [Text.UTF8Encoding]::new($false))
+    }
     Write-Output ''
     Write-Output ("==> {0}" -f $Message)
 }

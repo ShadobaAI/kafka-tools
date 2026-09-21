@@ -1,4 +1,5 @@
 import path from "node:path";
+import { withToolkitOperation } from "./mcp/toolkit-operation-lock.mjs";
 import os from "node:os";
 import { fileURLToPath } from "node:url";
 import { codexMcp } from "./mcp/installed-config.mjs";
@@ -41,20 +42,22 @@ export function resolveUpdateOptions(env = process.env, read = codexMcp) {
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  let options, mode;
-  try {
-    mode = updateMode(process.argv.slice(2));
-    options = resolveUpdateOptions();
-  } catch (error) {
-    process.stderr.write(`openviking-update: ${error.message}\n`);
-    process.exitCode = 2;
-  }
-  if (options) {
-    process.stderr.write(`Каталог данных определён через ${options.source}. ${mode.forceRebuild ? "Полная перестройка" : "Инкрементальное обновление"} Git-контекста...\n`);
-    reconcile({ workspaceRoot: options.workspaceRoot, stateDir: options.stateDir,
-      client: localClient(options.stateDir), ...mode,
-      progress: (message) => process.stderr.write(`openviking-sync: ${message}\n`),
-    }).then((result) => process.stdout.write(`${JSON.stringify(result)}\n`))
-      .catch((error) => { process.stderr.write(`openviking-sync: ${error.message}\n`); process.exitCode = 1; });
-  }
+  withToolkitOperation(async () => {
+    let options, mode;
+    try {
+      mode = updateMode(process.argv.slice(2));
+      options = resolveUpdateOptions();
+    } catch (error) {
+      process.stderr.write(`openviking-update: ${error.message}\n`);
+      process.exitCode = 2;
+    }
+    if (options) {
+      process.stderr.write(`Каталог данных определён через ${options.source}. ${mode.forceRebuild ? "Полная перестройка" : "Инкрементальное обновление"} Git-контекста...\n`);
+      await reconcile({ workspaceRoot: options.workspaceRoot, stateDir: options.stateDir,
+        client: localClient(options.stateDir), ...mode,
+        progress: (message) => process.stderr.write(`openviking-sync: ${message}\n`),
+      }).then((result) => process.stdout.write(`${JSON.stringify(result)}\n`))
+        .catch((error) => { process.stderr.write(`openviking-sync: ${error.message}\n`); process.exitCode = 1; });
+    }
+  }).catch((error) => { process.stderr.write(`openviking-update: ${error.message}\n`); process.exitCode = 1; });
 }

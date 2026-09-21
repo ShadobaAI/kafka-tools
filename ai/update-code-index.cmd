@@ -75,6 +75,9 @@ trap {
 
 # Focused copies of installer helpers; this updater never executes install.cmd.
 
+. (Join-Path $ToolkitRoot 'mcp\toolkit-operation-lock.ps1')
+$script:KafkaToolkitOperationMutex = Enter-KafkaToolkitOperation
+
 function Write-SetupStep {
     param([Parameter(Mandatory)][string]$Message)
 

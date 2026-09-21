@@ -1,0 +1,135 @@
+# Kafka AI Desktop
+
+Windows GUI на Python + CustomTkinter. Четыре действия, формы с подсказками,
+светлая/тёмная/системная тема, этапы, журнал и выполнение вне потока интерфейса.
+GUI использует существующие скрипты без изменения их параметров CLI.
+
+## Запуск
+
+Дважды щёлкните `tools\ai\KafkaAI.exe` и выберите корень Kafka workspace.
+Актуальный EXE хранится в репозитории: после получения workspace сборка и установка Python не нужны.
+Кнопки запускают реальные штатные операции. Перестройка индексов требует подтверждения.
+
+Из исходников (Windows, Python 3.11+ с Tk):
+
+```powershell
+python -m venv tools\ai\gui\.venv
+tools\ai\gui\.venv\Scripts\python.exe -m pip install -r tools\ai\gui\requirements.txt
+tools\ai\gui\.venv\Scripts\pythonw.exe tools\ai\gui\app.py
+```
+
+## Сборка
+
+Из корня Kafka workspace:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File tools\ai\gui\build.ps1
+```
+
+Результат — один файл `tools\ai\KafkaAI.exe`. PyInstaller включает Python,
+Tcl/Tk и ресурсы CustomTkinter внутрь EXE (`--onefile --windowed`);
+отдельный Python и папка `_internal` не нужны. При запуске runtime временно
+распаковывается загрузчиком PyInstaller.
+Скрипты toolkit берутся из выбранного `<workspace>\tools\ai`, их CLI сохранены.
+Распространяйте приложение вместе с существующим Kafka workspace либо укажите
+его корень в форме. Сборка не включает конфигурацию пользователя, runtime и секреты.
+Для повторной сборки добавьте `-ReplaceBuild`. Новый EXE сначала создаётся
+в `gui\dist`, затем проходит проверки и только после их успеха атомарно заменяет
+`ai\KafkaAI.exe`. При ошибке проверки предыдущий EXE в репозитории сохраняется.
+Закройте запущенные копии приложения перед заменой сборки. Сборка сначала запускает
+изолированные adapter-тесты, затем проверяет готовый EXE на фиктивных операциях,
+наличие Python/Tcl/Tk, ресурсов темы и отсутствие консольного окна у приложения.
+Успешная сборка создаёт `ai\KafkaAI.build.json` с SHA-256 EXE, хешами исходников
+и результатами проверок, а также отчёт `gui\.checks\build-verification.json`.
+При изменении GUI пересобирайте и коммитьте исходники, `KafkaAI.exe` и `KafkaAI.build.json` вместе.
+Зависимости сборки зафиксированы в `requirements.txt`.
+
+## Реальные операции
+
+Установка и обновление code-index
+используют PowerShell, встроенный в существующие CMD, с теми же параметрами;
+doctor и OpenViking вызываются через существующие MJS entrypoints.
+Полная установка и code-index требуют подтверждения удаления производных
+Kafka-индексов. OpenViking по умолчанию инкрементальный; перестройка подтверждается
+отдельно и её флажок не сохраняется между запусками.
+
+Интерактивный установщик открывает отдельную консоль для штатных вопросов.
+В GUI поступают только названия его этапов; полный вывод и ввод не записываются.
+При ошибке консоль ждёт Enter, чтобы сообщение можно было прочитать.
+Остальные операции выводят журнал в GUI; кнопка «Сохранить журнал» экспортирует
+его текущую часть в UTF-8. Запущенную операцию нельзя прервать
+закрытием окна; дождитесь завершения, чтобы не оборвать изменение индексов.
+
+Проверяются только необходимые выбранному действию зависимости:
+Windows PowerShell 5.1; Node.js 18+ (кроме configuration-only); Git для полной
+установки, doctor и OpenViking; Codex CLI для doctor и для OpenViking без явного
+каталога данных; Docker/Compose
+для установки OpenViking. Явная Java проверяется на версию 25+; путь Java из
+конфигурации BSL LS и точные runtime-контракты проверяет сам установщик.
+Случайная Java из PATH не подменяет Java проекта.
+Docker Desktop должен работать в режиме Linux containers. Эти зависимости
+не входят в GUI-дистрибутив. Их установка или обновление не выполняются GUI автоматически.
+
+Несекретные параметры сохраняются в `%LOCALAPPDATA%\KafkaAI\settings.json`.
+Поля credentials отсутствуют; URL Ollama запрещает логин, пароль и query.
+Журнал ограничен и хранится только в памяти. Его маскирование известных форм
+секретов — вспомогательная мера, не универсальный фильтр произвольного вывода.
+Операции взаимно исключены внутри GUI; штатные Windows CLI и GUI дополнительно
+используют общий kernel mutex `Global\KafkaAI.Toolkit.Operation.v1`. Конкурирующий
+запуск завершается до изменения окружения. Блокировка освобождается при завершении
+процесса, включая аварийное; lock-файлы не остаются. Для Node её удерживает
+небольшой PowerShell-процесс до завершения операции. Обновляйте GUI и toolkit вместе.
+Эта блокировка относится к четырём действиям toolkit; сторонние клиенты code-index
+следует отключить перед перестройкой, как требует штатный updater.
+
+## Параметры скриптов
+
+| Форма | Параметр CLI | Значение по умолчанию |
+| --- | --- | --- |
+| Kafka workspace | `-WorkspaceRoot` | Корень workspace, найденный по размещению GUI; иначе выбирается пользователем |
+| Исходный toolkit | `-ToolkitRoot` | `<workspace>\tools\ai`; можно выбрать другой комплект скриптов |
+| Профиль Codex | `-CodexHome` / `CODEX_HOME` | Штатный профиль скрипта / окружение |
+| Локальный bsl-indexer | `-BslIndexerPath` | Проверка последнего релиза штатным скриптом |
+| BSL Language Server | `-BslLanguageServerJar` | Проверка последнего релиза штатным скриптом |
+| Node.js | `-NodePath` | Для PS: `CODE_INDEX_NODE`, Program Files, PATH; для JS: PATH |
+| Java для BSL LS | `-JavaPath` | `BSL_LANGUAGE_SERVER_JAVA` / Java из конфигурации BSL LS |
+| Данные OpenViking | `-OpenVikingStateDir` / `KAFKA_OPENVIKING_STATE_DIR` | Окружение; installer — каталог профиля, updater — установленный MCP |
+| GPU для Ollama | `-OpenVikingGpu` | Выключено; недопустимо для внешнего Ollama |
+| Внешний Ollama | `-OllamaUrl` | `KAFKA_OLLAMA_URL` / managed Ollama; только origin без credentials |
+| Только конфигурация | `-ConfigurationOnly` | Выключено |
+| Пропустить OpenViking runtime | `-SkipOpenVikingRuntime` | Выключено |
+| Не запускать daemon | `-SkipDaemonStart` | Выключено; **не отменяет удаление старых индексов** |
+| Ожидание индексов | `-IndexReadyTimeoutSeconds` | 1800 с, допустимо 60–3600 |
+| Ожидание MCP | `-McpReadyTimeoutSeconds` | 600 с, допустимо 60–3600 |
+| Проверяемый проект | doctor `--project-root` | Выбранный workspace |
+| Отчёт с пояснениями | doctor `--human` | Включено; выключение даёт JSON |
+| Полная перестройка | OpenViking `--rebuild` | Выключено; требуется подтверждение |
+
+Поля показываются только для поддерживающих их действий. Установка с пропуском
+проверок получает отдельный итог, который не означает готовность всего окружения.
+GUI проверяет набор объявленных PowerShell-параметров и останавливает запуск,
+если новые скрипты изменили контракт. `KAFKA_AI_NO_PAUSE=1` задаётся адаптером;
+дополнительные PowerShell common parameters не являются параметрами приложения.
+
+## Безопасная проверка GUI и EXE
+
+```powershell
+tools\ai\gui\.venv\Scripts\python.exe -m unittest discover -s tools\ai\gui -p test_gui.py -v
+node tools\ai\tests\test-toolkit-operation-lock.mjs
+tools\ai\gui\.venv\Scripts\python.exe tools\ai\gui\app.py --smoke-test tools\ai\gui\.checks\source.json
+$p = Start-Process -FilePath tools\ai\KafkaAI.exe -WindowStyle Hidden -ArgumentList '--smoke-test tools\ai\gui\.checks\frozen.json' -Wait -PassThru
+Get-Content tools\ai\gui\.checks\source.json, tools\ai\gui\.checks\frozen.json
+```
+
+Smoke-проверка открывает реальное окно, переключает темы и формы, запускает четыре
+фиктивных дочерних процесса, проверяет отклонение параллельного запуска и работу
+Tk event loop и точную кириллицу в журнале. Adapter-тесты передают все параметры
+в безопасную PowerShell-заглушку, проверяют ошибки, Unicode, настройки и зависимости.
+Тест блокировки запускает только guardian и пустые операции.
+Настройки smoke изолированы рядом с отчётом. `ok: true` подтверждает
+только эту проверку; штатные установка/обновления и интерактивный Docker setup
+не выполняются. Реальная установка и обновления должны проходить отдельную
+эксплуатационную приёмку на тестовом workspace; эти проверки не заменяют её.
+
+Сборка следует [рекомендациям CustomTkinter](https://customtkinter.tomschimansky.com/documentation/packaging/)
+и [параметрам PyInstaller](https://pyinstaller.org/en/stable/usage.html).

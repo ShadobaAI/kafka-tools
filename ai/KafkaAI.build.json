@@ -1,0 +1,35 @@
+{
+  "executable": "KafkaAI.exe",
+  "sha256": "08387f2e44f64e5a72227f4597019dd04fe51f8f1a667d150193d283d8e709f9",
+  "inputs": {
+    "gui/app.py": "bacfaa25226dc1acf6c7b688c851bd6bcb718ba085b894e4215a613c84438783",
+    "gui/backend.py": "beed33a0f5fdda777fa698005e81a35bf465ffb485eb8697b0f51c0911adf141",
+    "gui/requirements.txt": "d10397fe5d268f55dd1fb78d77ff4472aff045c134dfe6cc395d93a824de6e0d",
+    "gui/build.ps1": "64695d00a1e2070196a62bbea93779e161d0f596305f36d08b761b9682eea49e",
+    "gui/verify_build.py": "f115ff2ca2ba3365831bd28b7554064e5fa380de8507ee3afa7185098bc9473e"
+  },
+  "verification": {
+    "ok": true,
+    "actions": [
+      "install",
+      "doctor",
+      "code",
+      "viking"
+    ],
+    "heartbeats": 109,
+    "themes": [
+      "Light",
+      "Dark"
+    ],
+    "cyrillic": true,
+    "error_recovery": true,
+    "confirmations": true,
+    "embedded_runtime": {
+      "python": true,
+      "tcl": true,
+      "tk": true,
+      "theme": true
+    },
+    "frozen": true
+  }
+}

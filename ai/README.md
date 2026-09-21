@@ -2,6 +2,12 @@
 
 [← Все инструменты](../README.md)
 
+Windows GUI на Python + CustomTkinter: [запуск, параметры и сборка](gui/README.md).
+Для запуска откройте **[KafkaAI.exe](KafkaAI.exe)** в этом каталоге — актуальная
+сборка со встроенным Python хранится в репозитории.
+GUI и четыре штатных Windows CLI используют общую блокировку операций:
+параллельный запуск отклоняется до установки или изменения индексов.
+
 Каталог `tools/ai` содержит общую AI-инфраструктуру фиксированного Kafka workspace:
 установщик, `code-index`, общие 1С-skills, routing guard и regression-тесты.
 Новый [policy subsystem](policy/README.md) содержит versioned exact-selector registry
@@ -98,8 +104,9 @@ EDT и BSL LS остаются repository-local и настраиваются в
 .\tools\ai\install.cmd
 ```
 
-Это один самодостаточный файл: CMD-часть извлекает встроенную PowerShell-часть во
-временный файл, запускает её штатным Windows PowerShell 5.1 и удаляет временный файл.
+CMD-часть извлекает встроенную PowerShell-часть во временный файл, запускает её
+штатным Windows PowerShell 5.1 и удаляет временный файл. Общий helper
+`mcp/toolkit-operation-lock.ps1` обеспечивает блокировку параллельных операций.
 Отдельный `setup.ps1` не используется. Git Bash и PowerShell 7 не требуются.
 
 Для BSL LS источник параметров запуска — `adapter/adapter/.codex/config.toml`. Перед подготовкой runtime установщик требует абсолютные пути к proxy, `cwd`, `--root` и явно заданной `--java`; `cwd` и `--root` должны указывать на checkout адаптера. Проверяется Java 25 или новее именно из `--java`. Если передан `-JavaPath` или задан `BSL_LANGUAGE_SERVER_JAVA`, он должен совпадать с этим путём. Локальный конфиг не перезаписывается: ошибка сообщает, что требуется исправить владельцу репозитория.
