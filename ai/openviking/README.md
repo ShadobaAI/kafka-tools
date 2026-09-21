@@ -15,6 +15,14 @@ metadata, ambiguous architecture or a digest mismatch blocks this fallback.
 
 `git-sync.mjs` reads selected blobs from committed Git trees, reconciles them to the selected local server version recorded in derived state, and stores revision state outside Git. A failed or partial sync leaves a dirty marker and forces a later rebuild. `read-only-mcp.mjs` exposes exactly `find`, `search`, `read`, `list`, and `tree`, with pre-use reconciliation and bounded results. Static and mock tests cover this behavior.
 
+Each document write waits up to 600 seconds for semantic/vector processing, with
+a 630-second HTTP deadline covering the response body. Long writes use Node HTTP
+so the native fetch response-header timeout does not cut ingestion short.
+Write failures identify the document and are not retried automatically: a timeout
+does not prove that the server stopped processing. A failed installation remains
+incomplete; verify that server processing has finished before rerunning setup,
+which rebuilds dirty Git state. Health/readiness limits remain 15 seconds.
+
 `install-hooks.mjs` prepares `post-checkout`, `post-merge`, and `post-rewrite`
 wrappers for all nine Kafka-owned repositories declared in `hookRepositories`.
 The upstream `tests/unit/yaxunit` checkout is explicitly excluded. Installation performs a global

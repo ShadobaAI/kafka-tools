@@ -1,6 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import fs from "node:fs";
+import { request as httpRequest } from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -8,6 +9,27 @@ const moduleDir = path.dirname(fileURLToPath(import.meta.url));
 const sourcePath = path.join(moduleDir, "sources.json");
 const releasePolicyPath = path.join(moduleDir, "version.json");
 const STATE_SCHEMA = 1;
+const INDEX_TIMEOUT_SECONDS = 600;
+
+// Native fetch has a separate response-header timeout, shorter than ingestion.
+// Use one explicit deadline for long requests, including the response body.
+function longRequest(url, options) {
+  return new Promise((resolve, reject) => {
+    const request = httpRequest(url, options, (response) => {
+      let body = "";
+      response.setEncoding("utf8");
+      response.on("data", (chunk) => { body += chunk; });
+      response.on("error", reject);
+      response.on("end", () => resolve({
+        ok: response.statusCode >= 200 && response.statusCode < 300,
+        status: response.statusCode,
+        json: async () => JSON.parse(body),
+      }));
+    });
+    request.on("error", reject);
+    request.end(options.body);
+  });
+}
 
 function sha256(value) {
   return createHash("sha256").update(value).digest("hex");
@@ -205,7 +227,8 @@ export class OpenVikingClient {
   async request(method, route, body, timeoutMs = 120000) {
     const headers = { ...(body === undefined ? {} : { "Content-Type": "application/json" }) };
     if (this.apiKey) headers["X-Api-Key"] = this.apiKey;
-    const response = await fetch(`${this.baseUrl}${route}`, {
+    const transport = timeoutMs > 120000 ? longRequest : fetch;
+    const response = await transport(`${this.baseUrl}${route}`, {
       method, headers, body: body === undefined ? undefined : JSON.stringify(body),
       signal: AbortSignal.timeout(timeoutMs),
     });
@@ -246,9 +269,14 @@ export class OpenVikingClient {
   }
 
   async write(uri, content) {
-    const value = await this.request("POST", "/api/v1/content/write", {
-      uri, content, mode: "replace", wait: true,
-    });
+    let value;
+    try {
+      value = await this.request("POST", "/api/v1/content/write", {
+        uri, content, mode: "replace", wait: true, timeout: INDEX_TIMEOUT_SECONDS,
+      }, (INDEX_TIMEOUT_SECONDS + 30) * 1000);
+    } catch (error) {
+      throw new Error(`OpenViking indexing failed for ${uri} (server wait: ${INDEX_TIMEOUT_SECONDS}s; HTTP deadline: ${INDEX_TIMEOUT_SECONDS + 30}s): ${error.message}. Write outcome is unverified; no automatic retry.`, { cause: error });
+    }
     const result = value.result ?? {};
     if (value.status !== "ok" || result.semantic_status !== "complete" || result.vector_status !== "complete") {
       throw new Error(`OpenViking indexing incomplete for ${uri}`);
