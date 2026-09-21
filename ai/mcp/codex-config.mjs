@@ -29,7 +29,7 @@ export function configuredServer(snapshot, name) {
     return null;
   }
   if (typeof raw !== "object" || Array.isArray(raw) || (!raw.command && !raw.url)) throw fail("configuration_malformed");
-  return { ...raw, name, transport: raw };
+  return { ...raw, name, transport: { ...raw, type: raw.command ? "stdio" : "streamable_http" } };
 }
 
 export function scopedReader(read = readCodexConfig) {
