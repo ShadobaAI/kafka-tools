@@ -65,7 +65,11 @@ nor the Docker socket are mounted into services.
 keys. The root `api-key` is used only for server administration. Setup creates the
 `kafka` account with the `git-sync` admin user and verifies data access before
 reporting readiness. MCP, doctor and sync use `tenant-api-key`; OpenViking rejects
-root keys on data APIs. Repeat setup preserves both keys. If a Kafka account exists
+root keys on data APIs. Repeat setup preserves both keys. If only one of `api-key`
+and `ov.conf` remains after an interrupted setup, repeat setup restores the missing
+file using the surviving root key. Existing configuration is validated before
+recovery; empty keys, conflicting keys and unsupported configuration stop setup
+without replacing credentials. If a Kafka account exists
 but its local tenant key is missing, restore that key; setup does not rotate it or
 delete account data automatically. Git reconciliation prints progress per document.
 `-OpenVikingStateDir` selects an

@@ -239,17 +239,27 @@ export async function install({ stateDir, yes = false, gpu = false, ollamaUrl,
     const ollamaImage = externalOllama ? null : resolveImage("ollama/ollama", "latest", docker);
     const configFile = path.join(stateDir, "ov.conf");
     const keyFile = path.join(stateDir, "api-key");
-    if (fs.existsSync(configFile) !== fs.existsSync(keyFile)) throw new Error("Incomplete Docker provider configuration; refusing to replace credentials.");
-    if (!fs.existsSync(keyFile)) {
-      const key = randomBytes(32).toString("hex");
-      fs.writeFileSync(keyFile, key, { flag: "wx", mode: 0o600 });
-      writeJson(configFile, configuration(key, ollamaUrl));
+    const hasConfig = fs.existsSync(configFile);
+    const hasKey = fs.existsSync(keyFile);
+    let saved;
+    if (hasConfig) {
+      try { saved = JSON.parse(fs.readFileSync(configFile, "utf8")); }
+      catch { throw new Error("Cannot read Docker provider configuration; restore ov.conf before setup."); }
     }
-    const saved = JSON.parse(fs.readFileSync(configFile, "utf8"));
-    if (saved.server?.root_api_key !== fs.readFileSync(keyFile, "utf8").trim() ||
-        saved.storage?.workspace !== "/var/lib/openviking" ||
-        saved.embedding?.dense?.model !== models.embedding || saved.vlm?.model !== `ollama/${models.vlm}`) {
+    // A previous run can stop between writing the key and the configuration.
+    // Recover the missing file using the surviving key, never rotating it.
+    const key = hasKey ? fs.readFileSync(keyFile, "utf8").trim() :
+      hasConfig ? saved?.server?.root_api_key : randomBytes(32).toString("hex");
+    if (typeof key !== "string" || !key.trim() || key !== key.trim() ||
+        (hasConfig && (saved?.server?.root_api_key !== key ||
+          saved?.storage?.workspace !== "/var/lib/openviking" ||
+          saved?.embedding?.dense?.model !== models.embedding || saved?.vlm?.model !== `ollama/${models.vlm}`))) {
       throw new Error("Docker provider configuration differs from the supported local setup; refusing to overwrite it.");
+    }
+    if (!hasKey) fs.writeFileSync(keyFile, key, { flag: "wx", mode: 0o600 });
+    if (!hasConfig) {
+      saved = configuration(key, ollamaUrl);
+      writeJson(configFile, saved);
     }
     if (saved.embedding.dense.api_base !== `${ollamaUrl}/v1` || saved.vlm.api_base !== ollamaUrl) {
       saved.embedding.dense.api_base = `${ollamaUrl}/v1`;
