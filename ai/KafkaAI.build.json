@@ -1,12 +1,12 @@
 {
   "executable": "KafkaAI.exe",
-  "sha256": "08387f2e44f64e5a72227f4597019dd04fe51f8f1a667d150193d283d8e709f9",
+  "sha256": "ae405a70201716c08e8bd8f1c02fd1e33004a667cb9180edacb2cd1b51c39970",
   "inputs": {
-    "gui/app.py": "bacfaa25226dc1acf6c7b688c851bd6bcb718ba085b894e4215a613c84438783",
-    "gui/backend.py": "beed33a0f5fdda777fa698005e81a35bf465ffb485eb8697b0f51c0911adf141",
+    "gui/app.py": "c5b03985441fdfe3d4d7e1835d79b652ec4479430504c9df78f4a3b0eaa98cd6",
+    "gui/backend.py": "567ea16a244095b649cb72c2cd5bb134a6bcf272d4c27a9a1a1ee142c6073e62",
     "gui/requirements.txt": "d10397fe5d268f55dd1fb78d77ff4472aff045c134dfe6cc395d93a824de6e0d",
-    "gui/build.ps1": "64695d00a1e2070196a62bbea93779e161d0f596305f36d08b761b9682eea49e",
-    "gui/verify_build.py": "f115ff2ca2ba3365831bd28b7554064e5fa380de8507ee3afa7185098bc9473e"
+    "gui/build.ps1": "e91c6f75efc0e905a10d29b62b1682b4765228ad37f3964f1ad1f23aa5ee2b6b",
+    "gui/verify_build.py": "f9c602a8e301c74706b43ff4a6a3610290813359cc0dfac29bcf103c40e8a15e"
   },
   "verification": {
     "ok": true,
@@ -16,7 +16,7 @@
       "code",
       "viking"
     ],
-    "heartbeats": 109,
+    "heartbeats": 125,
     "themes": [
       "Light",
       "Dark"
@@ -30,6 +30,7 @@
       "tk": true,
       "theme": true
     },
+    "settings_cache": true,
     "frozen": true
   }
 }

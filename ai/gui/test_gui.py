@@ -113,16 +113,17 @@ class AdapterTests(unittest.TestCase):
             b.validate(dict(self.values, gpu=True, ollama="http://external:11434"), "install")
 
     def test_settings_allowlist_and_destructive_flag(self):
-        file = self.root / "settings.json"
+        file = self.root / "settings.env"
         b.save_settings(file, dict(self.values, token="NEVER_PERSIST", rebuild=True, theme="Dark"))
         text = file.read_text(encoding="utf-8")
         self.assertNotIn("NEVER_PERSIST", text)
-        self.assertNotIn("rebuild", text)
+        self.assertNotIn("KAFKA_AI_REBUILD", text)
         loaded = b.load_settings(file)
         self.assertFalse(loaded["rebuild"])
         self.assertEqual(loaded["theme"], "Dark")
-        file.write_text('{"node": 3, "theme": "bad", "rebuild": true}', encoding="utf-8")
-        self.assertEqual(b.load_settings(file)["node"], "")
+        file.write_text('KAFKA_AI_GPU=invalid\nKAFKA_AI_THEME="bad"\nKAFKA_AI_REBUILD=true\n', encoding="utf-8")
+        self.assertFalse(b.load_settings(file)["gpu"])
+        self.assertFalse(b.load_settings(file)["rebuild"])
         self.assertEqual(b.load_settings(file)["theme"], "System")
         file.write_text("broken", encoding="utf-8")
         self.assertEqual(b.load_settings(file)["human"], True)
@@ -130,8 +131,46 @@ class AdapterTests(unittest.TestCase):
     def test_secret_urls_never_saved(self):
         for url in ("http://user:password@host", "https://host?token=test", "http://host/secret", "http://host:bad"):
             with self.subTest(url=url), self.assertRaises(ValueError):
-                b.save_settings(self.root / "settings.json", dict(self.values, ollama=url))
-        self.assertFalse((self.root / "settings.json").exists())
+                b.save_settings(self.root / "settings.env", dict(self.values, ollama=url))
+        self.assertFalse((self.root / "settings.env").exists())
+
+    def test_missing_env_is_created_with_defaults(self):
+        file = self.root / "cache/settings.env"
+        values = b.load_settings(file)
+        self.assertTrue(file.is_file())
+        self.assertEqual(values, b.default_settings())
+        self.assertEqual(b.load_settings(file), values)
+        self.assertIn('KAFKA_AI_INDEX_TIMEOUT="1800"', file.read_text(encoding="utf-8"))
+
+    def test_env_roundtrip_special_characters_and_no_expansion(self):
+        file = self.root / "settings.env"
+        values = dict(self.values, workspace=r'C:\Каталог #1\"${HOME}"', gpu=True, human=False, theme="Light")
+        b.save_settings(file, values)
+        self.assertEqual(b.load_settings(file), values)
+        file.write_text("KAFKA_AI_NODE='C:\\Program Files\\node.exe'\nKAFKA_AI_GPU=yes\n", encoding="utf-8")
+        self.assertEqual(b.load_settings(file)["node"], r"C:\Program Files\node.exe")
+        self.assertTrue(b.load_settings(file)["gpu"])
+
+    def test_json_migration_only_when_env_missing(self):
+        file = self.root / "cache/settings.env"
+        legacy = self.root / "settings.json"
+        legacy.write_text(json.dumps(dict(self.values, theme="Dark", token="NEVER_COPY", rebuild=True)), encoding="utf-8")
+        migrated = b.load_settings(file, legacy_path=legacy)
+        self.assertEqual(migrated["workspace"], self.values["workspace"])
+        self.assertEqual(migrated["theme"], "Dark")
+        self.assertFalse(migrated["rebuild"])
+        self.assertNotIn("NEVER_COPY", file.read_text(encoding="utf-8"))
+        legacy.write_text('{"theme":"Light"}', encoding="utf-8")
+        self.assertEqual(b.load_settings(file, legacy_path=legacy)["theme"], "Dark")
+
+    def test_failed_save_preserves_previous_env(self):
+        file = self.root / "settings.env"
+        b.save_settings(file, self.values)
+        previous = file.read_bytes()
+        with patch.object(b.os, "replace", side_effect=OSError("fixture lock")), self.assertRaises(OSError):
+            b.save_settings(file, dict(self.values, theme="Dark"))
+        self.assertEqual(file.read_bytes(), previous)
+        self.assertFalse(list(file.parent.glob("*.tmp")))
 
     def test_masking(self):
         for text in ('{"api_key": "SECRET with spaces"}', "token=SECRET", "Authorization: Bearer SECRET", "https://user:SECRET@host"):

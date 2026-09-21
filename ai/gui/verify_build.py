@@ -31,7 +31,7 @@ def verify(executable, report, publish=None):
     if result != 0 or not run_report.is_file():
         raise RuntimeError(f"Frozen GUI failed without a valid report (exit {result}).")
     payload = json.loads(run_report.read_text(encoding="utf-8"))
-    if not all(payload.get(key) for key in ("ok", "frozen", "cyrillic", "error_recovery", "confirmations")):
+    if not all(payload.get(key) for key in ("ok", "frozen", "cyrillic", "error_recovery", "confirmations", "settings_cache")):
         raise RuntimeError(f"Frozen GUI verification failed: {payload}")
     if not all(payload.get("embedded_runtime", {}).get(key) for key in ("python", "tcl", "tk", "theme")):
         raise RuntimeError("Frozen GUI could not verify its embedded runtime.")
@@ -47,7 +47,10 @@ def verify(executable, report, publish=None):
                 stream.write(binary)
                 stream.flush()
                 os.fsync(stream.fileno())
-            os.replace(temporary, publish)
+            try:
+                os.replace(temporary, publish)
+            except PermissionError as error:
+                raise RuntimeError(f"Build verified, but {publish.name} cannot be replaced. Close Kafka AI and retry; verified build: {executable}") from error
         finally:
             if temporary is not None:
                 temporary.unlink(missing_ok=True)

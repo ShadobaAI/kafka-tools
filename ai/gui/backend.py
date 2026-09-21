@@ -65,18 +65,57 @@ def default_workspace():
 
 
 def settings_path():
-    return Path(os.environ.get("LOCALAPPDATA", str(Path.home()))) / "KafkaAI" / "settings.json"
+    return Path(os.environ.get("LOCALAPPDATA", str(Path.home()))) / "KafkaAI/cache/settings.env"
 
 
-def load_settings(path):
-    values = dict(DEFAULTS, workspace=default_workspace())
-    try:
-        stored = json.loads(path.read_text(encoding="utf-8"))
-        for key, default in DEFAULTS.items():
-            if key in stored and type(stored[key]) is type(default):
-                values[key] = stored[key]
-    except (OSError, ValueError, TypeError):
-        pass
+def default_settings():
+    return dict(DEFAULTS, workspace=default_workspace())
+
+
+def parse_settings_env(text):
+    """Read our allowlisted dotenv values; never expand variables or execute code."""
+    keys = {"KAFKA_AI_" + key.upper(): key for key in DEFAULTS if key != "rebuild"}
+    stored = {}
+    for line in text.splitlines():
+        name, separator, raw = line.strip().partition("=")
+        if not separator or name.strip() not in keys:
+            continue
+        key = keys[name.strip()]
+        raw = raw.strip()
+        if type(DEFAULTS[key]) is bool:
+            if raw.lower() in ("true", "1", "yes", "on"):
+                stored[key] = True
+            elif raw.lower() in ("false", "0", "no", "off"):
+                stored[key] = False
+        else:
+            try:
+                value = json.loads(raw) if raw.startswith('"') else raw[1:-1] if raw.startswith("'") and raw.endswith("'") else raw
+            except ValueError:
+                continue
+            if isinstance(value, str) and not any(ord(char) < 32 for char in value):
+                stored[key] = value
+    return stored
+
+
+def load_settings(path, legacy_path=None):
+    values = default_settings()
+    exists = path.is_file()
+    if exists:
+        stored = parse_settings_env(path.read_text(encoding="utf-8-sig"))
+    else:
+        stored = {}
+        if legacy_path is None and path == settings_path():
+            legacy_path = path.parent.parent / "settings.json"
+        if legacy_path is not None:
+            try:
+                legacy = json.loads(legacy_path.read_text(encoding="utf-8-sig"))
+                if isinstance(legacy, dict):
+                    stored = legacy
+            except (FileNotFoundError, ValueError):
+                pass
+    for key, default in DEFAULTS.items():
+        if key in stored and type(stored[key]) is type(default):
+            values[key] = stored[key]
     # Destructive choices are deliberately not restored.
     values["rebuild"] = False
     if values["theme"] not in ("System", "Light", "Dark"):
@@ -85,19 +124,28 @@ def load_settings(path):
         validate_url(values["ollama"])
     except ValueError:
         values["ollama"] = ""
+    if not exists:
+        save_settings(path, values)
     return values
 
 
 def save_settings(path, values):
     safe = {k: values[k] for k in DEFAULTS if k != "rebuild"}
     validate_url(safe["ollama"])
+    for key, value in safe.items():
+        if type(value) is not type(DEFAULTS[key]) or isinstance(value, str) and any(ord(char) < 32 for char in value):
+            raise ValueError(f"Настройка {key}: недопустимое значение.")
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = None
     try:
-        with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", dir=path.parent,
+        with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", newline="\n", dir=path.parent,
                                          delete=False, suffix=".tmp") as stream:
             temporary = Path(stream.name)
-            json.dump(safe, stream, ensure_ascii=False, indent=2)
+            stream.write("# Kafka AI GUI cache. UTF-8; no secrets; no variable expansion.\n")
+            for key, value in safe.items():
+                stream.write("KAFKA_AI_" + key.upper() + "=" + json.dumps(value, ensure_ascii=False) + "\n")
+            stream.flush()
+            os.fsync(stream.fileno())
         os.replace(temporary, path)
     finally:
         if temporary is not None:

@@ -13,32 +13,40 @@ from tkinter import filedialog, messagebox
 import customtkinter as ctk
 
 from backend import (ACTIONS, ACTION_FIELDS, PARAMETERS, Runner, load_settings, save_settings,
-                     settings_path, validate, redact)
+                     settings_path, default_settings, validate, redact)
 
 
 # Fields: key, title, guidance, file/directory picker. Defaults belong to backend.
 FIELDS = {
-    "workspace": ("Kafka workspace", "Корень с каталогами tools, adapter, conversion и tests.", "dir"),
-    "toolkit": ("Исходный toolkit", "Пусто: <workspace>\\tools\\ai. Каталог существующих скриптов и ресурсов для установки.", "dir"),
-    "project": ("Проверяемый проект", "Пусто: весь workspace. Можно выбрать корень отдельного репозитория.", "dir"),
-    "codex": ("Профиль Codex", "Пусто: CODEX_HOME или стандартный пользовательский профиль.", "dir"),
-    "node": ("Node.js", "node.exe, версия 18+. Пусто: штатный поиск скрипта (окружение / Program Files / PATH).", "file"),
-    "java": ("Java для BSL LS", "java.exe, версия 25+. Должен совпадать с настройкой BSL LS.", "file"),
-    "indexer": ("Локальный bsl-indexer", "Пусто: скрипт проверит последний релиз. Явный файл исключает его загрузку.", "file"),
-    "jar": ("BSL Language Server", "Локальный .jar. Пусто: скрипт проверит последний релиз.", "file"),
-    "state": ("Данные OpenViking", "Пусто: штатное разрешение пути из окружения / установленного MCP.", "dir"),
-    "ollama": ("Внешний Ollama", "Пусто: Ollama в Docker. Иначе http(s)://host:port без credentials.", None),
-    "index_timeout": ("Ожидание индексов, с", "60–3600 секунд; по умолчанию 1800.", None),
-    "mcp_timeout": ("Ожидание MCP, с", "60–3600 секунд; по умолчанию 600.", None),
+    "workspace": ("Kafka workspace", "Общий каталог проектов с папками tools, adapter, conversion и tests. Определяет, с каким окружением работать.", "dir"),
+    "toolkit": ("Исходный toolkit", "Комплект скриптов и ресурсов для установки. Пусто: <workspace>\\tools\\ai; меняйте только для другого комплекта.", "dir"),
+    "project": ("Проверяемый проект", "Корень репозитория для проверки его настроек и готовности. Пусто: проверка относительно выбранного workspace.", "dir"),
+    "codex": ("Профиль Codex", "Каталог настроек Codex и MCP. Пусто: CODEX_HOME или стандартный профиль пользователя; укажите путь для другого профиля.", "dir"),
+    "node": ("Node.js", "Путь к node.exe версии 18+ для выполнения скриптов. Пусто: поиск через CODE_INDEX_NODE, Program Files и PATH.", "file"),
+    "java": ("Java для BSL LS", "Путь к java.exe версии 25+ для языкового сервера BSL. Пусто: BSL_LANGUAGE_SERVER_JAVA или настройка BSL LS; явный путь должен совпадать с ней.", "file"),
+    "indexer": ("Локальный bsl-indexer", "Готовый исполняемый файл индексатора BSL вместо загрузки релиза. Пусто: скрипт проверит последний релиз и при необходимости загрузит его.", "file"),
+    "jar": ("BSL Language Server", "Готовый JAR языкового сервера BSL вместо загрузки релиза. Пусто: скрипт проверит последний релиз и при необходимости загрузит его.", "file"),
+    "state": ("Данные OpenViking", "Каталог данных и конфигурации OpenViking. Пусто: KAFKA_OPENVIKING_STATE_DIR или папка openviking-docker в профиле Codex.", "dir"),
+    "ollama": ("Внешний Ollama", "Адрес сервера моделей, например http://localhost:11434, без логина, пароля и пути. Пусто: KAFKA_OLLAMA_URL или Ollama в Docker.", None),
+    "index_timeout": ("Ожидание индексов, с", "Сколько ждать готовности code-index после запуска. 60–3600 с; обычно 1800. Увеличьте для больших репозиториев.", None),
+    "mcp_timeout": ("Ожидание MCP, с", "Сколько ждать успешной проверки готовности MCP. 60–3600 с; обычно 600. Увеличьте при медленном запуске сервисов.", None),
 }
 FORM_KEYS = {action: tuple(key for key in FIELDS if key in keys) for action, keys in ACTION_FIELDS.items()}
 SWITCHES = {
-    "install": (("configuration_only", "Только конфигурация", "Установить конфигурацию, policy, hooks и skills. Runtime и готовность MCP не проверяются."),
-                ("skip_viking", "Пропустить OpenViking runtime", "Не устанавливать Docker runtime и не выполнять initial sync."),
-                ("skip_daemon", "Не запускать daemon", "Старые индексы всё равно удаляются. Запуск и готовность code-index не проверяются."),
-                ("gpu", "GPU для Ollama", "Требуется совместимый NVIDIA GPU и поддержка Docker.")),
-    "viking": (("rebuild", "Полная перестройка", "Удаляет производный индекс и строит заново. Потребуется подтверждение."),),
-    "doctor": (("human", "Отчёт с пояснениями", "Соответствует --human. Снимите флажок для JSON-отчёта штатного doctor."),),
+    "install": (("configuration_only", "Только конфигурация", "Настроить Codex, правила, Git-хуки и навыки без установки runtime и перестройки индексов. Готовность MCP не проверяется; обычно выключено."),
+                ("skip_viking", "Пропустить OpenViking runtime", "Пропустить развёртывание OpenViking в Docker и начальную синхронизацию. Остальная установка продолжается; обычно выключено."),
+                ("skip_daemon", "Не запускать daemon", "Оставить запуск code-index на потом. При полной установке старые индексы всё равно удаляются, готовность не проверяется; обычно выключено."),
+                ("gpu", "GPU для Ollama", "Включить NVIDIA GPU для Ollama в Docker. Нужна поддержка GPU в Docker; для внешнего Ollama не применяется. Обычно выключено.")),
+    "viking": (("rebuild", "Полная перестройка", "Удалить производный Git-индекс и построить заново с подтверждением. Выключено: обновить только изменения. Выбор не сохраняется."),),
+    "doctor": (("human", "Отчёт с пояснениями", "Показать читаемый отчёт doctor (--human); включено по умолчанию. Выключите для JSON, удобного для автоматической обработки."),),
+}
+FIELD_HINTS = {
+    "code": {"toolkit": "Комплект скриптов и ресурсов для обновления code-index. Пусто: <workspace>\\tools\\ai."},
+    "doctor": {"node": "Путь к node.exe версии 18+ для проверки окружения. Пусто: поиск в PATH."},
+    "viking": {
+        "node": "Путь к node.exe версии 18+ для синхронизации OpenViking. Пусто: поиск в PATH.",
+        "state": "Каталог существующих данных OpenViking. Пусто: KAFKA_OPENVIKING_STATE_DIR или путь из установленного MCP.",
+    },
 }
 DESCRIPTIONS = {
     "install": "Подготовка runtime, конфигурации и индексов. Интерактивные вопросы откроются в консоли.",
@@ -61,7 +69,12 @@ class FormEntry(ctk.CTkEntry):
 class App(ctk.CTk):
     def __init__(self, *, fixture=False, config=None):
         self.config_path = config or settings_path()
-        settings = load_settings(self.config_path)
+        settings_error = None
+        try:
+            settings = load_settings(self.config_path)
+        except (OSError, ValueError) as error:
+            settings = default_settings()
+            settings_error = str(error)
         ctk.set_appearance_mode(settings["theme"])
         ctk.set_default_color_theme("blue")
         super().__init__()
@@ -78,6 +91,8 @@ class App(ctk.CTk):
         self.log_lines = 0
         self.failures = []
         self.run_values = None
+        self._autosave_after = None
+        self._autosave_traces = []
         self.grid_columnconfigure(1, weight=1)
         self.grid_rowconfigure(0, weight=1)
 
@@ -97,9 +112,12 @@ class App(ctk.CTk):
         self.theme = ctk.CTkOptionMenu(sidebar, values=["System", "Light", "Dark"],
                                       variable=self.variables["theme"], command=self.change_theme)
         self.theme.pack(padx=20, fill="x")
-        ctk.CTkLabel(sidebar, text="System · системная\nLight · светлая\nDark · тёмная", justify="left").pack(padx=20, pady=8, anchor="w")
+        ctk.CTkLabel(sidebar, text="System · как в Windows\nLight · светлая\nDark · тёмная\nВыбор сохраняется.", justify="left",
+                     text_color=("#536174", "#a6b2c5")).pack(padx=20, pady=8, anchor="w")
         self.save_button = ctk.CTkButton(sidebar, text="Сохранить настройки", command=self.save)
         self.save_button.pack(side="bottom", padx=14, pady=20, fill="x")
+        self.settings_notice = ctk.CTkLabel(sidebar, text="Автосохранение включено", wraplength=192, justify="left")
+        self.settings_notice.pack(side="bottom", padx=14, pady=4, fill="x")
         ctk.CTkButton(sidebar, text="Сохранить журнал…", command=self.export_log).pack(side="bottom", padx=14, pady=4, fill="x")
 
         content = ctk.CTkFrame(self, fg_color="transparent")
@@ -129,6 +147,12 @@ class App(ctk.CTk):
         self.log = ctk.CTkTextbox(content, height=170, font=ctk.CTkFont(family="Consolas", size=12), state="disabled")
         self.log.grid(row=6, column=0, sticky="nsew")
         self.select("install")
+        for key, variable in self.variables.items():
+            if key != "rebuild":
+                self._autosave_traces.append((variable, variable.trace_add("write", self.schedule_save)))
+        if settings_error:
+            self.settings_notice.configure(text="Кэш недоступен — см. журнал")
+            self.append("Не удалось загрузить или создать кэш настроек: " + settings_error)
         self.protocol("WM_DELETE_WINDOW", self.close)
         self.after(50, self.poll)
 
@@ -161,6 +185,7 @@ class App(ctk.CTk):
         row = 0
         for key in FORM_KEYS[action]:
             title, hint, picker = FIELDS[key]
+            hint = FIELD_HINTS.get(action, {}).get(key, hint)
             parameter = PARAMETERS.get(action, {}).get(key)
             if parameter:
                 hint += f"  Параметр: -{parameter}."
@@ -186,7 +211,7 @@ class App(ctk.CTk):
             check = ctk.CTkCheckBox(self.form, text=title, variable=self.variables[key])
             check.grid(row=row, column=0, sticky="w", padx=12, pady=(14, 2))
             self.controls.append(check)
-            ctk.CTkLabel(self.form, text=hint, anchor="w", justify="left", wraplength=650).grid(
+            ctk.CTkLabel(self.form, text=hint, text_color=("#536174", "#a6b2c5"), anchor="w", justify="left", wraplength=650).grid(
                 row=row + 1, column=0, sticky="ew", padx=12)
             row += 2
 
@@ -209,9 +234,34 @@ class App(ctk.CTk):
     def save(self):
         try:
             save_settings(self.config_path, self.values())
+            self.settings_notice.configure(text="Сохранено " + time.strftime("%H:%M:%S"))
             self.append("Несекретные настройки сохранены.")
         except (OSError, ValueError) as error:
             messagebox.showerror("Настройки не сохранены", str(error), parent=self)
+
+    def schedule_save(self, *_):
+        if self._autosave_after is not None:
+            self.after_cancel(self._autosave_after)
+        self.settings_notice.configure(text="Сохранение изменений…")
+        self._autosave_after = self.after(600, self.autosave)
+
+    def autosave(self):
+        self._autosave_after = None
+        try:
+            save_settings(self.config_path, self.values())
+            self.settings_notice.configure(text="Сохранено " + time.strftime("%H:%M:%S"))
+        except (OSError, ValueError) as error:
+            # Incomplete input must not open a modal dialog while the user types.
+            self.settings_notice.configure(text="Не сохранено: " + redact(str(error)))
+
+    def destroy(self):
+        if self._autosave_after is not None:
+            self.after_cancel(self._autosave_after)
+            self._autosave_after = None
+        for variable, callback in self._autosave_traces:
+            variable.trace_remove("write", callback)
+        self._autosave_traces.clear()
+        super().destroy()
 
     def export_log(self):
         path = filedialog.asksaveasfilename(parent=self, title="Сохранить журнал", defaultextension=".txt",
@@ -364,6 +414,10 @@ def smoke(app, report):
     failure_test = [False]
     recovery_test = [False]
     confirmations_checked = [False]
+    autosave_checked = [False]
+    previous_timeout = app.variables["index_timeout"].get()
+    assert app.config_path.is_file(), "Defaults cache was not created on startup"
+    app.variables["index_timeout"].set("1801")
 
     def heartbeat():
         beats[0] += 1
@@ -373,6 +427,10 @@ def smoke(app, report):
         try:
             if time.monotonic() > deadline:
                 raise RuntimeError("GUI smoke timeout")
+            if not autosave_checked[0]:
+                assert load_settings(app.config_path)["index_timeout"] == "1801", "Changes were not autosaved"
+                app.variables["index_timeout"].set(previous_timeout)
+                autosave_checked[0] = True
             if not confirmations_checked[0]:
                 original_dialog = messagebox.askyesno
                 original_values = app.values()
@@ -418,7 +476,7 @@ def smoke(app, report):
                     app.update_idletasks()
                 app.select(action)
                 for field in FIELDS:
-                    assert len(app.variables[field].trace_info()) == int(field in FORM_KEYS[action]), "Stale form callbacks"
+                    assert len(app.variables[field].trace_info()) == 1 + int(field in FORM_KEYS[action]), "Stale form callbacks"
                 app.launch()
                 assert app.runner.busy, "Operation did not start"
                 checks.append(action)
@@ -453,13 +511,14 @@ def smoke(app, report):
                                          "error_recovery": recovery_test[0],
                                          "confirmations": confirmations_checked[0],
                                          "embedded_runtime": embedded_runtime,
+                                         "settings_cache": autosave_checked[0],
                                          "frozen": bool(getattr(sys, "frozen", False))}), encoding="utf-8")
             app.destroy()
         except Exception as error:
             report.write_text(json.dumps({"ok": False, "error": str(error)}), encoding="utf-8")
             app.destroy()
     heartbeat()
-    app.after(100, step)
+    app.after(1000, step)
 
 
 def main():
@@ -475,7 +534,7 @@ def main():
     if args.smoke_test:
         args.smoke_test.parent.mkdir(parents=True, exist_ok=True)
     app = App(fixture=bool(args.smoke_test),
-              config=args.smoke_test.with_suffix(".settings.json") if args.smoke_test else None)
+              config=args.smoke_test.with_suffix(".settings.env") if args.smoke_test else None)
     if args.workspace:
         app.variables["workspace"].set(str(args.workspace.resolve()))
     if args.smoke_test:

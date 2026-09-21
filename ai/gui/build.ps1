@@ -23,5 +23,5 @@ if ($LASTEXITCODE -ne 0) { throw 'PyInstaller build failed.' }
     (Join-Path $PSScriptRoot 'dist\KafkaAI.exe') `
     (Join-Path $PSScriptRoot '.checks\build-verification.json') `
     --publish (Join-Path $PSScriptRoot '..\KafkaAI.exe')
-if ($LASTEXITCODE -ne 0) { throw 'Frozen GUI verification failed. Do not distribute this build.' }
+if ($LASTEXITCODE -ne 0) { throw 'GUI verification or publication failed. See the error above.' }
 Write-Output ('Application: ' + [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\KafkaAI.exe')))
