@@ -38,7 +38,7 @@ class AdapterTests(unittest.TestCase):
             param_block = body.split("\n)", 1)[0] + "\n)\n"
             self.values.update(toolkit=str(self.toolkit), codex=str(self.root / "Profile"),
                                state=str(self.root / "Данные"), ollama="http://localhost:11434",
-                               gpu=True, configuration_only=True, skip_viking=True,
+                               gpu=True, configuration_only=True, skip_viking=True, skip_viking_initial_sync=True,
                                skip_daemon=True, index_timeout="120", mcp_timeout="180")
             for key in ("node", "java", "indexer", "jar"):
                 file = self.root / (key + (".jar" if key == "jar" else ".exe"))

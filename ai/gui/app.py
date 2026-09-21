@@ -34,6 +34,7 @@ FIELDS = {
 FORM_KEYS = {action: tuple(key for key in FIELDS if key in keys) for action, keys in ACTION_FIELDS.items()}
 SWITCHES = {
     "install": (("configuration_only", "Только конфигурация", "Настроить Codex, правила, Git-хуки и навыки без установки runtime и перестройки индексов. Готовность MCP не проверяется; обычно выключено."),
+                ("skip_viking_initial_sync", "Пропустить начальную индексацию OpenViking", "Настроить OpenViking без начальной синхронизации. Она выполнится позже при обращении к OpenViking или срабатывании Git hook; обычно выключено."),
                 ("skip_viking", "Пропустить OpenViking runtime", "Пропустить развёртывание OpenViking в Docker и начальную синхронизацию. Остальная установка продолжается; обычно выключено."),
                 ("skip_daemon", "Не запускать daemon", "Оставить запуск code-index на потом. При полной установке старые индексы всё равно удаляются, готовность не проверяется; обычно выключено."),
                 ("gpu", "GPU для Ollama", "Включить NVIDIA GPU для Ollama в Docker. Нужна поддержка GPU в Docker; для внешнего Ollama не применяется. Обычно выключено.")),

@@ -27,7 +27,7 @@ DEFAULTS = {
     "workspace": "", "toolkit": "", "project": "", "codex": "", "node": "", "java": "",
     "indexer": "", "jar": "", "state": "", "ollama": "",
     "index_timeout": "1800", "mcp_timeout": "600", "theme": "System",
-    "configuration_only": False, "skip_viking": False, "skip_daemon": False,
+    "configuration_only": False, "skip_viking": False, "skip_viking_initial_sync": False, "skip_daemon": False,
     "gpu": False, "rebuild": False, "human": True,
 }
 PARAMETERS = {
@@ -37,6 +37,7 @@ PARAMETERS = {
         "java": "JavaPath", "state": "OpenVikingStateDir", "gpu": "OpenVikingGpu",
         "ollama": "OllamaUrl", "configuration_only": "ConfigurationOnly",
         "skip_viking": "SkipOpenVikingRuntime", "skip_daemon": "SkipDaemonStart",
+        "skip_viking_initial_sync": "SkipOpenVikingInitialSync",
         "index_timeout": "IndexReadyTimeoutSeconds", "mcp_timeout": "McpReadyTimeoutSeconds",
     },
     "code": {

@@ -1,9 +1,9 @@
 {
   "executable": "KafkaAI.exe",
-  "sha256": "45b2d372e1fd8024f0d339ff120dc9397815f492fa15d83f3befde7f60346ab2",
+  "sha256": "293302d3c887401bc11c13a1fe025ba744b50229fc65e399a1596bf7aa76e90a",
   "inputs": {
-    "gui/app.py": "4f61147bc6c083f0a2e3f7c0a7ecb6e66c8b95f4dd5a17de37e7082dceae3bea",
-    "gui/backend.py": "3a703454430cdd183a42c4bbc7f44e172a5aa2d6be5bce598992d71c8c4fba50",
+    "gui/app.py": "04f3e70cf7fac4af2225153362c4510c3c89e90d5109140c43e9df6d845f3359",
+    "gui/backend.py": "5c8f97600be8046b23e70b20b3d06d6ca82d4cab95bf27051d2c7602336d70bf",
     "gui/requirements.txt": "d10397fe5d268f55dd1fb78d77ff4472aff045c134dfe6cc395d93a824de6e0d",
     "gui/build.ps1": "e91c6f75efc0e905a10d29b62b1682b4765228ad37f3964f1ad1f23aa5ee2b6b",
     "gui/verify_build.py": "18b84e56833b29428a545da02c54087745f3d3262b98dd792ef38efdd08ac594"
@@ -16,7 +16,7 @@
       "code",
       "viking"
     ],
-    "heartbeats": 95,
+    "heartbeats": 117,
     "themes": [
       "Light",
       "Dark"

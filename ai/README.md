@@ -140,6 +140,16 @@ OpenViking, модели и второй контейнер Ollama не скач
 `-SkipOpenVikingRuntime` явно пропускает runtime, provider,
 server, initial sync, OpenViking MCP smoke и Git hooks.
 
+Чтобы пропустить только начальную индексацию OpenViking, запустите из корня workspace:
+
+```powershell
+.\tools\ai\install.cmd -SkipOpenVikingInitialSync
+```
+
+Runtime, provider, server, MCP smoke и Git hooks настраиваются как обычно.
+Синхронизация откладывается до последующего вызова инструмента OpenViking MCP
+или срабатывания Git hook. Индексация code-index этим флагом не отключается.
+
 Для закрытого контура можно передать оба файла явно:
 
 ```bat

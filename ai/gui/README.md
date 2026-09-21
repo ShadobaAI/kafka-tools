@@ -122,6 +122,7 @@ KAFKA_AI_GPU=false
 | GPU для Ollama | `-OpenVikingGpu` | Выключено; недопустимо для внешнего Ollama |
 | Внешний Ollama | `-OllamaUrl` | `KAFKA_OLLAMA_URL` / managed Ollama; только origin без credentials |
 | Только конфигурация | `-ConfigurationOnly` | Выключено |
+| Пропустить начальную индексацию OpenViking | `-SkipOpenVikingInitialSync` | Выключено; синхронизация выполнится при последующем обращении к MCP или срабатывании Git hook |
 | Пропустить OpenViking runtime | `-SkipOpenVikingRuntime` | Выключено |
 | Не запускать daemon | `-SkipDaemonStart` | Выключено; **не отменяет удаление старых индексов** |
 | Ожидание индексов | `-IndexReadyTimeoutSeconds` | 1800 с, допустимо 60–3600 |

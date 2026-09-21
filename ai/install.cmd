@@ -69,6 +69,7 @@ param(
     [string]$OllamaUrl = $env:KAFKA_OLLAMA_URL,
     [switch]$ConfigurationOnly,
     [switch]$SkipOpenVikingRuntime,
+    [switch]$SkipOpenVikingInitialSync,
     [switch]$SkipDaemonStart,
     [ValidateRange(60, 3600)][int]$IndexReadyTimeoutSeconds = 1800,
     [ValidateRange(60, 3600)][int]$McpReadyTimeoutSeconds = 600
@@ -808,11 +809,16 @@ try {
         $resolvedOpenVikingVersion = $runtimeRecord.version
         Write-SetupOk "OpenViking $resolvedOpenVikingVersion Docker service and Ollama provider are ready."
 
-        & $node (Join-Path $ToolkitRoot 'openviking\git-sync.mjs') `
-            --workspace-root $WorkspaceRoot `
-            --state-dir $OpenVikingStateDir
-        if ($LASTEXITCODE -ne 0) { throw 'OpenViking initial Git reconciliation failed.' }
-        Write-SetupOk 'OpenViking committed Git sources are synchronized.'
+        if ($SkipOpenVikingInitialSync) {
+            Write-SetupWarning 'OpenViking initial Git sync was skipped (-SkipOpenVikingInitialSync); synchronization will run on subsequent MCP tool calls or Git hooks.'
+        }
+        else {
+            & $node (Join-Path $ToolkitRoot 'openviking\git-sync.mjs') `
+                --workspace-root $WorkspaceRoot `
+                --state-dir $OpenVikingStateDir
+            if ($LASTEXITCODE -ne 0) { throw 'OpenViking initial Git reconciliation failed.' }
+            Write-SetupOk 'OpenViking committed Git sources are synchronized.'
+        }
     }
 }
 
@@ -1852,7 +1858,13 @@ if ($SkipOpenVikingRuntime) {
     Write-Output '  - OpenViking runtime/integration explicitly skipped'
 }
 else {
-    Write-Output "  - OpenViking $resolvedOpenVikingVersion (latest at install time): runtime, provider doctor, server, Git sync, MCP, and hooks ready"
+    Write-Output "  - OpenViking $resolvedOpenVikingVersion (latest at install time): runtime, provider doctor, server, MCP, and hooks ready"
+    if ($SkipOpenVikingInitialSync) {
+        Write-Output '  - OpenViking initial Git sync: skipped by request'
+    }
+    else {
+        Write-Output '  - OpenViking initial Git sync: ready'
+    }
 }
 Write-Output "  - Old Kafka indexes removed: $removedIndexCount of $managedIndexCount managed paths"
 if ($SkipDaemonStart) {
