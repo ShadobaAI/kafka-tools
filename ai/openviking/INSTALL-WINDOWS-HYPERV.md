@@ -21,23 +21,62 @@ WSL2 backend: [официальная документация Docker](https://d
 
 ## 2. Запустите Ollama на физическом хосте
 
-В PowerShell выполните:
+Для i7-11700K, 32 ГБ RAM и RTX 3060 12 ГБ используйте
+[compose.ollama-gpu.yaml](compose.ollama-gpu.yaml). Скопируйте файл на физический
+хост и выполняйте команды из его каталога. Это стартовый профиль для текущих
+`qwen3-embedding:0.6b` и `qwen3.5:4b`; фактическую скорость и размещение обеих
+моделей необходимо проверить под нагрузкой.
+
+Профиль использует GPU 0, допускает две загруженные модели, удерживает их 30 минут
+и обрабатывает один запрос на модель одновременно. Контекст — 16384, KV cache —
+`f16`, Flash Attention включён для эффективного использования памяти. Модели,
+их квантование и содержимое документов не меняются. Повышать параллелизм заранее
+не требуется: Git-синхронизатор отправляет документы последовательно.
+Параметры описаны в [Ollama FAQ](https://docs.ollama.com/faq), подключение GPU —
+в [Docker Compose GPU support](https://docs.docker.com/compose/how-tos/gpu-support/).
+
+При **первом запуске без существующего контейнера**:
 
 ```powershell
-docker run -d `
-  --name ollama `
-  --gpus all `
-  --restart unless-stopped `
-  -p 11434:11434 `
-  -v ollama-models:/root/.ollama `
-  -e OLLAMA_NUM_PARALLEL=1 `
-  ollama/ollama:latest
+docker volume create ollama-models
+docker compose -f compose.ollama-gpu.yaml config --quiet
+docker compose -f compose.ollama-gpu.yaml up -d
 ```
 
-Модели сохраняются в volume `ollama-models`. Команда основана на
-[официальном запуске Ollama в Docker](https://docs.ollama.com/docker).
-Если этот контейнер уже создан с нужными параметрами, повторять `docker run`
-не нужно. Для запуска остановленного контейнера используйте `docker start ollama`.
+Модели сохраняются во внешнем volume `ollama-models`, имя которого не зависит
+от каталога Compose. Внешний том не управляется жизненным циклом Compose.
+Образ `latest` скачивается только при отсутствии локального образа; обычный запуск
+не обновляет имеющуюся версию. Для воспроизводимого развёртывания можно закрепить
+проверенный тег или digest вместо `latest`.
+
+Если контейнер `ollama` уже существует, сначала проверьте **только подключения томов**:
+
+```powershell
+docker inspect ollama --format '{{json .Mounts}}'
+```
+
+Найдите подключение к `/root/.ollama`. Если это named volume с другим именем,
+замените `volumes.ollama-models.name` в Compose на фактическое имя. Для bind mount
+сохраните существующий путь хоста в подключении сервиса вместо named volume.
+Если модели находятся только внутри контейнера, сначала перенесите их в постоянное
+хранилище; этот профиль автоматически их не переносит.
+
+Для перехода с прежнего `docker run`, после завершения индексации, сохраните
+старый контейнер для отката (имя `ollama-before-compose` должно быть свободно):
+
+```powershell
+docker compose -f compose.ollama-gpu.yaml config --quiet
+docker stop ollama
+docker rename ollama ollama-before-compose
+docker compose -f compose.ollama-gpu.yaml up -d
+```
+
+Старый контейнер и модели не удаляются. Не запускайте оба контейнера одновременно
+с одним томом. Если Ollama уже управляется другим Compose-проектом, перенесите
+настройки в его файл и пересоздайте сервис в том проекте вместо этой процедуры.
+Последующие изменения этого профиля применяются командой
+`docker compose -f compose.ollama-gpu.yaml up -d`.
+Публикация порта нужна для доступа из ВМ; ограничьте доступ firewall, как описано ниже.
 
 Скачайте обе модели:
 
