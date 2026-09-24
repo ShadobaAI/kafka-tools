@@ -58,7 +58,7 @@ function globRegex(glob) {
   return new RegExp(`${result}$`);
 }
 
-export function loadManifest(manifestFile = sourcePath, runtimeFile) {
+export function loadManifest(manifestFile = sourcePath, runtimeFile, { allowPending = false } = {}) {
   const rawManifest = fs.readFileSync(manifestFile);
   const rawPolicy = fs.readFileSync(releasePolicyPath);
   const manifest = JSON.parse(rawManifest.toString("utf8"));
@@ -105,7 +105,7 @@ export function loadManifest(manifestFile = sourcePath, runtimeFile) {
   let runtime;
   let rawRuntime = Buffer.alloc(0);
   if (runtimeFile) {
-    if (fs.existsSync(path.join(path.dirname(runtimeFile), "docker-install.pending"))) {
+    if (!allowPending && fs.existsSync(path.join(path.dirname(runtimeFile), "docker-install.pending"))) {
       throw new Error("OpenViking Docker setup is incomplete; rerun the installer before reading context");
     }
     rawRuntime = fs.readFileSync(runtimeFile);
@@ -383,7 +383,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   } else {
     reconcile({ workspaceRoot, stateDir, client: localClient(stateDir),
       progress: (message) => process.stderr.write(`openviking-sync: ${message}\n`),
-      forceRebuild: process.argv.includes("--rebuild") })
+      forceRebuild: process.argv.includes("--rebuild"), allowRebuild: process.argv.includes("--rebuild") })
       .then((result) => process.stdout.write(`${JSON.stringify(result)}\n`))
       .catch((error) => { process.stderr.write(`openviking-sync: ${error.message}\n`); process.exitCode = 1; });
   }

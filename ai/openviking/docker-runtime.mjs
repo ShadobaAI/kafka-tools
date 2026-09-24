@@ -6,6 +6,7 @@ import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { createInterface } from "node:readline/promises";
 import { OpenVikingClient } from "./git-sync.mjs";
+import { beginIndexReuse, checkModels, completeIndexReuse, finishIndexReuse, prepareIndexReuse } from "./index-preservation.mjs";
 
 const directory = path.dirname(fileURLToPath(import.meta.url));
 export const project = "kafka-openviking";
@@ -194,24 +195,57 @@ export async function install({ stateDir, yes = false, gpu = false, ollamaUrl,
   }
   if (await checkPort() && !owners) throw new Error("Port 1933 is occupied by an unmanaged service. Stop it explicitly before setup.");
   console.log(`Docker memory: ${(info.MemTotal / 2 ** 30).toFixed(1)} GiB; mode: ${externalOllama ? "external Ollama" : gpu ? "NVIDIA GPU" : "CPU"}.`);
+  let availableModels;
   if (externalOllama) {
     console.log(`Using existing models at ${ollamaUrl}. No Ollama image or models will be downloaded in this VM.`);
     const response = await fetch(`${ollamaUrl}/api/tags`, { signal: AbortSignal.timeout(15000) });
     if (!response.ok) throw new Error("External Ollama model inventory failed.");
     const available = (await response.json()).models;
+    availableModels = available;
     for (const model of Object.values(models)) {
       if (!available?.some((item) => item.name === model)) throw new Error(`External Ollama is missing ${model}; install it on that host.`);
     }
   } else {
     console.log(`Models: ${models.embedding} (~0.64 GB) + ${models.vlm} (~3.4 GB), plus container images. Other containers share RAM.`);
   }
+  const policy = JSON.parse(fs.readFileSync(path.join(directory, "version.json"), "utf8"));
+  if (policy.schemaVersion !== 3 || policy.releasePolicy !== "latest-stable" ||
+      policy.metadataUrl !== "https://pypi.org/pypi/openviking/json" ||
+      policy.image !== "ghcr.io/volcengine/openviking" || policy.platform !== "linux") {
+    throw new Error("Unsupported Docker release policy.");
+  }
+  const response = await fetch(policy.metadataUrl, { signal: AbortSignal.timeout(30000) });
+  if (!response.ok) throw new Error("Cannot resolve latest stable OpenViking release.");
+  const metadata = await response.json();
+  const version = metadata.info.version;
+  if (!/^\d+\.\d+\.\d+(?:\.post\d+)?$/.test(version)) throw new Error("Latest release is not stable.");
+  if (owners && !fs.existsSync(runtimeFile)) {
+    throw new Error("Managed OpenViking is running without runtime metadata; existing database was not changed.");
+  }
+  const tenantClient = fs.existsSync(runtimeFile) ?
+    new OpenVikingClient(undefined, fs.readFileSync(path.join(stateDir, "tenant-api-key"), "utf8").trim()) : null;
+  const proof = tenantClient ? await prepareIndexReuse({
+    stateDir, workspaceRoot: workspace, targetVersion: version, ollamaUrl,
+    client: tenantClient, consistencyClient: tenantClient,
+  }) : null;
+  if (proof && availableModels) checkModels(proof.oldModels, availableModels);
+  if (proof) {
+    console.log("Existing OpenViking database and vector index will be preserved. The installer will not run a full Git reindex; only changed Git documents may be synchronized.");
+  }
   if (!yes) {
     const reader = createInterface({ input: process.stdin, output: process.stdout });
     try {
-      const prompt = externalOllama ? "Download/update the OpenViking image and connect to external Ollama? [y/N] " :
-        "Download/update these images and models and start services? [y/N] ";
+      console.log("Answering N stops the entire toolkit installation; it does not skip only OpenViking.");
+      const prompt = owners ?
+        (externalOllama ?
+          "Update the existing Kafka OpenViking Docker service if needed, keeping its database and index without a full Git reindex? The container may be recreated; external Ollama will be reused. [y/N] " :
+          "Update the existing Kafka OpenViking/Ollama Docker services if needed, keeping the database and index without a full Git reindex? Containers may be recreated. [y/N] ") :
+        (externalOllama ?
+          "Download the OpenViking image and start the Kafka service with external Ollama? [y/N] " :
+          "Download the OpenViking/Ollama images and models and start the Kafka services? [y/N] ");
       if (!/^y(es)?$/i.test((await reader.question(prompt)).trim())) {
-        throw new Error("Docker setup cancelled before downloads.");
+        throw new Error(owners ? "OpenViking Docker update cancelled; installation cannot continue." :
+          "Docker setup cancelled before downloads.");
       }
     } finally { reader.close(); }
   }
@@ -220,18 +254,8 @@ export async function install({ stateDir, yes = false, gpu = false, ollamaUrl,
   fs.mkdirSync(lock);
   try {
     const pending = path.join(stateDir, "docker-install.pending");
+    if (proof) beginIndexReuse(stateDir, proof);
     fs.writeFileSync(pending, "Docker setup must finish before context reads.\n");
-    const policy = JSON.parse(fs.readFileSync(path.join(directory, "version.json"), "utf8"));
-    if (policy.schemaVersion !== 3 || policy.releasePolicy !== "latest-stable" ||
-        policy.metadataUrl !== "https://pypi.org/pypi/openviking/json" ||
-        policy.image !== "ghcr.io/volcengine/openviking" || policy.platform !== "linux") {
-      throw new Error("Unsupported Docker release policy.");
-    }
-    const response = await fetch(policy.metadataUrl, { signal: AbortSignal.timeout(30000) });
-    if (!response.ok) throw new Error("Cannot resolve latest stable OpenViking release.");
-    const metadata = await response.json();
-    const version = metadata.info.version;
-    if (!/^\d+\.\d+\.\d+(?:\.post\d+)?$/.test(version)) throw new Error("Latest release is not stable.");
     const { image: openvikingImage, sourceImage } = await resolveOpenVikingImage(version, info.Architecture, docker);
     const installed = docker(["run", "--rm", "--entrypoint", "python", openvikingImage,
       "-c", "import importlib.metadata; print(importlib.metadata.version('openviking'))"], { capture: true });
@@ -307,10 +331,17 @@ export async function install({ stateDir, yes = false, gpu = false, ollamaUrl,
     }
     if (!ready) throw new Error(`OpenViking semantic readiness timed out (${lastError}). Use docker compose -f "${composeFile}" logs openviking.`);
     await provisionAccount(stateDir, client);
+    const recordedModels = tags.models.filter(({ name }) => Object.values(models).includes(name)).map(({ name, digest }) => ({ name, digest }));
+    if (proof) checkModels(proof.oldModels, recordedModels);
     writeJson(runtimeFile, { schemaVersion: 2, backend: "docker", version, project,
       image: openvikingImage, sourceImage, ollamaImage, ollamaUrl,
-      models: tags.models.filter(({ name }) => Object.values(models).includes(name)).map(({ name, digest }) => ({ name, digest })) });
+      models: recordedModels });
+    if (proof) {
+      await finishIndexReuse({ stateDir, proof, models: recordedModels,
+        client: tenantClient, consistencyClient: tenantClient });
+    }
     fs.unlinkSync(pending);
+    if (proof) completeIndexReuse(stateDir);
     console.log(`OpenViking ${version} and Ollama are ready. Persistent volumes retained.`);
   } finally { fs.rmdirSync(lock); }
 }

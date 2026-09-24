@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { callTool, visibleTools } from "../openviking/read-only-mcp.mjs";
-import { loadManifest } from "../openviking/git-sync.mjs";
+import { documentUri, inventory, loadManifest } from "../openviking/git-sync.mjs";
 
 const aiRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const workspaceRoot = path.resolve(aiRoot, "..", "..");
@@ -48,6 +48,19 @@ fs.writeFileSync(path.join(context.stateDir, "runtime.json"), `${JSON.stringify(
   schemaVersion: 2, backend: "docker", version: "9.9.9", project: "kafka-openviking",
   image: `ghcr.io/volcengine/openviking@sha256:${"a".repeat(64)}`,
 }, null, 2)}\n`);
+const { manifest, runtime, digest } = loadManifest(undefined, path.join(context.stateDir, "runtime.json"));
+const current = inventory(workspaceRoot, manifest);
+fs.writeFileSync(path.join(context.stateDir, "state.json"), JSON.stringify({
+  schemaVersion: 1, manifestDigest: digest, runtimeVersion: runtime.version,
+  repositories: Object.fromEntries(Object.values(current).map((item) => [item.id, {
+    revision: item.revision, files: item.files,
+  }])),
+}));
+for (const item of Object.values(current)) {
+  for (const file of Object.keys(item.files)) {
+    context.client.documents.set(documentUri(namespace, item.id, file), "indexed");
+  }
+}
 const found = await callTool("find", { query: "history", limit: 5 }, context);
 assert.equal(found.entries.length, 1);
 assert.ok(found.entries[0].uri.startsWith(namespace));

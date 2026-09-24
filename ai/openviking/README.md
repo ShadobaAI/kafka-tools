@@ -85,6 +85,15 @@ external directory. Old venv metadata is rejected; there is no migration or nati
 mode. Old Windows environments are not deleted. Failed setup retains volumes;
 it never runs `down -v`, prune or automatic data rollback.
 
+For an existing index, the installer checks saved Git state, every document,
+and filesystem/vector consistency before changing the image. A compatible
+0.4.20 to 0.4.21 update keeps the same Docker volume and index; unchanged
+documents are not re-embedded. Only changed committed Git documents are
+synchronized. Other version pairs, changed model digests or provider settings,
+missing state, and failed consistency checks stop the update without deleting
+or rebuilding the index. Pending updates block context reads until recovery.
+The first installation still builds the initial index.
+
 Diagnostics (substitute your state directory):
 
 ```powershell
@@ -117,5 +126,6 @@ are checked for existence but are not re-embedded. It prints the planned write/d
 counts before processing. Use `update-openviking.cmd --rebuild` explicitly to recreate
 the entire Kafka Git namespace. Missing, dirty or incompatible state makes the default
 launcher stop before changing the index and request this explicit rebuild.
-It does **not** install or restart OpenViking. Existing installer/hook/MCP reconciliation
-keeps its recovery behavior; this opt-in rebuild rule applies to the manual updater.
+It does **not** install or restart OpenViking. Installer, hooks, and MCP reads
+also stop when a full rebuild would be required; use the explicit manual
+`--rebuild` operation after reviewing the reason.

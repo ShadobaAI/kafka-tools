@@ -112,7 +112,7 @@ export async function callTool(name, args, { client, workspaceRoot, stateDir }) 
       definition.inputSchema.required.some((key) => args[key] === undefined)) {
     throw new Error("invalid tool arguments");
   }
-  const result = await reconcile({ workspaceRoot, stateDir, client });
+  const result = await reconcile({ workspaceRoot, stateDir, client, allowRebuild: false });
   if (result.status !== "ready") throw new Error("OpenViking source is stale");
   const allowed = allowedUris(stateDir);
   if (name === "find" || name === "search") {

@@ -799,6 +799,7 @@ try {
     }
     else {
         $bootstrap = Join-Path $ToolkitRoot 'openviking\docker-runtime.mjs'
+        $hadOpenVikingIndex = Test-Path -LiteralPath (Join-Path $OpenVikingStateDir 'state.json') -PathType Leaf
         $bootstrapArguments = @($bootstrap, '--state-dir', $OpenVikingStateDir)
         if ($OpenVikingGpu) { $bootstrapArguments += '--gpu' }
         if (-not [string]::IsNullOrWhiteSpace($OllamaUrl)) { $bootstrapArguments += @('--ollama-url', $OllamaUrl) }
@@ -813,9 +814,10 @@ try {
             Write-SetupWarning 'OpenViking initial Git sync was skipped (-SkipOpenVikingInitialSync); synchronization will run on subsequent MCP tool calls or Git hooks.'
         }
         else {
-            & $node (Join-Path $ToolkitRoot 'openviking\git-sync.mjs') `
-                --workspace-root $WorkspaceRoot `
-                --state-dir $OpenVikingStateDir
+            $syncArguments = @((Join-Path $ToolkitRoot 'openviking\git-sync.mjs'),
+                '--workspace-root', $WorkspaceRoot, '--state-dir', $OpenVikingStateDir)
+            if (-not $hadOpenVikingIndex) { $syncArguments += '--rebuild' }
+            & $node @syncArguments
             if ($LASTEXITCODE -ne 0) { throw 'OpenViking initial Git reconciliation failed.' }
             Write-SetupOk 'OpenViking committed Git sources are synchronized.'
         }

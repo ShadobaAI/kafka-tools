@@ -4,10 +4,23 @@ import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
+import { fileURLToPath } from "node:url";
 import { composeDocument, configuration, install, normalizeOllamaUrl, resolveOpenVikingImage, provisionAccount } from "../openviking/docker-runtime.mjs";
-import { localClient, loadManifest } from "../openviking/git-sync.mjs";
+import { inventory, localClient, loadManifest, plan } from "../openviking/git-sync.mjs";
+import { beginIndexReuse, finishIndexReuse, prepareIndexReuse } from "../openviking/index-preservation.mjs";
 
 const root = fs.mkdtempSync(path.join(os.tmpdir(), "kafka-docker-test-"));
+const workspaceRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
+function seedIndexState(stateDir) {
+  const { manifest, runtime, digest } = loadManifest(undefined, path.join(stateDir, "runtime.json"));
+  const current = inventory(workspaceRoot, manifest);
+  fs.writeFileSync(path.join(stateDir, "state.json"), JSON.stringify({
+    schemaVersion: 1, manifestDigest: digest, runtimeVersion: runtime.version,
+    repositories: Object.fromEntries(Object.values(current).map((item) => [item.id, {
+      revision: item.revision, files: item.files,
+    }])),
+  }));
+}
 const originalFetch = globalThis.fetch;
 try {
   const image = `ghcr.io/volcengine/openviking@sha256:${"a".repeat(64)}`;
@@ -58,6 +71,10 @@ try {
   const calls = [];
   const runtimeState = path.join(root, "deployment");
   let packageVersion = "0.4.20";
+  let metadataVersion = "0.4.20";
+  let activeServerVersion = "0.4.20";
+  let consistent = true;
+  let missingDocument = false;
   let failModel = false;
   const fakeDocker = (args) => {
     calls.push(args);
@@ -65,6 +82,7 @@ try {
     if (args[0] === "ps") return "";
     if (args[0] === "image") return JSON.stringify([`${args[2].replace(/:[^/:]+$/, "")}@sha256:${"a".repeat(64)}`]);
     if (args[0] === "run") return packageVersion;
+    if (args[0] === "compose" && args.includes("up") && args.includes("openviking")) activeServerVersion = packageVersion;
     if (args.includes("pull") && args.includes("ollama") && failModel) throw new Error("model unavailable");
     if (args.includes("run")) return JSON.stringify({ models: [
       { name: "qwen3-embedding:0.6b", digest: "embedding-digest" }, { name: "qwen3.5:4b", digest: "vlm-digest" },
@@ -77,8 +95,8 @@ try {
   assert.equal(calls.some((args) => args[0] === "pull"), false);
   let accountCreations = 0;
   globalThis.fetch = async (url, options) => ({ ok: true, json: async () => {
-    if (url.includes("pypi.org")) return { info: { version: "0.4.20" } };
-    if (url.endsWith("/health")) return { status: "ok", healthy: true, version: "0.4.20" };
+    if (url.includes("pypi.org")) return { info: { version: metadataVersion } };
+    if (url.endsWith("/health")) return { status: "ok", healthy: true, version: activeServerVersion };
     if (url.endsWith("/admin/accounts?name=kafka")) return { status: "ok", result: [] };
     if (url.endsWith("/admin/accounts")) {
       assert.equal(options.method, "POST");
@@ -86,9 +104,12 @@ try {
       accountCreations += 1;
       return { status: "ok", result: { user_key: "tenant-test-key" } };
     }
+    if (url.includes("/system/consistency")) return { status: "ok", result: {
+      ok: consistent, expected_count: 100, missing_record_count: consistent ? 0 : 1, missing_records_truncated: false,
+    } };
     if (url.includes("/fs/stat?")) {
       assert.equal(options.headers["X-Api-Key"], "tenant-test-key");
-      return { status: "ok", result: { isDir: true } };
+      return { status: "ok", result: { isDir: url.endsWith("viking%3A%2F%2Fresources") || missingDocument } };
     }
     return { status: "ready", checks: { embedding: "ok", vectordb: "ok",
       agfs: { status: "ok", checks: { filesystem: "ok", multiwrite_sync: "not_supported" } } } };
@@ -107,17 +128,75 @@ try {
   assert.equal(fs.existsSync(path.join(runtimeState, "docker-install.pending")), false);
   const firstRuntime = fs.readFileSync(path.join(runtimeState, "runtime.json"), "utf8");
   const firstConfig = fs.readFileSync(path.join(runtimeState, "ov.conf"), "utf8");
+  seedIndexState(runtimeState);
+  consistent = false;
+  const callsBeforeUnsafeUpdate = calls.length;
+  await assert.rejects(install(args), /consistency is not confirmed/);
+  assert.equal(calls.slice(callsBeforeUnsafeUpdate).some((args) => args.includes("pull") || args.includes("up")), false,
+    "unsafe update must stop before Docker pull or Compose up");
+  consistent = true;
+  missingDocument = true;
+  await assert.rejects(install(args), /source is missing/);
+  missingDocument = false;
   await install(args);
   assert.equal(accountCreations, 1, "repeat setup must reuse the tenant key");
   assert.equal(fs.readFileSync(path.join(runtimeState, "runtime.json"), "utf8"), firstRuntime);
   assert.equal(fs.readFileSync(path.join(runtimeState, "ov.conf"), "utf8"), firstConfig);
   assert.equal(calls.some((args) => args.includes("down") || args.includes("prune")), false);
+  metadataVersion = "0.4.21";
+  packageVersion = "0.4.21";
+  const originalIndex = JSON.parse(fs.readFileSync(path.join(runtimeState, "state.json"), "utf8"));
+  await install(args);
+  const upgradedIndex = JSON.parse(fs.readFileSync(path.join(runtimeState, "state.json"), "utf8"));
+  const upgradedManifest = loadManifest(undefined, path.join(runtimeState, "runtime.json"));
+  assert.equal(upgradedIndex.runtimeVersion, "0.4.21");
+  assert.deepEqual(upgradedIndex.repositories, originalIndex.repositories);
+  assert.equal(plan(inventory(workspaceRoot, upgradedManifest.manifest), upgradedIndex,
+    upgradedManifest.digest, "0.4.21").writes.length, 0);
+  assert.equal(fs.existsSync(path.join(runtimeState, "index-update.json")), false);
+  assert.equal(fs.existsSync(path.join(runtimeState, "docker-install.pending")), false);
+  const interrupted = path.join(root, "interrupted-update");
+  fs.mkdirSync(interrupted);
+  fs.writeFileSync(path.join(interrupted, "runtime.json"), firstRuntime);
+  fs.writeFileSync(path.join(interrupted, "state.json"), JSON.stringify(originalIndex));
+  const indexClient = { ready: async () => {}, exists: async () => true };
+  const consistencyClient = { request: async () => ({ status: "ok", result: {
+    ok: true, expected_count: 100, missing_record_count: 0, missing_records_truncated: false,
+  } }) };
+  const reuseOptions = { stateDir: interrupted, workspaceRoot, targetVersion: "0.4.21",
+    ollamaUrl: "http://ollama:11434", client: indexClient, consistencyClient };
+  const beforeInterrupt = await prepareIndexReuse(reuseOptions);
+  beginIndexReuse(interrupted, beforeInterrupt);
+  fs.writeFileSync(path.join(interrupted, "docker-install.pending"), "pending\n");
+  fs.writeFileSync(path.join(interrupted, "runtime.json"), JSON.stringify({
+    ...JSON.parse(firstRuntime), version: "0.4.21",
+  }));
+  const resumed = await prepareIndexReuse(reuseOptions);
+  assert.equal(resumed.resumed, true);
+  await finishIndexReuse({ stateDir: interrupted, proof: resumed, models: resumed.oldModels,
+    client: indexClient, consistencyClient });
+  const migratedState = fs.readFileSync(path.join(interrupted, "state.json"), "utf8");
+  await finishIndexReuse({ stateDir: interrupted, proof: await prepareIndexReuse(reuseOptions),
+    models: resumed.oldModels, client: indexClient, consistencyClient });
+  assert.equal(fs.readFileSync(path.join(interrupted, "state.json"), "utf8"), migratedState);
+  fs.unlinkSync(path.join(interrupted, "docker-install.pending"));
+  await prepareIndexReuse(reuseOptions);
+  assert.equal(fs.existsSync(path.join(interrupted, "index-update.json")), false);
+  fs.writeFileSync(path.join(runtimeState, "dirty"), "dirty\n");
+  await assert.rejects(install(args), /missing or dirty/);
+  fs.unlinkSync(path.join(runtimeState, "dirty"));
+  metadataVersion = "0.4.22";
+  const stateBeforeUnsupported = fs.readFileSync(path.join(runtimeState, "state.json"), "utf8");
+  await assert.rejects(install(args), /no approved index compatibility/);
+  assert.equal(fs.readFileSync(path.join(runtimeState, "state.json"), "utf8"), stateBeforeUnsupported);
+  metadataVersion = "0.4.21";
   const remoteArgs = { ...args, stateDir: path.join(root, "remote"), ollamaUrl: "http://gpu-host:11434" };
   const providerFetch = globalThis.fetch;
   let missingEmbedding = true;
+  let remoteEmbeddingDigest = "embedding-digest";
   globalThis.fetch = async (url, options) => url.endsWith("/api/tags") ? {
-    ok: true, json: async () => ({ models: missingEmbedding ? [{ name: "qwen3.5:4b" }] :
-      [{ name: "qwen3.5:4b" }, { name: "qwen3-embedding:0.6b" }] }),
+    ok: true, json: async () => ({ models: missingEmbedding ? [{ name: "qwen3.5:4b", digest: "vlm-digest" }] :
+      [{ name: "qwen3.5:4b", digest: "vlm-digest" }, { name: "qwen3-embedding:0.6b", digest: remoteEmbeddingDigest }] }),
   } : providerFetch(url, options);
   calls.length = 0;
   await assert.rejects(install(remoteArgs), /missing qwen3-embedding/);
@@ -125,6 +204,10 @@ try {
   await assert.rejects(install({ ...remoteArgs, gpu: true }), /Configure GPU on the external host/);
   missingEmbedding = false;
   await install(remoteArgs);
+  seedIndexState(remoteArgs.stateDir);
+  remoteEmbeddingDigest = "changed-embedding-digest";
+  await assert.rejects(install(remoteArgs), /model qwen3-embedding:0.6b changed/);
+  remoteEmbeddingDigest = "embedding-digest";
   assert.equal(calls.some((args) => args.includes("ollama/ollama:latest") || args.includes("ollama")), false);
   assert.ok(calls.some((args) => args.includes("run") && args.at(-1) === remoteArgs.ollamaUrl));
   const remoteState = JSON.parse(fs.readFileSync(path.join(remoteArgs.stateDir, "runtime.json"), "utf8"));
