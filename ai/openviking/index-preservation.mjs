@@ -6,9 +6,10 @@ import { documentUri, inventory, loadManifest, plan } from "./git-sync.mjs";
 
 const directory = path.dirname(fileURLToPath(import.meta.url));
 // v0.4.21 changes Docker's default cwd; our storage.workspace is absolute.
+// v0.4.22 keeps existing local vector indexes; its cosine score change needs no rebuild.
 // Review each later release before adding another pair:
-// https://github.com/volcengine/OpenViking/releases/tag/v0.4.21
-const compatibleUpgrades = new Set(["0.4.20->0.4.21"]);
+// https://github.com/volcengine/OpenViking/releases/tag/v0.4.22
+const compatibleUpgrades = new Set(["0.4.20->0.4.21", "0.4.21->0.4.22"]);
 
 function sha256(value) {
   return createHash("sha256").update(value).digest("hex");

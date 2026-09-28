@@ -78,6 +78,16 @@ previousModified.repositories[firstId].files[firstFile] = "0".repeat(40);
 changes = plan(current, previousModified, digest, runtime.version);
 assert.equal(changes.rebuild, false);
 assert.deepEqual(changes.writes, [[firstId, firstFile, current[firstId].files[firstFile]]]);
+const divergentHistory = structuredClone(previousModified);
+divergentHistory.repositories[firstId].revision = "0".repeat(40);
+divergentHistory.repositories[firstId].files["obsolete.md"] = "1".repeat(40);
+changes = plan(current, divergentHistory, digest, runtime.version);
+assert.equal(changes.rebuild, false);
+assert.deepEqual(changes.writes, [[firstId, firstFile, current[firstId].files[firstFile]]]);
+assert.deepEqual(changes.deletes, [[firstId, "obsolete.md"]]);
+const incompleteState = structuredClone(previous);
+delete incompleteState.repositories[firstId].files;
+assert.equal(plan(current, incompleteState, digest, runtime.version).rebuild, true);
 assert.equal(plan(current, previous, "changed-manifest", runtime.version).rebuild, true);
 assert.equal(plan(current, previous, digest, "changed-runtime").rebuild, true);
 assert.equal(plan(current, previous, digest, runtime.version, true).rebuild, true);
@@ -119,13 +129,14 @@ assert.equal(second.writes, 0);
 assert.equal(second.deletes, 0);
 assert.equal(fs.readFileSync(stateFile, "utf8"), stateBefore);
 
-fs.writeFileSync(stateFile, JSON.stringify(previousModified));
+fs.writeFileSync(stateFile, JSON.stringify(divergentHistory));
 const writesBefore = client.writes.length, removalsBefore = client.removals.length;
 const incremental = await reconcile({ workspaceRoot, stateDir, client, allowRebuild: false });
 assert.equal(incremental.mode, "incremental");
 assert.equal(incremental.writes, 1);
+assert.equal(incremental.deletes, 1);
 assert.equal(client.writes.length, writesBefore + 1);
-assert.equal(client.removals.length, removalsBefore);
+assert.deepEqual(client.removals.slice(removalsBefore), [[documentUri(manifest.namespace, firstId, "obsolete.md"), false]]);
 
 client.failAfter = client.writes.length;
 await assert.rejects(reconcile({ workspaceRoot, stateDir, client, forceRebuild: true }),

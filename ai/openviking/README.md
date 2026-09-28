@@ -87,8 +87,8 @@ it never runs `down -v`, prune or automatic data rollback.
 
 For an existing index, the installer checks saved Git state, every document,
 and filesystem/vector consistency before changing the image. A compatible
-0.4.20 to 0.4.21 update keeps the same Docker volume and index; unchanged
-documents are not re-embedded. Only changed committed Git documents are
+0.4.20 to 0.4.21 and 0.4.21 to 0.4.22 updates keep the same Docker volume
+and index; unchanged documents are not re-embedded. Only changed committed Git documents are
 synchronized. Other version pairs, changed model digests or provider settings,
 missing state, and failed consistency checks stop the update without deleting
 or rebuilding the index. Pending updates block context reads until recovery.
@@ -122,8 +122,9 @@ MCP using Codex CLI and rejects a mismatching `--workspace-root`. An absolute
 for a key afterwards unless `KAFKA_AI_NO_PAUSE=1` is set.
 The command verifies the selected local server version/readiness, then writes only
 new or changed committed Git blobs and deletes removed documents. Unchanged documents
-are checked for existence but are not re-embedded. It prints the planned write/delete
-counts before processing. Use `update-openviking.cmd --rebuild` explicitly to recreate
+are checked for existence but are not re-embedded. A branch switch or rewritten Git
+history is reconciled from saved file hashes without a full rebuild. It prints the
+planned write/delete counts before processing. Use `update-openviking.cmd --rebuild` explicitly to recreate
 the entire Kafka Git namespace. Missing, dirty or incompatible state makes the default
 launcher stop before changing the index and request this explicit rebuild.
 It does **not** install or restart OpenViking. Installer, hooks, and MCP reads

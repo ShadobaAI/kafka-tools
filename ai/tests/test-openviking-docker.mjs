@@ -186,10 +186,22 @@ try {
   await assert.rejects(install(args), /missing or dirty/);
   fs.unlinkSync(path.join(runtimeState, "dirty"));
   metadataVersion = "0.4.22";
+  packageVersion = "0.4.22";
+  await install(args);
+  const upgradedTo422 = JSON.parse(fs.readFileSync(path.join(runtimeState, "state.json"), "utf8"));
+  const manifest422 = loadManifest(undefined, path.join(runtimeState, "runtime.json"));
+  assert.equal(upgradedTo422.runtimeVersion, "0.4.22");
+  assert.deepEqual(upgradedTo422.repositories, upgradedIndex.repositories);
+  assert.equal(plan(inventory(workspaceRoot, manifest422.manifest), upgradedTo422,
+    manifest422.digest, "0.4.22").writes.length, 0);
+  assert.equal(fs.existsSync(path.join(runtimeState, "index-update.json")), false);
+  assert.equal(fs.existsSync(path.join(runtimeState, "docker-install.pending")), false);
+  metadataVersion = "0.4.23";
   const stateBeforeUnsupported = fs.readFileSync(path.join(runtimeState, "state.json"), "utf8");
   await assert.rejects(install(args), /no approved index compatibility/);
   assert.equal(fs.readFileSync(path.join(runtimeState, "state.json"), "utf8"), stateBeforeUnsupported);
   metadataVersion = "0.4.21";
+  packageVersion = "0.4.21";
   const remoteArgs = { ...args, stateDir: path.join(root, "remote"), ollamaUrl: "http://gpu-host:11434" };
   const providerFetch = globalThis.fetch;
   let missingEmbedding = true;

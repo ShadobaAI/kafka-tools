@@ -178,20 +178,11 @@ function readState(stateFile) {
   catch (error) { if (error.code === "ENOENT") return null; throw error; }
 }
 
-function isAncestor(repositoryRoot, oldRevision, revision) {
-  if (oldRevision === revision) return true;
-  try { git(repositoryRoot, ["merge-base", "--is-ancestor", oldRevision, revision]); return true; }
-  catch { return false; }
-}
-
 export function plan(current, previous, digest, runtimeVersion, forceRebuild = false) {
   const rebuild = forceRebuild || !previous || previous.schemaVersion !== STATE_SCHEMA ||
     previous.manifestDigest !== digest || previous.runtimeVersion !== runtimeVersion ||
     Object.keys(previous.repositories ?? {}).sort().join("|") !== Object.keys(current).sort().join("|") ||
-    Object.values(current).some((item) => {
-      const old = previous?.repositories?.[item.id];
-      return !old || !isAncestor(item.root, old.revision, item.revision);
-    });
+    Object.values(current).some((item) => !previous.repositories[item.id]?.files);
   const deletes = [];
   const writes = [];
   for (const item of Object.values(current)) {
