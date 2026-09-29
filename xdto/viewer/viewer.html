@@ -58,19 +58,24 @@
   .aav-topic-payload-title { color: var(--aav-text); font-weight: 650; }
   .aav-message-body { padding: 0; }
   .aav-table-wrap { width: 100%; overflow-x: auto; }
-  .aav-fields-table { width: 100%; min-width: 1540px; border-collapse: collapse; table-layout: fixed; }
+  .aav-fields-table { width: 100%; min-width: max-content; border-collapse: collapse; }
   .aav-fields-table th { padding: 8px 9px; color: var(--aav-muted); background: #f7f8f9; border-bottom: 2px solid var(--aav-border); border-right: 1px solid var(--aav-border); font-size: 11px; line-height: 1.25; text-align: left; text-transform: uppercase; vertical-align: bottom; }
   .aav-fields-table td { padding: 7px 9px; border-bottom: 1px solid #ebecf0; border-right: 1px solid #ebecf0; overflow-wrap: anywhere; vertical-align: top; }
   .aav-fields-table th:last-child, .aav-fields-table td:last-child { border-right: 0; }
   .aav-fields-table tbody tr:hover { background: var(--aav-subtle); }
-  .aav-fields-table .aav-col-field { width: 270px; }
+  .aav-fields-table .aav-col-property { min-width: 270px; }
   .aav-fields-table .aav-col-description { width: 300px; }
   .aav-fields-table .aav-col-type { width: 110px; }
-  .aav-fields-table .aav-col-format-enum { width: 230px; }
+  .aav-fields-table .aav-col-formatEnum { min-width: 230px; }
   .aav-fields-table .aav-col-topics { width: 220px; }
-  .aav-fields-table .aav-col-minmax { width: 190px; }
-  .aav-fields-table .aav-col-pattern { width: 160px; }
-  .aav-fields-table .aav-col-default { width: 160px; }
+  .aav-fields-table .aav-col-minMax { min-width: 190px; }
+  .aav-fields-table .aav-col-value { min-width: 130px; }
+  .aav-columns { position: relative; align-self: end; }
+  .aav-columns > summary { display: flex; align-items: center; min-height: 40px; padding: 9px 16px; list-style: none; }
+  .aav-columns > summary::-webkit-details-marker { display: none; }
+  .aav-columns-list { position: absolute; right: 0; z-index: 30; display: grid; grid-template-columns: repeat(2, max-content); gap: 4px 16px; max-height: 360px; padding: 12px; overflow: auto; background: white; border: 1px solid var(--aav-border); border-radius: 5px; box-shadow: 0 4px 12px rgba(9,30,66,.2); }
+  .aav-columns-list label { display: flex; align-items: center; gap: 6px; white-space: nowrap; cursor: pointer; }
+  .aav-columns-reset { grid-column: 1 / -1; justify-self: start; }
   .aav-field-main { display: flex; align-items: flex-start; min-width: 0; }
   .aav-field-indent { display: inline-block; flex: 0 0 auto; }
   .aav-field-label { min-width: 0; }
@@ -136,7 +141,20 @@
     'Schema', 'Path', 'Level', 'Name', 'Title', 'Description', 'Required',
     'Deprecated', 'Type', 'Format', 'Ref', 'AllOf', 'Enum', 'EnumNames',
     'XTopics', 'MinItems', 'MaxItems', 'MinLength', 'MaxLength', 'Minimum',
-    'Maximum', 'Pattern', 'Default', 'Extensions'
+    'Maximum', 'Extensions'
+  ];
+  const TABLE_COLUMNS = [
+    ['property', 'Property / Title'], ['description', 'Description'],
+    ['required', 'Required'], ['deprecated', 'Deprecated'], ['type', 'Type'],
+    ['formatEnum', 'Format / Enum'], ['format', 'Format'], ['ref', '$ref'], ['allOf', 'allOf'],
+    ['enum', 'enum'], ['enumNames', 'x-enumNames'], ['topics', 'x-topics'],
+    ['minMax', 'Min / Max'],
+    ['minItems', 'minItems'], ['maxItems', 'maxItems'],
+    ['minLength', 'minLength'], ['maxLength', 'maxLength'],
+    ['minimum', 'minimum'], ['maximum', 'maximum'], ['default', 'default']
+  ];
+  const DEFAULT_TABLE_COLUMNS = [
+    'property', 'description', 'type', 'formatEnum', 'topics', 'minMax'
   ];
 
   const root = document.getElementById('asyncapi-schema-viewer');
@@ -146,6 +164,7 @@
     query: '',
     requiredFilter: 'all',
     deprecatedFilter: 'all',
+    tableColumns: new Set(DEFAULT_TABLE_COLUMNS),
     elements: {},
     hashListenerInstalled: false
   };
@@ -472,7 +491,7 @@
 
   function topicDisplay(topic) {
     const payloadTitle = topic.messages && topic.messages.length && topic.messages[0].schema
-      ? topic.messages[0].schema.title
+      ? effectiveField(topic.messages[0].schema).title
       : '';
     const title = payloadTitle || topic.title;
     return topic.shortName + (title ? ' (' + title + ')' : '');
@@ -481,7 +500,7 @@
   function normalizeExtensions(schema) {
     const extensions = {};
     Object.keys(schema || {}).forEach(function (key) {
-      if (/^x-/.test(key) && key !== 'x-topics' && key !== 'x-enumNames') extensions[key] = schema[key];
+      if (/^x-/.test(key) && key !== 'x-topics' && key !== 'x-enumNames' && key !== 'x-configuration-kind') extensions[key] = schema[key];
     });
     return extensions;
   }
@@ -493,6 +512,7 @@
       path: context.path,
       level: context.level,
       title: raw.title,
+      configurationKind: hasOwn(raw, 'x-configuration-kind') ? raw['x-configuration-kind'] : undefined,
       description: raw.description,
       examples: Array.isArray(raw.examples) ? raw.examples : (hasOwn(raw, 'examples') ? [raw.examples] : []),
       deprecated: raw.deprecated === true,
@@ -638,7 +658,7 @@
   function nodeOwnSearchText(node) {
     const extensionParts = [];
     Object.keys(node.extensions).forEach(function (key) { extensionParts.push(key, valuesForSearch(node.extensions[key])); });
-    return [node.name, node.path, node.title, node.description, node.type, node.format, node.ref,
+    return [node.name, node.path, node.title, node.configurationKind, node.description, node.type, node.format, node.ref,
       refName(node.ref), node.enumValues.join(' '), node.enumNames.join(' '), node.xTopics.join(' '),
       node.hasDefault ? valuesForSearch(node.defaultValue) : '', valuesForSearch(node.constraints.pattern)
     ].concat(extensionParts).join('\n').toLocaleLowerCase();
@@ -854,6 +874,7 @@
     const resolved = node.resolvedNode || {};
     return {
       title: node.title || resolved.title || '',
+      configurationKind: node.configurationKind !== undefined ? node.configurationKind : resolved.configurationKind,
       description: node.description || resolved.description || '',
       type: node.type || resolved.type || '',
       format: node.format || resolved.format || '',
@@ -866,6 +887,13 @@
       examples: node.examples.length ? node.examples : (resolved.examples || []),
       extensions: Object.assign({}, resolved.extensions || {}, node.extensions || {})
     };
+  }
+
+  function displayTitle(field) {
+    const kind = field.configurationKind;
+    const title = field.title || '';
+    if (kind === undefined || kind === null || kind === '') return title;
+    return title ? title + ' (' + String(kind) + ')' : String(kind);
   }
 
   function tableCell(className, value, code) {
@@ -919,7 +947,7 @@
   }
 
   function renderFormatEnum(node, field) {
-    const cell = element('td', 'confluenceTd aav-col-format-enum');
+    const cell = element('td', 'confluenceTd aav-col-formatEnum');
     const itemField = node.itemSchema ? effectiveField(node.itemSchema) : null;
     const enumValues = field.enumValues.length ? field.enumValues : (itemField && itemField.enumValues.length ? itemField.enumValues : []);
     const enumNames = field.enumValues.length ? field.enumNames : (itemField ? itemField.enumNames : []);
@@ -940,7 +968,7 @@
   }
 
   function renderMinMax(field) {
-    const cell = element('td', 'confluenceTd aav-col-minmax'); const list = element('div', 'aav-cell-list');
+    const cell = element('td', 'confluenceTd aav-col-minMax'); const list = element('div', 'aav-cell-list');
     ['minItems', 'maxItems', 'minimum', 'maximum', 'minLength', 'maxLength'].forEach(function (key) {
       if (hasOwn(field.constraints, key)) list.appendChild(element('span', 'aav-code', key + ': ' + valuesForSearch(field.constraints[key])));
     });
@@ -1079,23 +1107,19 @@
     const wrap = element('div', 'aav-table-wrap');
     const table = element('table', 'aav-fields-table confluenceTable');
     const head = document.createElement('thead'); const headRow = document.createElement('tr');
-    [
-      ['Property', 'aav-col-field'], ['Description', 'aav-col-description'], ['Type', 'aav-col-type'],
-      ['Format / Enum', 'aav-col-format-enum'], ['x-topics', 'aav-col-topics'], ['Min / Max', 'aav-col-minmax'],
-      ['Pattern', 'aav-col-pattern'], ['Default', 'aav-col-default']
-    ]
-      .forEach(function (column) { headRow.appendChild(element('th', 'confluenceTh ' + column[1], column[0])); });
+    const columns = TABLE_COLUMNS.filter(function (column) { return state.tableColumns.has(column[0]); });
+    columns.forEach(function (column) { headRow.appendChild(element('th', 'confluenceTh aav-col-' + column[0], column[1])); });
     head.appendChild(headRow); table.appendChild(head);
     const body = document.createElement('tbody');
     if (!rows.length) {
       const emptyRow = document.createElement('tr'); const emptyCell = element('td', 'aav-empty', query ? 'Совпадений среди полей не найдено.' : 'Schema не содержит properties.');
-      emptyCell.colSpan = 8; emptyRow.appendChild(emptyCell); body.appendChild(emptyRow);
+      emptyCell.colSpan = columns.length; emptyRow.appendChild(emptyCell); body.appendChild(emptyRow);
     }
     rows.forEach(function (rowModel) {
       const node = rowModel.node; const field = effectiveField(node);
       const row = element('tr', 'aav-field-row' + (node.required ? ' aav-required' : '') + (node.deprecated ? ' aav-deprecated' : ''));
       row.dataset.rowId = rowModel.id; row.dataset.ancestors = rowModel.ancestors.join(',');
-      const fieldCell = element('td', 'confluenceTd aav-col-field'); const main = element('div', 'aav-field-main');
+      const fieldCell = element('td', 'confluenceTd aav-col-property'); const main = element('div', 'aav-field-main');
       const indent = element('span', 'aav-field-indent'); indent.style.width = (rowModel.depth * 16) + 'px'; main.appendChild(indent);
       if (rowModel.hasChildren) {
         const disclosure = element('button', 'aav-disclosure'); disclosure.type = 'button';
@@ -1109,15 +1133,26 @@
       const label = element('span', 'aav-field-label');
       label.title = node.path;
       label.appendChild(element('span', 'aav-field-code aav-code', node.name + (field.type === 'array' ? '[]' : '')));
-      if (field.title) label.appendChild(element('span', 'aav-field-title', field.title));
-      main.appendChild(label); fieldCell.appendChild(main); row.appendChild(fieldCell);
-      row.appendChild(renderPropertyDescription(node, field));
-      row.appendChild(renderPropertyType(node, field));
-      row.appendChild(renderFormatEnum(node, field));
-      row.appendChild(renderTableTopics(field));
-      row.appendChild(renderMinMax(field));
-      row.appendChild(tableCell('aav-col-pattern', hasOwn(field.constraints, 'pattern') ? field.constraints.pattern : '', true));
-      row.appendChild(tableCell('aav-col-default', field.hasDefault ? stringify(field.defaultValue, false) : '', true));
+      if (displayTitle(field)) label.appendChild(element('span', 'aav-field-title', displayTitle(field)));
+      main.appendChild(label); fieldCell.appendChild(main);
+      columns.forEach(function (column) {
+        const key = column[0];
+        if (key === 'property') row.appendChild(fieldCell);
+        else if (key === 'description') row.appendChild(renderPropertyDescription(node, field));
+        else if (key === 'type') row.appendChild(renderPropertyType(node, field));
+        else if (key === 'formatEnum') row.appendChild(renderFormatEnum(node, field));
+        else if (key === 'enum') row.appendChild(renderTableEnum(field));
+        else if (key === 'topics') row.appendChild(renderTableTopics(field));
+        else if (key === 'minMax') row.appendChild(renderMinMax(field));
+        else if (key === 'format') row.appendChild(tableCell('aav-col-value', field.format, true));
+        else if (key === 'ref') row.appendChild(tableCell('aav-col-value', node.ref, true));
+        else if (key === 'allOf') row.appendChild(tableCell('aav-col-value', node.allOfRefs.join(' | '), true));
+        else if (key === 'enumNames') row.appendChild(tableCell('aav-col-value', field.enumNames.map(valuesForSearch).join(' | '), true));
+        else if (key === 'required') row.appendChild(tableCell('aav-col-value', node.required ? 'Да' : 'Нет'));
+        else if (key === 'deprecated') row.appendChild(tableCell('aav-col-value', node.deprecated ? 'Да' : 'Нет'));
+        else if (key === 'default') row.appendChild(tableCell('aav-col-value', field.hasDefault ? stringify(field.defaultValue, false) : '', true));
+        else row.appendChild(tableCell('aav-col-value', hasOwn(field.constraints, key) ? field.constraints[key] : '', true));
+      });
       body.appendChild(row);
     });
     table.appendChild(body); wrap.appendChild(table); updateTableVisibility(table); return wrap;
@@ -1266,10 +1301,37 @@
     }
     const requiredControl = createStatusFilter('Required', 'requiredFilter');
     const deprecatedControl = createStatusFilter('Deprecated', 'deprecatedFilter');
+    const columnsControl = element('details', 'aav-columns');
+    columnsControl.appendChild(element('summary', 'aav-button', 'Колонки'));
+    const columnsList = element('div', 'aav-columns-list');
+    const columnCheckboxes = new Map();
+    TABLE_COLUMNS.forEach(function (column) {
+      const label = element('label');
+      const checkbox = element('input'); checkbox.type = 'checkbox'; checkbox.value = column[0];
+      checkbox.checked = state.tableColumns.has(column[0]);
+      if (column[0] === 'property') checkbox.disabled = true;
+      checkbox.addEventListener('change', function () {
+        if (checkbox.checked) state.tableColumns.add(column[0]);
+        else state.tableColumns.delete(column[0]);
+        renderTopic();
+      });
+      append(label, checkbox, element('span', '', column[1]));
+      columnsList.appendChild(label);
+      columnCheckboxes.set(column[0], checkbox);
+    });
+    const resetColumns = element('button', 'aav-button aav-columns-reset', 'По умолчанию');
+    resetColumns.type = 'button';
+    resetColumns.addEventListener('click', function () {
+      state.tableColumns = new Set(DEFAULT_TABLE_COLUMNS);
+      columnCheckboxes.forEach(function (checkbox, key) { checkbox.checked = state.tableColumns.has(key); });
+      renderTopic();
+    });
+    columnsList.appendChild(resetColumns);
+    columnsControl.appendChild(columnsList);
     const actions = element('div', 'aav-actions');
     const expand = element('button', 'aav-button', 'Развернуть все'); expand.type = 'button';
     const collapse = element('button', 'aav-button', 'Свернуть все'); collapse.type = 'button';
-    append(actions, expand, collapse); append(toolbar, topicField, searchField, requiredControl.control, deprecatedControl.control, actions);
+    append(actions, expand, collapse); append(toolbar, topicField, searchField, requiredControl.control, deprecatedControl.control, columnsControl, actions);
     const content = element('div', 'aav-content'); append(root, titlebar, toolbar, content);
     state.elements = {
       topicInput: topicInput, topicInputLabels: topicInputLabels,
@@ -1339,8 +1401,6 @@
     const enumValues = node.enumValues.length ? node.enumValues : (resolved.enumValues || []);
     const enumNames = node.enumNames.length ? node.enumNames : (resolved.enumNames || []);
     const constraints = Object.keys(node.constraints).length ? node.constraints : (resolved.constraints || {});
-    const hasDefault = node.hasDefault || resolved.hasDefault;
-    const defaultValue = node.hasDefault ? node.defaultValue : resolved.defaultValue;
     return {
       FormatVersion: state.document.formatVersion,
       TopicShortName: topic.shortName,
@@ -1351,7 +1411,7 @@
       Path: node.path,
       Level: node.level,
       Name: node.name,
-      Title: node.title || '',
+      Title: displayTitle(effectiveField(node)),
       Description: node.description || '',
       Required: node.required ? 'true' : 'false',
       Deprecated: node.deprecated ? 'true' : 'false',
@@ -1368,8 +1428,6 @@
       MaxLength: hasOwn(constraints, 'maxLength') ? constraints.maxLength : '',
       Minimum: hasOwn(constraints, 'minimum') ? constraints.minimum : '',
       Maximum: hasOwn(constraints, 'maximum') ? constraints.maximum : '',
-      Pattern: hasOwn(constraints, 'pattern') ? constraints.pattern : '',
-      Default: hasDefault ? stringify(defaultValue, false) : '',
       Extensions: Object.keys(node.extensions).length ? stringify(node.extensions, false) : ''
     };
   }
