@@ -136,13 +136,7 @@
   const ATTACHMENT_NAME = 'asyncapi.yaml';
   const SEARCH_DEBOUNCE_MS = 200;
   const MAX_SCHEMA_DEPTH = 80;
-  const CSV_COLUMNS = [
-    'FormatVersion', 'TopicShortName', 'TopicAddress', 'TopicTitle', 'Message',
-    'Schema', 'Path', 'Level', 'Name', 'Title', 'Description', 'Required',
-    'Deprecated', 'Type', 'Format', 'Ref', 'AllOf', 'Enum', 'EnumNames',
-    'XTopics', 'MinItems', 'MaxItems', 'MinLength', 'MaxLength', 'Minimum',
-    'Maximum', 'Extensions'
-  ];
+  const MIN_MAX_KEYS = ['minItems', 'maxItems', 'minimum', 'maximum', 'minLength', 'maxLength'];
   const TABLE_COLUMNS = [
     ['property', 'Property / Title'], ['description', 'Description'],
     ['required', 'Required'], ['deprecated', 'Deprecated'], ['type', 'Type'],
@@ -156,6 +150,10 @@
   const DEFAULT_TABLE_COLUMNS = [
     'property', 'description', 'type', 'formatEnum', 'topics', 'minMax'
   ];
+
+  function selectedTableColumns() {
+    return TABLE_COLUMNS.filter(function (column) { return state.tableColumns.has(column[0]); });
+  }
 
   const root = document.getElementById('asyncapi-schema-viewer');
   const state = {
@@ -946,11 +944,18 @@
     return cell;
   }
 
+  function formatEnumInfo(node, field) {
+    const itemField = node.itemSchema ? effectiveField(node.itemSchema) : null;
+    return {
+      values: field.enumValues.length ? field.enumValues : (itemField && itemField.enumValues.length ? itemField.enumValues : []),
+      names: field.enumValues.length ? field.enumNames : (itemField ? itemField.enumNames : [])
+    };
+  }
+
   function renderFormatEnum(node, field) {
     const cell = element('td', 'confluenceTd aav-col-formatEnum');
-    const itemField = node.itemSchema ? effectiveField(node.itemSchema) : null;
-    const enumValues = field.enumValues.length ? field.enumValues : (itemField && itemField.enumValues.length ? itemField.enumValues : []);
-    const enumNames = field.enumValues.length ? field.enumNames : (itemField ? itemField.enumNames : []);
+    const enumInfo = formatEnumInfo(node, field);
+    const enumValues = enumInfo.values; const enumNames = enumInfo.names;
     let hasContent = false;
     if (field.format) { cell.appendChild(element('div', 'aav-code', field.format)); hasContent = true; }
     if (enumValues.length) {
@@ -969,7 +974,7 @@
 
   function renderMinMax(field) {
     const cell = element('td', 'confluenceTd aav-col-minMax'); const list = element('div', 'aav-cell-list');
-    ['minItems', 'maxItems', 'minimum', 'maximum', 'minLength', 'maxLength'].forEach(function (key) {
+    MIN_MAX_KEYS.forEach(function (key) {
       if (hasOwn(field.constraints, key)) list.appendChild(element('span', 'aav-code', key + ': ' + valuesForSearch(field.constraints[key])));
     });
     if (list.childNodes.length) cell.appendChild(list); else cell.appendChild(element('span', 'aav-cell-empty', '—'));
@@ -1107,7 +1112,7 @@
     const wrap = element('div', 'aav-table-wrap');
     const table = element('table', 'aav-fields-table confluenceTable');
     const head = document.createElement('thead'); const headRow = document.createElement('tr');
-    const columns = TABLE_COLUMNS.filter(function (column) { return state.tableColumns.has(column[0]); });
+    const columns = selectedTableColumns();
     columns.forEach(function (column) { headRow.appendChild(element('th', 'confluenceTh aav-col-' + column[0], column[1])); });
     head.appendChild(headRow); table.appendChild(head);
     const body = document.createElement('tbody');
@@ -1396,40 +1401,38 @@
     }
   }
 
-  function rowFromNode(topic, message, node) {
-    const resolved = node.resolvedNode || {};
-    const enumValues = node.enumValues.length ? node.enumValues : (resolved.enumValues || []);
-    const enumNames = node.enumNames.length ? node.enumNames : (resolved.enumNames || []);
-    const constraints = Object.keys(node.constraints).length ? node.constraints : (resolved.constraints || {});
-    return {
-      FormatVersion: state.document.formatVersion,
-      TopicShortName: topic.shortName,
-      TopicAddress: topic.address,
-      TopicTitle: topic.title,
-      Message: message.name,
-      Schema: message.schemaName,
-      Path: node.path,
-      Level: node.level,
-      Name: node.name,
-      Title: displayTitle(effectiveField(node)),
-      Description: node.description || '',
-      Required: node.required ? 'true' : 'false',
-      Deprecated: node.deprecated ? 'true' : 'false',
-      Type: node.type || resolved.type || '',
-      Format: node.format || resolved.format || '',
-      Ref: node.ref || '',
-      AllOf: node.allOfRefs.join(' | '),
-      Enum: enumValues.map(valuesForSearch).join(' | '),
-      EnumNames: enumNames.map(valuesForSearch).join(' | '),
-      XTopics: node.xTopics.map(valuesForSearch).join(' | '),
-      MinItems: hasOwn(constraints, 'minItems') ? constraints.minItems : '',
-      MaxItems: hasOwn(constraints, 'maxItems') ? constraints.maxItems : '',
-      MinLength: hasOwn(constraints, 'minLength') ? constraints.minLength : '',
-      MaxLength: hasOwn(constraints, 'maxLength') ? constraints.maxLength : '',
-      Minimum: hasOwn(constraints, 'minimum') ? constraints.minimum : '',
-      Maximum: hasOwn(constraints, 'maximum') ? constraints.maximum : '',
-      Extensions: Object.keys(node.extensions).length ? stringify(node.extensions, false) : ''
+  function enumText(values, names) {
+    return values.map(function (value, index) {
+      return valuesForSearch(value) + (index < names.length ? ' — ' + valuesForSearch(names[index]) : '');
+    }).join(' | ');
+  }
+
+  function rowFromNode(node) {
+    const field = effectiveField(node);
+    const formatEnum = formatEnumInfo(node, field);
+    const enumValue = enumText(formatEnum.values, formatEnum.names);
+    const minMax = MIN_MAX_KEYS.filter(function (key) { return hasOwn(field.constraints, key); })
+      .map(function (key) { return key + ': ' + valuesForSearch(field.constraints[key]); }).join(' | ');
+    const row = {
+      property: node.path + (displayTitle(field) ? ' — ' + displayTitle(field) : ''),
+      description: field.description,
+      required: node.required ? 'Да' : 'Нет',
+      deprecated: node.deprecated ? 'Да' : 'Нет',
+      type: field.type,
+      formatEnum: [field.format, enumValue ? 'enum: ' + enumValue : ''].filter(Boolean).join(' | '),
+      format: field.format,
+      ref: node.ref,
+      allOf: node.allOfRefs.join(' | '),
+      enum: enumText(field.enumValues, field.enumNames),
+      enumNames: field.enumNames.map(valuesForSearch).join(' | '),
+      topics: field.xTopics.map(valuesForSearch).join(' | '),
+      minMax: minMax,
+      default: field.hasDefault ? stringify(field.defaultValue, false) : ''
     };
+    MIN_MAX_KEYS.forEach(function (key) {
+      row[key] = hasOwn(field.constraints, key) ? field.constraints[key] : '';
+    });
+    return row;
   }
 
   function collectCsvNodes(node, query, forceVisible, result, seen, includeSelf) {
@@ -1452,7 +1455,7 @@
     topic.messages.forEach(function (message) {
       const force = messageOwnMatches(topic, message, state.query);
       buildFieldRows(message.schema, state.query, force, false).forEach(function (fieldRow) {
-        rows.push(rowFromNode(topic, message, fieldRow.node));
+        rows.push(rowFromNode(fieldRow.node));
       });
     });
     return rows;
@@ -1465,9 +1468,10 @@
 
   function downloadCsv() {
     if (!state.topic) return;
+    const columns = selectedTableColumns();
     const rows = buildCsvRows();
-    const csv = [CSV_COLUMNS.join(';')].concat(rows.map(function (row) {
-      return CSV_COLUMNS.map(function (column) { return csvCell(row[column]); }).join(';');
+    const csv = [columns.map(function (column) { return csvCell(column[1]); }).join(';')].concat(rows.map(function (row) {
+      return columns.map(function (column) { return csvCell(row[column[0]]); }).join(';');
     })).join('\r\n');
     const blob = new Blob(['\uFEFF', csv], { type: 'text/csv;charset=utf-8' });
     const link = document.createElement('a'); const url = URL.createObjectURL(blob);
