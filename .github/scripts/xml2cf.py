@@ -45,9 +45,9 @@ def validate_xml_dir(xml_dir: Path) -> None:
 def command_for_result(result_file: Path) -> str:
     suffix = result_file.suffix.lower()
     if suffix == ".cf":
-        return "compile"
+        return "cf"
     if suffix == ".cfe":
-        return "compileexttocfe"
+        return "cfe"
     sys.exit(f"ERROR: result file extension must be .cf or .cfe: {result_file}")
 
 
@@ -91,11 +91,11 @@ def main() -> None:
         image,
         "vrunner",
         vrunner_command,
+        "compile",
         "-s",
         "/xml",
-        "-o",
-        f"/out/{result_file.name}",
         "--ibcmd",
+        f"/out/{result_file.name}",
     ])
 
     if not result_file.is_file():

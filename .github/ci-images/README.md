@@ -14,6 +14,8 @@
 
 Версии EDT и платформы задаются переменными GitHub Actions `EDT` и `PLATFORM`. Для `edtcli` значение `PLATFORM` также задаёт минимальную версию поддержки платформы. Образы используют Debian `trixie-slim`. `edtcli` и `client` используют последнюю доступную версию Axiom JDK 25 Full x64; `ibcmd` и `client` — последние доступные OneScript x64 и Vanessa Runner; `client` — последний релиз Coverage41C и EDT для поддержки покрытия.
 
+Команды CI рассчитаны на Vanessa Runner 3.x и OneScript 2.0.0 или новее. При переходе с образов с Runner 2.x пересоберите и опубликуйте оба профиля `ibcmd` и `client` до запуска обновлённых workflows.
+
 ## Подготовка
 
 Нужны Python с PyYAML и Docker с Buildx. Команды ниже выполняются из корня репозитория `tools`.

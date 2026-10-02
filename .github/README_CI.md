@@ -42,6 +42,8 @@ Workflow публикует в GitHub Release:
 | [xml2cf](actions/xml2cf/action.yml) | Сборка CF/CFE из XML |
 | [package-zip](actions/package-zip/action.yml) | Упаковка исходников в ZIP |
 
+Сборка использует Vanessa Runner 3.x: `vrunner cf compile --src /xml --ibcmd /out/<имя>.cf` или `vrunner cfe compile --src /xml --ibcmd /out/<имя>.cfe`. Все опции передаются до позиционного пути результата.
+
 ## Скрипты
 
 | Скрипт | Назначение |
