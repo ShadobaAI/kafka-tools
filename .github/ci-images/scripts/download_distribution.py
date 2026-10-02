@@ -457,10 +457,14 @@ def download_axiomjdk(version: str, destination: Path) -> None:
     files_url = version_files_url(AXIOMJDK_NICK, release_version)
     final_url, files_text = client.get_authenticated_text(files_url)
     candidates: list[tuple[tuple[int, ...], str, str]] = []
-    for href, label in parse_anchors(files_text):
-        match = AXIOMJDK_FILENAME_RE.search(urllib.parse.unquote(f"{label} {href}"))
+    for href, _label in parse_anchors(files_text):
+        parsed = urllib.parse.urlparse(urllib.parse.urljoin(final_url, href))
+        query = urllib.parse.parse_qs(parsed.query)
+        if parsed.path != "/version_file" or query.get("nick", [""])[0] != AXIOMJDK_NICK:
+            continue
+        filename = query.get("path", [""])[0].replace("\\", "/").rsplit("/", 1)[-1]
+        match = AXIOMJDK_FILENAME_RE.fullmatch(filename)
         if match:
-            filename = match.group(0)
             candidates.append((version_key(match.group(1)), urllib.parse.urljoin(final_url, href), filename))
     if not candidates:
         raise RuntimeError(f"Axiom JDK 25 Full amd64 .deb was not found at {files_url}")
@@ -469,7 +473,7 @@ def download_axiomjdk(version: str, destination: Path) -> None:
     print(f"Selected distribution: {filename}", flush=True)
     final_distribution_url, distribution_text = client.get_authenticated_text(distribution_url_value)
     file_url = find_download_url(final_distribution_url, distribution_text)
-    download_url(client, file_url, destination, filename)
+    download_url(client, file_url, destination, filename, expected_filename=filename)
 
 
 def find_download_url(distribution_url: str, page_text: str) -> str:
@@ -506,7 +510,14 @@ def stream_response(response: BinaryIO, target: Path) -> None:
     part.replace(target)
 
 
-def download_url(client: ReleasesClient, url: str, destination: Path, fallback: str) -> Path:
+def download_url(
+    client: ReleasesClient,
+    url: str,
+    destination: Path,
+    fallback: str,
+    *,
+    expected_filename: str | None = None,
+) -> Path:
     # Пишем через .part, чтобы оборванная загрузка не выглядела готовым архивом.
     destination.mkdir(parents=True, exist_ok=True)
     last_error: Exception | None = None
@@ -514,6 +525,8 @@ def download_url(client: ReleasesClient, url: str, destination: Path, fallback: 
         try:
             with client.request(url) as response:
                 filename = filename_from_response(response.geturl(), response.headers, fallback)
+                if expected_filename is not None and filename != expected_filename:
+                    raise RuntimeError(f"Expected distribution {expected_filename}, received {filename}")
                 target = destination / filename
                 stream_response(response, target)
                 print(f"Downloaded: {target.name}", flush=True)
