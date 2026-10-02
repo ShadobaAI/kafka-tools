@@ -37,7 +37,6 @@ jobs:
           RELEASES_ONEC_PASSWORD: ${{ secrets.RELEASES_ONEC_PASSWORD }}
           EDT: ${{ vars.EDT }}
           PLATFORM: ${{ vars.PLATFORM }}
-          COVERAGE41C: ${{ vars.COVERAGE41C }}
         run: |
           # PLATFORM используется во всех профилях: для ibcmd/client как версия
           # платформы, для edtcli как минимальная версия platform support.
@@ -66,13 +65,17 @@ jobs:
               fi
               python scripts/download_distribution.py platform "$PLATFORM" distr
               python scripts/download_distribution.py edt "$EDT" distr
-              python scripts/download_distribution.py coverage41c "${COVERAGE41C:-2.7.3}" distr
+              python scripts/download_distribution.py coverage41c latest distr
               ;;
             *)
               echo "Unsupported profile: ${{ inputs.profile }}" >&2
               exit 2
               ;;
           esac
+
+          if [ "${{ inputs.profile }}" = "edtcli" ] || [ "${{ inputs.profile }}" = "client" ]; then
+            python scripts/download_distribution.py axiomjdk latest distr
+          fi
 
           # OScript нужен только профилям с Vanessa Runner.
           if [ "${{ inputs.profile }}" = "ibcmd" ] || [ "${{ inputs.profile }}" = "client" ]; then

@@ -1,4 +1,4 @@
-ARG BASE_IMAGE=debian:bookworm-slim
+ARG BASE_IMAGE=debian:trixie-slim
 
 # Multi-stage схема держит закрытые дистрибутивы 1C только в installer stages.
 # В runtime stages копируются уже установленные каталоги, без исходных архивов.
@@ -8,17 +8,27 @@ ENV DEBIAN_FRONTEND=noninteractive
 ENV LANG=C.UTF-8
 ENV LC_ALL=C.UTF-8
 
-FROM runtime-base AS edt-runtime-base
+FROM runtime-base AS axiomjdk-runtime-base
 
-ENV JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+ENV JAVA_HOME=/usr/lib/jvm/axiomjdk-java25-pro-full-amd64
+ENV PATH="${JAVA_HOME}/bin:${PATH}"
+
+RUN --mount=type=bind,from=axiomjdk,source=.,target=/axiomjdk-distr,readonly \
+    package="$(find /axiomjdk-distr -maxdepth 1 -type f -name 'axiomjdk_jdk_pro25.*_linux_amd64_full.deb' -print -quit)" \
+  && test -n "$package" \
+  && apt-get update \
+  && apt-get install -y --no-install-recommends "$package" \
+  && test -x "${JAVA_HOME}/bin/java" \
+  && rm -rf /var/lib/apt/lists/*
+
+FROM axiomjdk-runtime-base AS edt-runtime-base
 
 RUN apt-get update \
   && apt-get install -y --no-install-recommends \
       fontconfig \
-      libasound2 \
-      libgtk-3-0 \
+      libasound2t64 \
+      libgtk-3-0t64 \
       libxtst6 \
-      openjdk-17-jre-headless \
   && rm -rf /var/lib/apt/lists/*
 
 
@@ -28,7 +38,7 @@ RUN apt-get update \
   && apt-get install -y --no-install-recommends \
       ca-certificates \
       libgssapi-krb5-2 \
-      libicu72 \
+      libicu76 \
       libgsf-1-114 \
       locales \
       procps \
@@ -164,7 +174,7 @@ ENV PATH="/opt/1cv8/current:${OSCRIPTBIN}:${PATH}"
 
 # Vanessa Runner ставится на этапе сборки, чтобы CI jobs не зависели от opm
 # при каждом запуске контейнера.
-RUN opm install vanessa-runner@2.6.1 \
+RUN opm install vanessa-runner \
   && rm -rf /root/.local/share/ovm /tmp/* /var/tmp/*
 
 RUN find /opt/1cv8 \( \
@@ -177,7 +187,7 @@ RUN find /opt/1cv8 \( \
 
 WORKDIR /work
 
-FROM runtime-base AS client
+FROM axiomjdk-runtime-base AS client
 ARG PLATFORM_VERSION
 ARG REVISION
 
@@ -195,16 +205,16 @@ RUN sed -i 's/^Components: main$/Components: main contrib/' /etc/apt/sources.lis
       ca-certificates \
       dbus-x11 \
       fontconfig \
-      libasound2 \
-      libatk1.0-0 \
-      libcups2 \
+      libasound2t64 \
+      libatk1.0-0t64 \
+      libcups2t64 \
       libegl1 \
       libgl1 \
       libglu1-mesa \
-      libgtk-3-0 \
-      libicu72 \
+      libgtk-3-0t64 \
+      libicu76 \
       libsecret-1-0 \
-      libwebkit2gtk-4.0-37 \
+      libwebkit2gtk-4.1-0 \
       libx11-6 \
       libxext6 \
       libxfixes3 \
@@ -215,7 +225,6 @@ RUN sed -i 's/^Components: main$/Components: main contrib/' /etc/apt/sources.lis
       libxtst6 \
       locales \
       openbox \
-      openjdk-17-jre-headless \
       ttf-mscorefonts-installer \
       xdotool \
       xvfb \
@@ -235,7 +244,6 @@ COPY --from=coverage41c-installer /opt/Coverage41C /opt/Coverage41C
 
 ENV OSCRIPTBIN=/opt/oscript/bin
 ENV EDT_LOCATION=/opt/coverage41c-edt
-ENV JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
 ENV PATH="/opt/1cv8/current:${OSCRIPTBIN}:${JAVA_HOME}/bin:${PATH}"
 
 RUN ln -sfn /opt/Coverage41C/bin/Coverage41C /usr/local/bin/Coverage41C \
@@ -243,7 +251,7 @@ RUN ln -sfn /opt/Coverage41C/bin/Coverage41C /usr/local/bin/Coverage41C \
 
 # Дублируем установку Vanessa Runner в client target, потому что он не наследует
 # слои ibcmd и собирается как отдельный финальный образ.
-RUN opm install vanessa-runner@2.6.1 \
+RUN opm install vanessa-runner \
   && rm -rf /root/.local/share/ovm /tmp/* /var/tmp/*
 
 RUN mkdir -p /root/.1cv8 /var/1C/licenses /work \

@@ -12,7 +12,7 @@
 | `ibcmd` | Сборка CF/CFE из XML | `PLATFORM` |
 | `client` | Клиентское окружение для тестирования и покрытия | `PLATFORM` |
 
-Актуальные версии задаются переменными GitHub Actions `EDT` и `PLATFORM`. Для `edtcli` значение `PLATFORM` также задаёт минимальную версию поддержки платформы. Профиль `client` использует EDT для поддержки покрытия и `COVERAGE41C` (по умолчанию `2.7.3`).
+Версии EDT и платформы задаются переменными GitHub Actions `EDT` и `PLATFORM`. Для `edtcli` значение `PLATFORM` также задаёт минимальную версию поддержки платформы. Образы используют Debian `trixie-slim`. `edtcli` и `client` используют последнюю доступную версию Axiom JDK 25 Full x64; `ibcmd` и `client` — последние доступные OneScript x64 и Vanessa Runner; `client` — последний релиз Coverage41C и EDT для поддержки покрытия.
 
 ## Подготовка
 
@@ -26,9 +26,11 @@ python -m pip install pyyaml
 
 | Профиль | Дистрибутивы |
 |---|---|
-| `edtcli` | EDT offline для Linux x86_64 |
+| `edtcli` | EDT offline для Linux x86_64 и Axiom JDK 25 Full amd64 `.deb` |
 | `ibcmd` | Серверная платформа 1С для Linux x86_64 и OneScript |
-| `client` | Платформа 1С, EDT offline, Coverage41C и OneScript |
+| `client` | Платформа 1С, EDT offline, Coverage41C, OneScript и Axiom JDK 25 Full amd64 `.deb` |
+
+Axiom JDK загружается с `releases.1c.ru` из проекта `Axiom25FullJDK` с учётными данными `RELEASES_ONEC_USERNAME` и `RELEASES_ONEC_PASSWORD`. Для локальной сборки можно заранее поместить `axiomjdk_jdk_pro25.*_linux_amd64_full.deb` в `distr/`.
 
 ## Локальная сборка
 

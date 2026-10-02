@@ -22,6 +22,8 @@ from typing import BinaryIO
 RELEASES_BASE = "https://releases.1c.ru"
 OSCRIPT_BASE = "https://oscript.io"
 COVERAGE41C_BASE = "https://github.com/1c-syntax/Coverage41C"
+AXIOMJDK_NICK = "Axiom25FullJDK"
+AXIOMJDK_FILENAME_RE = re.compile(r"axiomjdk_jdk_pro(25(?:\.\d+)+)_linux_amd64_full\.deb", re.IGNORECASE)
 # Исторически локальный кэш проверяется в /distr. В CI рабочий каталог может
 # отличаться, поэтому не смешиваем этот путь с destination для новых загрузок.
 LOCAL_DISTR = Path("/distr")
@@ -429,6 +431,47 @@ def resolve_exact_version(client: ReleasesClient, nick: str, requested: str) -> 
     return exact
 
 
+def download_axiomjdk(version: str, destination: Path) -> None:
+    if version != "latest":
+        raise ValueError("Axiom JDK version must be latest")
+
+    username = read_secret("releases_onec_username", "releases_onec_user", "onec_user", "onec_username")
+    password = read_secret("releases_onec_password", "onec_password")
+    if not username or not password:
+        raise RuntimeError("RELEASES_ONEC_USERNAME and RELEASES_ONEC_PASSWORD secrets are required")
+
+    client = ReleasesClient(username, password)
+    _, project_text = client.get_authenticated_text(project_url(AXIOMJDK_NICK))
+    versions: set[str] = set()
+    for href, _label in parse_anchors(project_text):
+        parsed = urllib.parse.urlparse(urllib.parse.urljoin(RELEASES_BASE, href))
+        query = urllib.parse.parse_qs(parsed.query)
+        if parsed.path == "/version_files" and query.get("nick", [""])[0] == AXIOMJDK_NICK:
+            candidate = query.get("ver", [""])[0]
+            if re.fullmatch(r"25(?:\.\d+)+(?:\+\d+)?", candidate):
+                versions.add(candidate)
+    if not versions:
+        raise RuntimeError(f"Axiom JDK 25 releases were not found at {project_url(AXIOMJDK_NICK)}")
+
+    release_version = max(versions, key=version_key)
+    files_url = version_files_url(AXIOMJDK_NICK, release_version)
+    final_url, files_text = client.get_authenticated_text(files_url)
+    candidates: list[tuple[tuple[int, ...], str, str]] = []
+    for href, label in parse_anchors(files_text):
+        match = AXIOMJDK_FILENAME_RE.search(urllib.parse.unquote(f"{label} {href}"))
+        if match:
+            filename = match.group(0)
+            candidates.append((version_key(match.group(1)), urllib.parse.urljoin(final_url, href), filename))
+    if not candidates:
+        raise RuntimeError(f"Axiom JDK 25 Full amd64 .deb was not found at {files_url}")
+
+    _, distribution_url_value, filename = max(candidates)
+    print(f"Selected distribution: {filename}", flush=True)
+    final_distribution_url, distribution_text = client.get_authenticated_text(distribution_url_value)
+    file_url = find_download_url(final_distribution_url, distribution_text)
+    download_url(client, file_url, destination, filename)
+
+
 def find_download_url(distribution_url: str, page_text: str) -> str:
     anchors = parse_anchors(page_text)
     for href, label in anchors:
@@ -508,7 +551,7 @@ def download_from_releases(kind: str, requested_version: str, destination: Path)
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Download 1C distributions.")
-    parser.add_argument("kind", choices=["edt", "platform", "platform-server", "oscript", "coverage41c"])
+    parser.add_argument("kind", choices=["edt", "platform", "platform-server", "oscript", "coverage41c", "axiomjdk"])
     parser.add_argument("version")
     parser.add_argument("destination", type=Path)
     return parser.parse_args()
@@ -517,6 +560,9 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
     kind = args.kind
+    if kind == "axiomjdk":
+        download_axiomjdk(args.version, args.destination)
+        return
     # Перед сетевой загрузкой пробуем локальный кэш: это ускоряет локальные
     # сборки и позволяет запускать build без повторной авторизации на 1C.
     if copy_local(kind, args.version, args.destination):

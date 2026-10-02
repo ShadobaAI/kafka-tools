@@ -39,12 +39,12 @@ if [ -z "$installer" ]; then
 fi
 
 if ! command -v java >/dev/null 2>&1; then
-  echo "Java 17 runtime was not found in PATH." >&2
+  echo "Java runtime was not found in PATH." >&2
   exit 1
 fi
 
 chmod +x "$installer"
-if ! "$installer" --javahome "${JAVA_HOME:-/usr/lib/jvm/java-17-openjdk-amd64}" install \
+if ! "$installer" --javahome "${JAVA_HOME:?JAVA_HOME is required}" install \
   --source "$work" \
   --ignore-hardware-checks \
   --ignore-signature-warnings \
@@ -57,7 +57,7 @@ if ! "$installer" --javahome "${JAVA_HOME:-/usr/lib/jvm/java-17-openjdk-amd64}" 
   echo "EDT installer returned a non-zero exit code after installing files; continuing." >&2
 fi
 
-# Финальный EDT CLI должен использовать системный Java 17, а не случайно
+# Финальный EDT CLI должен использовать установленный Axiom JDK 25, а не случайно
 # установленный bundled JDK из дистрибутива.
 if find /opt/1C/1CE -type d -name 'axiom-jdk*' -print -quit | grep -q .; then
   echo "Embedded EDT axiom-jdk was installed unexpectedly." >&2

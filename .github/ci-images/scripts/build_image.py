@@ -27,6 +27,7 @@ BUILD_CONTEXT_ROOT = ROOT / ".build-context"
 PROFILES = ("edtcli", "ibcmd", "client")
 PLATFORM_PROFILES = ("ibcmd", "client")
 OSCRIPT_PROFILES = ("ibcmd", "client")
+AXIOMJDK_PROFILES = ("edtcli", "client")
 
 
 class RussianArgumentParser(argparse.ArgumentParser):
@@ -198,6 +199,25 @@ def prepare_coverage_edt_context() -> Path:
     )
 
 
+def prepare_axiomjdk_context() -> Path:
+    pattern = re.compile(r"axiomjdk_jdk_pro(25(?:\.\d+)+)_linux_amd64_full\.deb$")
+    matches = [
+        (tuple(int(part) for part in match.group(1).split(".")), path)
+        for path in LOCAL_DISTR.glob("axiomjdk_jdk_pro25.*_linux_amd64_full.deb")
+        if (match := pattern.fullmatch(path.name)) and path.is_file()
+    ]
+    if not matches:
+        raise SystemExit(f"Axiom JDK 25 Full amd64 .deb was not found in {LOCAL_DISTR}.")
+
+    source = max(matches)[1]
+    target_dir = BUILD_CONTEXT_ROOT / "distr" / "axiomjdk"
+    if target_dir.exists():
+        shutil.rmtree(target_dir)
+    target_dir.mkdir(parents=True, exist_ok=True)
+    link_or_copy(source, target_dir / source.name)
+    return target_dir
+
+
 def ensure_oscript_archive() -> Path:
     existing = sorted(LOCAL_DISTR.glob("OneScript-*-linux-x64.zip"), key=lambda path: path.name)
     if existing:
@@ -250,6 +270,11 @@ def build(args: argparse.Namespace) -> str:
         else None
     )
     oscript_context = prepare_oscript_context().relative_to(ROOT).as_posix() if profile in OSCRIPT_PROFILES else None
+    axiomjdk_context = (
+        prepare_axiomjdk_context().relative_to(ROOT).as_posix()
+        if profile in AXIOMJDK_PROFILES
+        else None
+    )
     coverage41c_context = (
         prepare_coverage41c_context().relative_to(ROOT).as_posix()
         if profile == "client"
@@ -275,6 +300,8 @@ def build(args: argparse.Namespace) -> str:
         command.extend(["--build-context", f"distr={distr_context}"])
     if oscript_context:
         command.extend(["--build-context", f"oscript={oscript_context}"])
+    if axiomjdk_context:
+        command.extend(["--build-context", f"axiomjdk={axiomjdk_context}"])
     if coverage41c_context:
         command.extend(["--build-context", f"coverage41c={coverage41c_context}"])
     if coverage_edt_context:
