@@ -238,6 +238,9 @@ ENV LC_ALL=ru_RU.UTF-8
 
 
 COPY --from=client-platform-installer /opt/1cv8 /opt/1cv8
+COPY docker/scripts/install-client-runtime.sh /usr/local/sbin/onec-image/install-client-runtime.sh
+RUN bash /usr/local/sbin/onec-image/install-client-runtime.sh
+
 COPY --from=oscript-installer /opt/oscript /opt/oscript
 COPY --from=coverage-edt-debug /opt/coverage41c-edt /opt/coverage41c-edt
 COPY --from=coverage41c-installer /opt/Coverage41C /opt/Coverage41C
