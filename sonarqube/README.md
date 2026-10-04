@@ -70,17 +70,25 @@ bash backup-sonarqube.sh
 
 ## Восстановление SonarQube
 
-Для восстановления используйте ту же версию SonarQube и плагинов. Команды ниже удаляют текущую БД:
+Скрипт `restore-sonarqube.sh` заменяет всю БД, включая проекты, историю анализов, настройки, пользователей и токены. Перед запуском необходимо дождаться завершения CI jobs и установить точную версию SonarQube на момент бэкапа. `backup-sonarqube.sh` сохраняет только PostgreSQL dump без отдельного манифеста версий. Версию сервера можно искать в записи `installation.version` таблицы `internal_properties` внутри дампа; версии плагинов требуется установить отдельно.
+
+Скрипт предназначен для восстановления без смены версии сервера. Если бэкап создан до обновления SonarQube и версии отличаются, потребуется отдельный план отката сервера или проверенное обновление восстановленной БД в изолированном окружении. Не пересобирайте плавающий `sonarqube:community` для восстановления. Скрипт сверяет указанную версию бэкапа с `/api/server/version` текущего сервера и отказывается менять БД при несовпадении или невозможности проверки. Сведения о версии бэкапа оператор должен подтвердить по `installation.version` внутри дампа, старым логам или образу. При неизвестной версии восстановление production-БД запускать нельзя.
+
+Команды выполняются в Bash на Docker-хосте из каталога `tools/sonarqube`:
 
 ```bash
-docker compose stop sonarqube
-docker compose up -d db
-docker compose exec -T db sh -c 'dropdb -U "$POSTGRES_USER" "$POSTGRES_DB" && createdb -U "$POSTGRES_USER" "$POSTGRES_DB"'
-docker compose exec -T db sh -c 'pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" --no-owner --no-privileges' < backups/sonarqube_YYYYMMDD_HHMMSS/sonarqube.dump
-docker compose up -d sonarqube
+bash restore-sonarqube.sh backups/sonarqube_YYYYMMDD_HHMMSS/sonarqube.dump ТОЧНАЯ_ВЕРСИЯ_БЭКАПА
 ```
 
-Тома `sonarqube_data` и `sonarqube_logs` восстанавливать не нужно: это кэш, индексы и журналы, они создаются заново.
+При нестандартном адресе задайте `SONAR_URL` (по умолчанию `http://localhost:9000`). Скрипт требует интерактивного подтверждения словом `RESTORE`. Затем он останавливает runner, MCP и SonarQube, создаёт свежий бэкап текущей БД, пересоздаёт БД и восстанавливает дамп с `--single-transaction`. После успешного восстановления очищаются только Elasticsearch-индексы в `/opt/sonarqube/data/es8` и запускается существующий контейнер сервера без смены образа.
+
+При ошибке восстановление прекращается; CI автоматически не возобновляется. После статуса `UP` проверьте проекты, анализы и работоспособность токенов. Токены, созданные после даты бэкапа, в восстановленной БД отсутствуют. Только после проверки возобновите сервисы:
+
+```bash
+docker compose start sonarqube-mcp github-runner
+```
+
+PostgreSQL volume удалять нельзя. Опубликованные отчёты GitHub восстановление БД не откатывает.
 
 ## GitHub Actions runner
 
