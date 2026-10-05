@@ -8,6 +8,11 @@ on:
         type: string
         required: false
         default: ''
+      config_version:
+        description: 'Версия для 1С в формате X.X.X.X; по умолчанию используется полный тег'
+        type: string
+        required: false
+        default: ${{ github.ref_name }}
       version_files:
         description: 'Дополнительные файлы для замены версии через пробел, относительно корня'
         type: string
@@ -55,10 +60,11 @@ jobs:
         id: meta
         env:
           VERSION_FILES: ${{ inputs.version_files }}
+          CONFIG_VERSION: ${{ inputs.config_version }}
         run: |
           read -ra extra_files <<< "$VERSION_FILES"
           python3 .ci/.github/scripts/set_version.py \
-            "${{ github.ref_name }}" \
+            "${CONFIG_VERSION}" \
             "${extra_files[@]}"
 
       - name: Free disk space
