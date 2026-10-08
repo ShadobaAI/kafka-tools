@@ -293,6 +293,43 @@ export function localClient(stateDir) {
   return client;
 }
 
+function acquireSyncLock(stateDir) {
+  const lock = path.join(stateDir, "sync.lock");
+  const ownerFile = path.join(lock, "owner.json");
+  try {
+    fs.mkdirSync(lock);
+  } catch (error) {
+    if (error.code !== "EEXIST") throw error;
+    let owner;
+    try { owner = JSON.parse(fs.readFileSync(ownerFile, "utf8")); }
+    catch (readError) {
+      if (readError.code !== "ENOENT" && !(readError instanceof SyntaxError)) throw readError;
+    }
+    let detail = "Владелец неизвестен (блокировка старой версии или незавершённый запуск).";
+    if (Number.isSafeInteger(owner?.pid) && owner.pid > 0) {
+      let status = "состояние процесса не подтверждено";
+      try { process.kill(owner.pid, 0); status = "процесс существует"; }
+      catch (probeError) {
+        if (probeError.code === "ESRCH") status = "процесс завершён";
+      }
+      detail = `Владелец: PID ${owner.pid}; ${status}.`;
+    }
+    const busy = new Error(`Синхронизация OpenViking заблокирована: ${lock}. ${detail} Дождитесь завершения синхронизации в MCP, Git hook или другом окне. Если блокировка осталась после сбоя, убедитесь, что все клиенты синхронизации остановлены и сервер закончил обработку, затем удалите только каталог sync.lock и повторите запуск. Блокировка автоматически не удаляется; --rebuild её не снимает.`);
+    busy.code = "OPENVIKING_SYNC_LOCKED";
+    throw busy;
+  }
+  try {
+    fs.writeFileSync(ownerFile, `${JSON.stringify({ pid: process.pid, startedAt: new Date().toISOString() })}\n`, { flag: "wx" });
+  } catch (error) {
+    fs.rmdirSync(lock);
+    throw error;
+  }
+  return () => {
+    fs.unlinkSync(ownerFile);
+    fs.rmdirSync(lock);
+  };
+}
+
 export async function reconcile({ workspaceRoot, stateDir, client, forceRebuild = false, allowRebuild = true,
                                   manifestFile = sourcePath, runtimeFile, progress = () => {} }) {
   const activeRuntimeFile = runtimeFile ?? path.join(stateDir, "runtime.json");
@@ -300,8 +337,7 @@ export async function reconcile({ workspaceRoot, stateDir, client, forceRebuild 
   const current = inventory(workspaceRoot, manifest);
   await client.ready(runtime.version);
   fs.mkdirSync(stateDir, { recursive: true });
-  const lock = path.join(stateDir, "sync.lock");
-  fs.mkdirSync(lock);
+  const releaseLock = acquireSyncLock(stateDir);
   try {
     const stateFile = path.join(stateDir, "state.json");
     const dirtyFile = path.join(stateDir, "dirty");
@@ -356,7 +392,7 @@ export async function reconcile({ workspaceRoot, stateDir, client, forceRebuild 
     if (error.code !== "OPENVIKING_REBUILD_REQUIRED") fs.writeFileSync(path.join(stateDir, "dirty"), "rebuild-required\n");
     throw error;
   } finally {
-    fs.rmdirSync(lock);
+    releaseLock();
   }
 }
 

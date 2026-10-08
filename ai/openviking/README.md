@@ -130,3 +130,16 @@ launcher stop before changing the index and request this explicit rebuild.
 It does **not** install or restart OpenViking. Installer, hooks, and MCP reads
 also stop when a full rebuild would be required; use the explicit manual
 `--rebuild` operation after reviewing the reason.
+
+Reconciliation uses `<state-dir>/sync.lock` across the GUI, MCP and Git hooks.
+New locks contain `owner.json` with the owner's PID and start time. A competing
+sync reports the owner and exits without altering the lock, saved state or index.
+The toolkit GUI/CLI mutex does not exclude MCP reads or Git hooks.
+
+If `sync.lock` remains after a crash, stop all sync clients (including OpenViking
+MCP sessions and Git hooks), confirm that the server has finished processing,
+then remove only this lock directory and rerun the update. Legacy empty locks
+have no provable owner. Locks are never removed automatically, even if the saved
+PID has exited; PID reuse and ongoing server ingestion make that unsafe.
+`--rebuild` does not bypass the lock. Keep `state.json`, `dirty` and Docker volumes;
+the normal state checks still decide whether an explicit rebuild is required.

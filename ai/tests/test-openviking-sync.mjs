@@ -129,6 +129,52 @@ assert.equal(second.writes, 0);
 assert.equal(second.deletes, 0);
 assert.equal(fs.readFileSync(stateFile, "utf8"), stateBefore);
 
+// A competing sync must leave the first owner's lock and published state intact.
+let entered, resume;
+const inside = new Promise((resolve) => { entered = resolve; });
+const paused = new Promise((resolve) => { resume = resolve; });
+const competingClient = Object.create(client);
+competingClient.exists = async (uri) => { entered(); await paused; return client.exists(uri); };
+const running = reconcile({ workspaceRoot, stateDir, client: competingClient, allowRebuild: false });
+await inside;
+const lock = path.join(stateDir, "sync.lock");
+const ownerFile = path.join(lock, "owner.json");
+const ownerBefore = fs.readFileSync(ownerFile, "utf8");
+assert.equal(JSON.parse(ownerBefore).pid, process.pid);
+assert.ok(Number.isFinite(Date.parse(JSON.parse(ownerBefore).startedAt)));
+try {
+  await assert.rejects(reconcile({ workspaceRoot, stateDir, client, allowRebuild: false }), (error) => {
+    assert.equal(error.code, "OPENVIKING_SYNC_LOCKED");
+    assert.ok(error.message.includes(`PID ${process.pid}`));
+    assert.ok(error.message.includes(lock));
+    assert.ok(error.message.includes("процесс существует"));
+    return true;
+  });
+  assert.equal(fs.readFileSync(ownerFile, "utf8"), ownerBefore);
+  assert.equal(fs.readFileSync(stateFile, "utf8"), stateBefore);
+  assert.equal(fs.existsSync(path.join(stateDir, "dirty")), false);
+} finally {
+  resume();
+  await running;
+}
+assert.equal(fs.existsSync(lock), false);
+
+// Legacy locks have no provable owner and must never be silently reclaimed.
+fs.mkdirSync(lock);
+try {
+  await assert.rejects(reconcile({ workspaceRoot, stateDir, client, forceRebuild: true }), (error) => {
+    assert.equal(error.code, "OPENVIKING_SYNC_LOCKED");
+    assert.ok(error.message.includes("Владелец неизвестен"));
+    assert.ok(error.message.includes("--rebuild её не снимает"));
+    return true;
+  });
+  assert.deepEqual(fs.readdirSync(lock), []);
+  assert.equal(fs.readFileSync(stateFile, "utf8"), stateBefore);
+  assert.equal(fs.existsSync(path.join(stateDir, "dirty")), false);
+} finally {
+  fs.rmdirSync(lock);
+}
+
 fs.writeFileSync(stateFile, JSON.stringify(divergentHistory));
 const writesBefore = client.writes.length, removalsBefore = client.removals.length;
 const incremental = await reconcile({ workspaceRoot, stateDir, client, allowRebuild: false });
@@ -154,4 +200,4 @@ const recovered = await reconcile({ workspaceRoot, stateDir, client });
 assert.equal(recovered.mode, "rebuild");
 assert.equal(fs.existsSync(path.join(stateDir, "dirty")), false);
 
-process.stdout.write("openviking-sync: committed inventory, initial build, no-op, failed rebuild, and recovery passed\n");
+process.stdout.write("openviking-sync: committed inventory, initial build, no-op, lock contention, legacy lock, failed rebuild, and recovery passed\n");
