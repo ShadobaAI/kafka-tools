@@ -9,7 +9,6 @@ import { documentUri, inventory, loadManifest } from "../openviking/git-sync.mjs
 const aiRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const workspaceRoot = path.resolve(aiRoot, "..", "..");
 const namespace = loadManifest().manifest.namespace;
-const document = `${namespace}/kfk-tasks/sdd/spec-0011-code-index-bsl-ls-routing.md`;
 assert.deepEqual(visibleTools().map((tool) => tool.name), ["find", "search", "read", "list", "tree"]);
 assert.ok(visibleTools().every((tool) => tool.annotations.readOnlyHint &&
   !tool.annotations.destructiveHint));
@@ -30,10 +29,10 @@ class MockClient {
       { uri: "viking://user/default/memories/private.md", level: 2, score: 1, abstract: "private" },
     ] } };
     if (route.startsWith("/api/v1/content/read?")) return { status: "ok", result: "# Kafka history" };
-    if (route.startsWith("/api/v1/fs/ls?")) return { status: "ok", result: [
+    if (route.startsWith("/api/v1/fs/ls?")) return { status: "ok", has_more: false, result: [
       { uri: `${namespace}/kfk-tasks`, isDir: true }, { uri: "viking://user/default/memories", isDir: true },
     ] };
-    if (route.startsWith("/api/v1/fs/tree?")) return { status: "ok", result: [
+    if (route.startsWith("/api/v1/fs/tree?")) return { status: "ok", has_more: false, result: [
       { uri: `${namespace}/kfk-tasks`, isDir: true },
     ] };
     throw new Error(`unexpected route ${route}`);
@@ -45,11 +44,15 @@ const context = {
   client: new MockClient(),
 };
 fs.writeFileSync(path.join(context.stateDir, "runtime.json"), `${JSON.stringify({
-  schemaVersion: 2, backend: "docker", version: "9.9.9", project: "kafka-openviking",
+  schemaVersion: 2, backend: "docker", version: "0.5.0", project: "kafka-openviking",
   image: `ghcr.io/volcengine/openviking@sha256:${"a".repeat(64)}`,
 }, null, 2)}\n`);
 const { manifest, runtime, digest } = loadManifest(undefined, path.join(context.stateDir, "runtime.json"));
 const current = inventory(workspaceRoot, manifest);
+// Select a real committed fixture; individual SDDs may be moved or removed.
+const file = Object.keys(current["kfk-tasks"].files).find((item) => item.endsWith(".md"));
+assert.ok(file, "MCP fixture requires a committed task document");
+const document = documentUri(namespace, "kfk-tasks", file);
 fs.writeFileSync(path.join(context.stateDir, "state.json"), JSON.stringify({
   schemaVersion: 1, manifestDigest: digest, runtimeVersion: runtime.version,
   repositories: Object.fromEntries(Object.values(current).map((item) => [item.id, {

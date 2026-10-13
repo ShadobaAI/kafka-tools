@@ -86,13 +86,45 @@ mode. Old Windows environments are not deleted. Failed setup retains volumes;
 it never runs `down -v`, prune or automatic data rollback.
 
 For an existing index, the installer checks saved Git state, every document,
-and filesystem/vector consistency before changing the image. A compatible
-0.4.20 to 0.4.21 and 0.4.21 to 0.4.22 updates keep the same Docker volume
+and filesystem/vector consistency before changing the image. The current update
+families `0.4.* -> 0.5.*` and `0.5.* -> 0.5.*` keep the same Docker volume
 and index; unchanged documents are not re-embedded. Only changed committed Git documents are
 synchronized. Other version pairs, changed model digests or provider settings,
 missing state, and failed consistency checks stop the update without deleting
 or rebuilding the index. Pending updates block context reads until recovery.
 The first installation still builds the initial index.
+
+OpenViking [0.5.0](https://github.com/volcengine/OpenViking/releases/tag/v0.5.0)
+keeps the REST contracts used by this toolkit. The 0.4.23 global retrieval/ranking
+change can alter result order and scores; it does not require rebuilding vectors.
+The new `has_more` listing metadata leaves the REST `result` array compatible.
+Our MCP continues to expose the five bounded Git-document tools. Session capture,
+Working Memory and the upstream Codex plugin are not installed by this toolkit,
+so the new session-memory defaults need no configuration migration here.
+Gateway (Beta) is a separate model proxy with upstream credentials, gateway keys
+and automatic memory injection. It is not needed for this Git-document MCP and
+is not enabled by the managed Compose configuration.
+
+To update only the Docker runtime, run the existing bootstrap yourself from the
+Kafka workspace root, before replacing the running image manually:
+
+```powershell
+node tools/ai/openviking/docker-runtime.mjs --state-dir <state-dir>
+```
+
+Use the same external state directory as the installed MCP. For managed NVIDIA
+Ollama, retain `--gpu`; an external Ollama endpoint is reused from saved state.
+Stop concurrent installer, GUI, Git sync and MCP activity during the update.
+This command asks before downloads/container recreation, performs the pre/post
+index checks, and updates `runtime.json` and `state.json` together. It does not
+run the full toolkit installer or rebuild code-index. Run
+`tools\\ai\\update-openviking.cmd` afterwards to reconcile changed Git documents.
+Changing only the image through Compose or Docker Desktop leaves toolkit runtime
+metadata at the old version; context reads then fail the exact-version check.
+Do not fix that by manually editing state metadata or requesting a full rebuild.
+The wildcard matches a numeric patch version, including stable `.postN` releases;
+development and prerelease versions do not match. Other version families need a
+separate compatibility review; the existing latest-stable release policy is unchanged.
 
 Diagnostics (substitute your state directory):
 

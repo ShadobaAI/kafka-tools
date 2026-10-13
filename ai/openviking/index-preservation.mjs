@@ -5,11 +5,16 @@ import { fileURLToPath } from "node:url";
 import { documentUri, inventory, loadManifest, plan } from "./git-sync.mjs";
 
 const directory = path.dirname(fileURLToPath(import.meta.url));
-// v0.4.21 changes Docker's default cwd; our storage.workspace is absolute.
-// v0.4.22 keeps existing local vector indexes; its cosine score change needs no rebuild.
-// Review each later release before adding another pair:
-// https://github.com/volcengine/OpenViking/releases/tag/v0.4.22
-const compatibleUpgrades = new Set(["0.4.20->0.4.21", "0.4.21->0.4.22"]);
+// v0.4.23 changes retrieval ranking; v0.5.0 adds an optional Gateway and changes
+// session memory defaults. Neither requires rebuilding our Git resource index.
+// Existing model/provider, Git state and pre/post consistency checks still apply.
+// https://github.com/volcengine/OpenViking/releases/tag/v0.4.23
+// https://github.com/volcengine/OpenViking/releases/tag/v0.5.0
+// Keep only the current update families; model/provider and consistency checks
+// are required for every matching version pair.
+const compatibleUpgrades = new Set([
+  "0.4.*->0.5.*", "0.5.*->0.5.*",
+]);
 
 function sha256(value) {
   return createHash("sha256").update(value).digest("hex");
@@ -60,7 +65,12 @@ async function verifyIndex({ manifest, state, client, consistencyClient }) {
 }
 
 export function compatibleIndexUpgrade(from, to) {
-  return from === to || compatibleUpgrades.has(`${from}->${to}`);
+  if (from === to) return true;
+  const family = (version) => typeof version === "string" ?
+    /^(\d+\.\d+)\.\d+(?:\.post\d+)?$/.exec(version)?.[1] : undefined;
+  const source = family(from);
+  const target = family(to);
+  return Boolean(source && target && compatibleUpgrades.has(`${source}.*->${target}.*`));
 }
 
 export async function prepareIndexReuse({ stateDir, workspaceRoot, targetVersion, ollamaUrl,

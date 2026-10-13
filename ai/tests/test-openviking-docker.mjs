@@ -7,7 +7,7 @@ import { createHash } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { composeDocument, configuration, install, normalizeOllamaUrl, resolveOpenVikingImage, provisionAccount } from "../openviking/docker-runtime.mjs";
 import { inventory, localClient, loadManifest, plan } from "../openviking/git-sync.mjs";
-import { beginIndexReuse, finishIndexReuse, prepareIndexReuse } from "../openviking/index-preservation.mjs";
+import { beginIndexReuse, compatibleIndexUpgrade, finishIndexReuse, prepareIndexReuse } from "../openviking/index-preservation.mjs";
 
 const root = fs.mkdtempSync(path.join(os.tmpdir(), "kafka-docker-test-"));
 const workspaceRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
@@ -143,16 +143,16 @@ try {
   assert.equal(fs.readFileSync(path.join(runtimeState, "runtime.json"), "utf8"), firstRuntime);
   assert.equal(fs.readFileSync(path.join(runtimeState, "ov.conf"), "utf8"), firstConfig);
   assert.equal(calls.some((args) => args.includes("down") || args.includes("prune")), false);
-  metadataVersion = "0.4.21";
-  packageVersion = "0.4.21";
+  metadataVersion = "0.5.0";
+  packageVersion = "0.5.0";
   const originalIndex = JSON.parse(fs.readFileSync(path.join(runtimeState, "state.json"), "utf8"));
   await install(args);
   const upgradedIndex = JSON.parse(fs.readFileSync(path.join(runtimeState, "state.json"), "utf8"));
   const upgradedManifest = loadManifest(undefined, path.join(runtimeState, "runtime.json"));
-  assert.equal(upgradedIndex.runtimeVersion, "0.4.21");
+  assert.equal(upgradedIndex.runtimeVersion, "0.5.0");
   assert.deepEqual(upgradedIndex.repositories, originalIndex.repositories);
   assert.equal(plan(inventory(workspaceRoot, upgradedManifest.manifest), upgradedIndex,
-    upgradedManifest.digest, "0.4.21").writes.length, 0);
+    upgradedManifest.digest, "0.5.0").writes.length, 0);
   assert.equal(fs.existsSync(path.join(runtimeState, "index-update.json")), false);
   assert.equal(fs.existsSync(path.join(runtimeState, "docker-install.pending")), false);
   const interrupted = path.join(root, "interrupted-update");
@@ -163,13 +163,13 @@ try {
   const consistencyClient = { request: async () => ({ status: "ok", result: {
     ok: true, expected_count: 100, missing_record_count: 0, missing_records_truncated: false,
   } }) };
-  const reuseOptions = { stateDir: interrupted, workspaceRoot, targetVersion: "0.4.21",
+  const reuseOptions = { stateDir: interrupted, workspaceRoot, targetVersion: "0.5.0",
     ollamaUrl: "http://ollama:11434", client: indexClient, consistencyClient };
   const beforeInterrupt = await prepareIndexReuse(reuseOptions);
   beginIndexReuse(interrupted, beforeInterrupt);
   fs.writeFileSync(path.join(interrupted, "docker-install.pending"), "pending\n");
   fs.writeFileSync(path.join(interrupted, "runtime.json"), JSON.stringify({
-    ...JSON.parse(firstRuntime), version: "0.4.21",
+    ...JSON.parse(firstRuntime), version: "0.5.0",
   }));
   const resumed = await prepareIndexReuse(reuseOptions);
   assert.equal(resumed.resumed, true);
@@ -185,23 +185,64 @@ try {
   fs.writeFileSync(path.join(runtimeState, "dirty"), "dirty\n");
   await assert.rejects(install(args), /missing or dirty/);
   fs.unlinkSync(path.join(runtimeState, "dirty"));
-  metadataVersion = "0.4.22";
-  packageVersion = "0.4.22";
+  for (const from of ["0.4.20", "0.4.21", "0.4.22", "0.4.23"]) {
+    const upgradeDir = path.join(root, `upgrade-${from}`);
+    fs.mkdirSync(upgradeDir);
+    fs.writeFileSync(path.join(upgradeDir, "runtime.json"), JSON.stringify({ ...JSON.parse(firstRuntime), version: from }));
+    fs.writeFileSync(path.join(upgradeDir, "ov.conf"), firstConfig);
+    fs.writeFileSync(path.join(upgradeDir, "api-key"), fs.readFileSync(path.join(runtimeState, "api-key")));
+    fs.writeFileSync(path.join(upgradeDir, "tenant-api-key"), "tenant-test-key");
+    seedIndexState(upgradeDir);
+    const before = JSON.parse(fs.readFileSync(path.join(upgradeDir, "state.json"), "utf8"));
+    activeServerVersion = from;
+    const start = calls.length;
+    await install({ ...args, stateDir: upgradeDir });
+    const after = JSON.parse(fs.readFileSync(path.join(upgradeDir, "state.json"), "utf8"));
+    const selected = loadManifest(undefined, path.join(upgradeDir, "runtime.json"));
+    assert.equal(after.runtimeVersion, "0.5.0");
+    assert.deepEqual(after.repositories, before.repositories);
+    const changes = plan(inventory(workspaceRoot, selected.manifest), after, selected.digest, "0.5.0");
+    assert.equal(changes.rebuild, false);
+    assert.equal(changes.writes.length, 0);
+    assert.equal(changes.deletes.length, 0);
+    assert.equal(fs.readFileSync(path.join(upgradeDir, "ov.conf"), "utf8"), firstConfig);
+    assert.equal(fs.existsSync(path.join(upgradeDir, "index-update.json")), false);
+    assert.equal(fs.existsSync(path.join(upgradeDir, "docker-install.pending")), false);
+    assert.equal(calls.slice(start).some((args) => args.includes("down") || args.includes("prune")), false);
+  }
+  activeServerVersion = "0.5.0";
   await install(args);
-  const upgradedTo422 = JSON.parse(fs.readFileSync(path.join(runtimeState, "state.json"), "utf8"));
-  const manifest422 = loadManifest(undefined, path.join(runtimeState, "runtime.json"));
-  assert.equal(upgradedTo422.runtimeVersion, "0.4.22");
-  assert.deepEqual(upgradedTo422.repositories, upgradedIndex.repositories);
-  assert.equal(plan(inventory(workspaceRoot, manifest422.manifest), upgradedTo422,
-    manifest422.digest, "0.4.22").writes.length, 0);
-  assert.equal(fs.existsSync(path.join(runtimeState, "index-update.json")), false);
-  assert.equal(fs.existsSync(path.join(runtimeState, "docker-install.pending")), false);
-  metadataVersion = "0.4.23";
+  for (const [from, to] of [
+    ["0.4.0", "0.5.42"], ["0.4.19", "0.5.0"], ["0.5.0", "0.5.1"],
+    ["0.5.2", "0.5.3.post1"], ["0.5.3.post1", "0.5.4"],
+  ]) {
+    assert.equal(compatibleIndexUpgrade(from, to), true);
+  }
+  for (const [from, to] of [
+    ["0.4.20", "0.4.21"], ["0.4.21", "0.4.22"], ["0.4.22", "0.4.23"],
+    ["0.5.0", "0.4.23"], ["0.3.19", "0.5.0"], ["0.5.0", "0.6.0"],
+    ["0.4.23", "0.50.0"], ["0.4.23", "0.5.1.dev1"], ["0.4.invalid", "0.5.0"],
+  ]) {
+    assert.equal(compatibleIndexUpgrade(from, to), false);
+  }
+  metadataVersion = "0.5.1";
+  packageVersion = "0.5.1";
+  const stateBeforePatch = JSON.parse(fs.readFileSync(path.join(runtimeState, "state.json"), "utf8"));
+  await install(args);
+  const patchedIndex = JSON.parse(fs.readFileSync(path.join(runtimeState, "state.json"), "utf8"));
+  assert.equal(patchedIndex.runtimeVersion, "0.5.1");
+  assert.deepEqual(patchedIndex.repositories, stateBeforePatch.repositories);
+  const patchedManifest = loadManifest(undefined, path.join(runtimeState, "runtime.json"));
+  assert.equal(plan(inventory(workspaceRoot, patchedManifest.manifest), patchedIndex,
+    patchedManifest.digest, "0.5.1").writes.length, 0);
+  metadataVersion = "0.6.0";
   const stateBeforeUnsupported = fs.readFileSync(path.join(runtimeState, "state.json"), "utf8");
+  const callsBeforeUnsupported = calls.length;
   await assert.rejects(install(args), /no approved index compatibility/);
   assert.equal(fs.readFileSync(path.join(runtimeState, "state.json"), "utf8"), stateBeforeUnsupported);
-  metadataVersion = "0.4.21";
-  packageVersion = "0.4.21";
+  assert.equal(calls.slice(callsBeforeUnsupported).some((args) => args[0] === "pull" || args.includes("up")), false);
+  metadataVersion = "0.5.0";
+  packageVersion = "0.5.0";
   const remoteArgs = { ...args, stateDir: path.join(root, "remote"), ollamaUrl: "http://gpu-host:11434" };
   const providerFetch = globalThis.fetch;
   let missingEmbedding = true;
