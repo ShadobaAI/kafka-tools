@@ -9,76 +9,274 @@
       <xs:pattern value="[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"/>
     </xs:restriction>
   </xs:simpleType>
-  <xs:complexType name="TestAccumulationRegister">
+  <xs:simpleType name="TestEnumerations">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="Значение1"/>
+      <xs:enumeration value="Значение2"/>
+      <xs:enumeration value="Значение3"/>
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:complexType name="TestAccumulationRegisters">
+    <xs:annotation>
+      <xs:documentation>кфк_т_ТестовыйРегистрНакопления</xs:documentation>
+    </xs:annotation>
     <xs:sequence>
-      <xs:element name="period" type="xs:dateTime"/>
-      <xs:element name="recorder" type="tns:UUID"/>
-      <xs:element name="id" type="tns:UUID"/>
-      <xs:element name="value" type="xs:decimal" nillable="true"/>
-    </xs:sequence>
-  </xs:complexType>
-  <xs:complexType name="TestCatalog">
-    <xs:sequence>
-      <xs:element name="ref" type="tns:UUID"/>
-      <xs:element name="name" type="xs:string"/>
-      <xs:element name="dateTime" type="xs:dateTime" nillable="true"/>
-      <xs:element name="number" type="xs:decimal" nillable="true"/>
-      <xs:element name="boolean" type="xs:boolean" nillable="true"/>
-      <xs:element name="enum" nillable="true">
+      <xs:element name="document" type="tns:UUID" nillable="true">
+        <xs:annotation>
+          <xs:documentation>Регистратор</xs:documentation>
+        </xs:annotation>
+      </xs:element>
+      <xs:element name="identifier" nillable="true">
+        <xs:annotation>
+          <xs:documentation>Идентификатор</xs:documentation>
+        </xs:annotation>
         <xs:simpleType>
           <xs:restriction base="xs:string">
-            <xs:enumeration value="Значение1"/>
-            <xs:enumeration value="Значение2"/>
-            <xs:enumeration value="Значение3"/>
+            <xs:maxLength value="36"/>
           </xs:restriction>
         </xs:simpleType>
       </xs:element>
-      <xs:element name="comment" type="xs:string" nillable="true"/>
-      <xs:element name="tabularSection" type="tns:TestCatalog.TabularSection" nillable="true"/>
+      <xs:element name="isActive" type="xs:boolean" nillable="true">
+        <xs:annotation>
+          <xs:documentation>Активность</xs:documentation>
+        </xs:annotation>
+      </xs:element>
+      <xs:element name="period" type="xs:dateTime" nillable="true">
+        <xs:annotation>
+          <xs:documentation>Период</xs:documentation>
+        </xs:annotation>
+      </xs:element>
+      <xs:element name="value" type="xs:double" nillable="true">
+        <xs:annotation>
+          <xs:documentation>Значение</xs:documentation>
+        </xs:annotation>
+      </xs:element>
     </xs:sequence>
   </xs:complexType>
-  <xs:complexType name="TestCatalog.TabularSection">
+  <xs:complexType name="TestCatalogs">
+    <xs:annotation>
+      <xs:documentation>кфк_т_ТестовыйСправочник</xs:documentation>
+    </xs:annotation>
     <xs:sequence>
-      <xs:element name="row" type="tns:TestCatalog.TabularSection.Row" minOccurs="0" maxOccurs="unbounded"/>
+      <xs:element name="comment" nillable="true">
+        <xs:annotation>
+          <xs:documentation>Комментарий</xs:documentation>
+        </xs:annotation>
+        <xs:simpleType>
+          <xs:restriction base="xs:string">
+            <xs:maxLength value="256"/>
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:element>
+      <xs:element name="dateTime" type="xs:dateTime" nillable="true">
+        <xs:annotation>
+          <xs:documentation>ДатаИВремя</xs:documentation>
+        </xs:annotation>
+      </xs:element>
+      <xs:element name="deleted" type="xs:boolean" nillable="true">
+        <xs:annotation>
+          <xs:documentation>ПометкаУдаления</xs:documentation>
+        </xs:annotation>
+      </xs:element>
+      <xs:element name="enumeration" type="tns:TestEnumerations" nillable="true">
+        <xs:annotation>
+          <xs:documentation>Перечисление</xs:documentation>
+        </xs:annotation>
+      </xs:element>
+      <xs:element name="id" type="tns:UUID" nillable="true">
+        <xs:annotation>
+          <xs:documentation>Ссылка</xs:documentation>
+        </xs:annotation>
+      </xs:element>
+      <xs:element name="isEnabled" type="xs:boolean" nillable="true">
+        <xs:annotation>
+          <xs:documentation>Булево</xs:documentation>
+        </xs:annotation>
+      </xs:element>
+      <xs:element name="name" nillable="true">
+        <xs:annotation>
+          <xs:documentation>Наименование</xs:documentation>
+        </xs:annotation>
+        <xs:simpleType>
+          <xs:restriction base="xs:string">
+            <xs:maxLength value="100"/>
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:element>
+      <xs:element name="number" type="xs:double" nillable="true">
+        <xs:annotation>
+          <xs:documentation>Число</xs:documentation>
+        </xs:annotation>
+      </xs:element>
+      <xs:element name="predefinedDataName" type="xs:string" nillable="true">
+        <xs:annotation>
+          <xs:documentation>ИмяПредопределенныхДанных</xs:documentation>
+        </xs:annotation>
+      </xs:element>
+      <xs:element name="tableRows" type="tns:TestCatalogs.TableRows" nillable="true"/>
     </xs:sequence>
   </xs:complexType>
-  <xs:complexType name="TestCatalog.TabularSection.Row">
+  <xs:complexType name="TestCatalogs.TableRows">
     <xs:sequence>
-      <xs:element name="dateTime" type="xs:dateTime" nillable="true"/>
-      <xs:element name="string" type="xs:string" nillable="true"/>
+      <xs:element name="row" type="tns:TestCatalogs.TableRows.Row" minOccurs="0" maxOccurs="unbounded"/>
     </xs:sequence>
   </xs:complexType>
-  <xs:complexType name="TestRegister">
+  <xs:complexType name="TestCatalogs.TableRows.Row">
+    <xs:annotation>
+      <xs:documentation>Строка табличной части</xs:documentation>
+    </xs:annotation>
     <xs:sequence>
-      <xs:element name="period" type="xs:dateTime"/>
-      <xs:element name="testRef" type="tns:UUID" nillable="true"/>
-      <xs:element name="boolean" type="xs:boolean" nillable="true"/>
+      <xs:element name="dateTime" type="xs:dateTime" nillable="true">
+        <xs:annotation>
+          <xs:documentation>ДатаИВремя</xs:documentation>
+        </xs:annotation>
+      </xs:element>
       <xs:element name="string" nillable="true">
+        <xs:annotation>
+          <xs:documentation>Строка</xs:documentation>
+        </xs:annotation>
+        <xs:simpleType>
+          <xs:restriction base="xs:string">
+            <xs:maxLength value="150"/>
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:element>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="TestDocuments">
+    <xs:annotation>
+      <xs:documentation>кфк_т_ТестовыйДокумент</xs:documentation>
+    </xs:annotation>
+    <xs:sequence>
+      <xs:element name="comment" type="xs:string" nillable="true">
+        <xs:annotation>
+          <xs:documentation>Комментарий</xs:documentation>
+        </xs:annotation>
+      </xs:element>
+      <xs:element name="conducted" type="xs:boolean" nillable="true">
+        <xs:annotation>
+          <xs:documentation>Проведен</xs:documentation>
+        </xs:annotation>
+      </xs:element>
+      <xs:element name="date" type="xs:dateTime" nillable="true">
+        <xs:annotation>
+          <xs:documentation>Дата</xs:documentation>
+        </xs:annotation>
+      </xs:element>
+      <xs:element name="deleted" type="xs:boolean" nillable="true">
+        <xs:annotation>
+          <xs:documentation>ПометкаУдаления</xs:documentation>
+        </xs:annotation>
+      </xs:element>
+      <xs:element name="id" type="tns:UUID" nillable="true">
+        <xs:annotation>
+          <xs:documentation>Ссылка</xs:documentation>
+        </xs:annotation>
+      </xs:element>
+      <xs:element name="number" nillable="true">
+        <xs:annotation>
+          <xs:documentation>Номер</xs:documentation>
+        </xs:annotation>
+        <xs:simpleType>
+          <xs:restriction base="xs:string">
+            <xs:maxLength value="9"/>
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:element>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="TestInformationRegisters">
+    <xs:annotation>
+      <xs:documentation>кфк_т_ТестовыйРегистрСведений</xs:documentation>
+    </xs:annotation>
+    <xs:sequence>
+      <xs:element name="comment" nillable="true">
+        <xs:annotation>
+          <xs:documentation>Комментарий</xs:documentation>
+        </xs:annotation>
+        <xs:simpleType>
+          <xs:restriction base="xs:string">
+            <xs:maxLength value="256"/>
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:element>
+      <xs:element name="dateTime" type="xs:dateTime" nillable="true">
+        <xs:annotation>
+          <xs:documentation>ДатаИВремя</xs:documentation>
+        </xs:annotation>
+      </xs:element>
+      <xs:element name="identifierId" type="tns:UUID" nillable="true">
+        <xs:annotation>
+          <xs:documentation>Идентификатор</xs:documentation>
+        </xs:annotation>
+      </xs:element>
+      <xs:element name="isBoolean" type="xs:boolean" nillable="true">
+        <xs:annotation>
+          <xs:documentation>Булево</xs:documentation>
+        </xs:annotation>
+      </xs:element>
+      <xs:element name="number" type="xs:double" nillable="true">
+        <xs:annotation>
+          <xs:documentation>Число</xs:documentation>
+        </xs:annotation>
+      </xs:element>
+      <xs:element name="period" type="xs:dateTime" nillable="true">
+        <xs:annotation>
+          <xs:documentation>Период</xs:documentation>
+        </xs:annotation>
+      </xs:element>
+      <xs:element name="string" nillable="true">
+        <xs:annotation>
+          <xs:documentation>Строка</xs:documentation>
+        </xs:annotation>
         <xs:simpleType>
           <xs:restriction base="xs:string">
             <xs:maxLength value="50"/>
           </xs:restriction>
         </xs:simpleType>
       </xs:element>
-      <xs:element name="number" type="xs:decimal" nillable="true"/>
-      <xs:element name="dateTime" type="xs:dateTime" nillable="true"/>
-      <xs:element name="uuid" nillable="true">
+      <xs:element name="testReferenceId" type="tns:UUID" nillable="true">
+        <xs:annotation>
+          <xs:documentation>ТестоваяСсылка</xs:documentation>
+        </xs:annotation>
+      </xs:element>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="TestInformationRegistersPR">
+    <xs:annotation>
+      <xs:documentation>кфк_т_ТестовыйРегистрСведенийПР</xs:documentation>
+    </xs:annotation>
+    <xs:sequence>
+      <xs:element name="document" type="tns:UUID" nillable="true">
+        <xs:annotation>
+          <xs:documentation>Регистратор</xs:documentation>
+        </xs:annotation>
+      </xs:element>
+      <xs:element name="identifier" nillable="true">
+        <xs:annotation>
+          <xs:documentation>Идентификатор</xs:documentation>
+        </xs:annotation>
         <xs:simpleType>
           <xs:restriction base="xs:string">
-            <xs:minLength value="36"/>
             <xs:maxLength value="36"/>
           </xs:restriction>
         </xs:simpleType>
       </xs:element>
-      <xs:element name="comment" type="xs:string" nillable="true"/>
-    </xs:sequence>
-  </xs:complexType>
-  <xs:complexType name="TestRegisterRS">
-    <xs:sequence>
-      <xs:element name="period" type="xs:dateTime"/>
-      <xs:element name="recorder" type="tns:UUID"/>
-      <xs:element name="id" type="tns:UUID"/>
-      <xs:element name="value" type="xs:decimal" nillable="true"/>
+      <xs:element name="isActive" type="xs:boolean" nillable="true">
+        <xs:annotation>
+          <xs:documentation>Активность</xs:documentation>
+        </xs:annotation>
+      </xs:element>
+      <xs:element name="period" type="xs:dateTime" nillable="true">
+        <xs:annotation>
+          <xs:documentation>Период</xs:documentation>
+        </xs:annotation>
+      </xs:element>
+      <xs:element name="value" type="xs:double" nillable="true">
+        <xs:annotation>
+          <xs:documentation>Значение</xs:documentation>
+        </xs:annotation>
+      </xs:element>
     </xs:sequence>
   </xs:complexType>
 </xs:schema>

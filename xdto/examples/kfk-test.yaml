@@ -1,176 +1,350 @@
-asyncapi: 3.1.0
+asyncapi: '3.1.0'
+
 info:
-  title: 1С. Адаптер Kafka - Примеры использования
-  version: 1.0.0
-  description: Пример обмена для 1С. Адаптер Kafka
-servers:
-  kafka-dev:
-    host: 'localhost:29091'
-    protocol: kafka
-    description: Dev Kafka cluster
+  title: Тестирование адаптера kafka
+  version: '1.0.0'
+
+x-last-modified:
+  at: '2026-10-15T13:42:53'
+  name: Администратор
+
 defaultContentType: application/json
-operations:
-  TestCatalog:
-    action: receive
-    channel:
-      $ref: '#/channels/TestCatalog'
-  TestRegister:
-    action: receive
-    channel:
-      $ref: '#/channels/TestRegister'
-  TestRegisterRS:
-    action: receive
-    channel:
-      $ref: '#/channels/TestRegisterRS'
-  TestAccumulationRegister:
-    action: receive
-    channel:
-      $ref: '#/channels/TestAccumulationRegister'
+
 channels:
-  TestCatalog:
-    address: 1c.test-catalog
-    description: Тестовый справочник
+  testAccumulationRegisters:
+    title: TestAccumulationRegisters
+    address: 1c.test-accumulation-registers
     messages:
-      TestCatalog:
-        $ref: '#/components/messages/TestCatalog'
-  TestRegister:
-    address: 1c.test-register
-    description: Тестовый регистр сведений
+      TestAccumulationRegisters:
+        $ref: '#/components/messages/TestAccumulationRegistersMessage'
+  testCatalogs:
+    title: TestCatalogs
+    address: 1c.test-catalogs
     messages:
-      TestRegister:
-        $ref: '#/components/messages/TestRegister'
-  TestRegisterRS:
-    address: 1c.test-register-rs
-    description: Тестовый регистр сведений подчиненный регистратору
+      TestCatalogs:
+        $ref: '#/components/messages/TestCatalogsMessage'
+  testDocuments:
+    title: TestDocuments
+    address: 1c.test-documents
     messages:
-      TestRegisterRS:
-        $ref: '#/components/messages/TestRegisterRS'
-  TestAccumulationRegister:
-    address: 1c.test-accumulation-register
-    description: Тестовый регистр накопления
+      TestDocuments:
+        $ref: '#/components/messages/TestDocumentsMessage'
+  testInformationRegisters:
+    title: TestInformationRegisters
+    address: 1c.test-information-registers
     messages:
-      TestAccumulationRegister:
-        $ref: '#/components/messages/TestAccumulationRegister'
+      TestInformationRegisters:
+        $ref: '#/components/messages/TestInformationRegistersMessage'
+  testInformationRegistersPR:
+    title: TestInformationRegistersPR
+    address: 1c.test-information-registers-pr
+    messages:
+      TestInformationRegistersPR:
+        $ref: '#/components/messages/TestInformationRegistersPRMessage'
+
+operations:
+  sendTestAccumulationRegisters:
+    action: send
+    channel:
+      $ref: '#/channels/testAccumulationRegisters'
+    messages:
+      - $ref: '#/channels/testAccumulationRegisters/messages/TestAccumulationRegisters'
+  sendTestCatalogs:
+    action: send
+    channel:
+      $ref: '#/channels/testCatalogs'
+    messages:
+      - $ref: '#/channels/testCatalogs/messages/TestCatalogs'
+  sendTestDocuments:
+    action: send
+    channel:
+      $ref: '#/channels/testDocuments'
+    messages:
+      - $ref: '#/channels/testDocuments/messages/TestDocuments'
+  sendTestInformationRegisters:
+    action: send
+    channel:
+      $ref: '#/channels/testInformationRegisters'
+    messages:
+      - $ref: '#/channels/testInformationRegisters/messages/TestInformationRegisters'
+  sendTestInformationRegistersPR:
+    action: send
+    channel:
+      $ref: '#/channels/testInformationRegistersPR'
+    messages:
+      - $ref: '#/channels/testInformationRegistersPR/messages/TestInformationRegistersPR'
+
 components:
   messages:
-    TestCatalog:
-      contentType: application/json
+    TestAccumulationRegistersMessage:
+      name: TestAccumulationRegistersMessage
       payload:
-        $ref: '#/components/schemas/TestCatalog'
-    TestRegister:
-      contentType: application/json
+        $ref: '#/components/schemas/TestAccumulationRegistersPayload'
+    TestCatalogsMessage:
+      name: TestCatalogsMessage
       payload:
-        $ref: '#/components/schemas/TestRegister'
-    TestRegisterRS:
-      contentType: application/json
+        $ref: '#/components/schemas/TestCatalogsPayload'
+    TestDocumentsMessage:
+      name: TestDocumentsMessage
       payload:
-        $ref: '#/components/schemas/TestRegisterRS'
-    TestAccumulationRegister:
-      contentType: application/json
+        $ref: '#/components/schemas/TestDocumentsPayload'
+    TestInformationRegistersMessage:
+      name: TestInformationRegistersMessage
       payload:
-        $ref: '#/components/schemas/TestAccumulationRegister'
+        $ref: '#/components/schemas/TestInformationRegistersPayload'
+    TestInformationRegistersPRMessage:
+      name: TestInformationRegistersPRMessage
+      payload:
+        $ref: '#/components/schemas/TestInformationRegistersPRPayload'
   schemas:
-    TestCatalog:
+    TestAccumulationRegistersPayload:
+      title: кфк_т_ТестовыйРегистрНакопления
+      description: 'РегистрНакопленияЗапись.кфк_т_ТестовыйРегистрНакопления'
+      x-configuration-kind: РегистрНакопления
       type: object
-      additionalProperties: false
-      required:
-        - ref
-        - name
       properties:
-        ref:
+        document:
+          title: Регистратор
+          x-configuration-kind: Свойство
           type: string
           format: uuid
-        name:
+        identifier:
+          title: Идентификатор
+          description: 'Идентификатор'
+          x-configuration-kind: Измерение
           type: string
-        dateTime:
+          maxLength: 36
+        isActive:
+          title: Активность
+          description: 'Активность'
+          x-configuration-kind: Свойство
+          type: boolean
+        period:
+          title: Период
+          description: 'Период'
+          x-configuration-kind: Свойство
           type: string
           format: date-time
-        number:
+        value:
+          title: Значение
+          description: 'Значение'
+          x-configuration-kind: Ресурс
           type: number
-        boolean:
-          type: boolean
-        enum:
-          type: string
-          enum:
-            - Значение1
-            - Значение2
-            - Значение3
+          format: double
+    TestCatalogsPayload:
+      title: кфк_т_ТестовыйСправочник
+      description: 'СправочникСсылка.кфк_т_ТестовыйСправочник'
+      x-configuration-kind: Справочник
+      type: object
+      properties:
         comment:
+          title: Комментарий
+          description: 'Комментарий'
+          x-configuration-kind: Реквизит
           type: string
-        tabularSection:
+          maxLength: 256
+        dateTime:
+          title: ДатаИВремя
+          description: 'Дата и время'
+          x-configuration-kind: Реквизит
+          type: string
+          format: date-time
+        deleted:
+          title: ПометкаУдаления
+          description: 'ПометкаУдаления'
+          x-configuration-kind: Свойство
+          type: boolean
+        enumeration:
+          title: Перечисление
+          description: 'Перечисление'
+          x-configuration-kind: Реквизит
+          $ref: '#/components/schemas/TestEnumerations'
+        id:
+          title: Ссылка
+          description: 'Ссылка'
+          x-configuration-kind: Свойство
+          type: string
+          format: uuid
+          x-topics:
+            - 1c.test-catalogs
+        isEnabled:
+          title: Булево
+          description: 'Булево'
+          x-configuration-kind: Реквизит
+          type: boolean
+        name:
+          title: Наименование
+          description: 'Наименование'
+          x-configuration-kind: Свойство
+          type: string
+          maxLength: 100
+        number:
+          title: Число
+          description: 'Число'
+          x-configuration-kind: Реквизит
+          type: number
+          format: double
+        predefinedDataName:
+          title: ИмяПредопределенныхДанных
+          description: 'ИмяПредопределенныхДанных'
+          x-configuration-kind: Реквизит
+          type: string
+        tableRows:
+          x-configuration-kind: ТабличнаяЧасть
           type: array
           items:
-            type: object
-            additionalProperties: false
-            properties:
-              dateTime:
-                type: string
-                format: date-time
-              string:
-                type: string
-    TestRegister:
+              title: Строка табличной части
+              type: object
+              properties:
+                dateTime:
+                  title: ДатаИВремя
+                  description: 'Дата и время'
+                  x-configuration-kind: Реквизит
+                  type: string
+                  format: date-time
+                string:
+                  title: Строка
+                  description: 'Строка'
+                  x-configuration-kind: Реквизит
+                  type: string
+                  maxLength: 150
+    TestDocumentsPayload:
+      title: кфк_т_ТестовыйДокумент
+      description: 'ДокументСсылка.кфк_т_ТестовыйДокумент'
+      x-configuration-kind: Документ
       type: object
-      additionalProperties: false
-      required:
-        - period
       properties:
-        period:
+        comment:
+          title: Комментарий
+          description: 'Комментарий'
+          x-configuration-kind: Реквизит
+          type: string
+        conducted:
+          title: Проведен
+          description: 'Проведен'
+          x-configuration-kind: Свойство
+          type: boolean
+        date:
+          title: Дата
+          description: 'Дата'
+          x-configuration-kind: Свойство
           type: string
           format: date-time
-        testRef:
+        deleted:
+          title: ПометкаУдаления
+          description: 'ПометкаУдаления'
+          x-configuration-kind: Свойство
+          type: boolean
+        id:
+          title: Ссылка
+          description: 'Ссылка'
+          x-configuration-kind: Свойство
           type: string
           format: uuid
-        boolean:
+          x-topics:
+            - 1c.test-documents
+        number:
+          title: Номер
+          description: 'Номер'
+          x-configuration-kind: Свойство
+          type: string
+          maxLength: 9
+    TestInformationRegistersPayload:
+      title: кфк_т_ТестовыйРегистрСведений
+      description: 'РегистрСведенийЗапись.кфк_т_ТестовыйРегистрСведений'
+      x-configuration-kind: РегистрСведений
+      type: object
+      properties:
+        comment:
+          title: Комментарий
+          description: 'Комментарий'
+          x-configuration-kind: Ресурс
+          type: string
+          maxLength: 256
+        dateTime:
+          title: ДатаИВремя
+          description: 'Дата и время'
+          x-configuration-kind: Измерение
+          type: string
+          format: date-time
+        identifierId:
+          title: Идентификатор
+          description: 'Идентификатор'
+          x-configuration-kind: Измерение
+          type: string
+          format: uuid
+        isBoolean:
+          title: Булево
+          description: 'Булево'
+          x-configuration-kind: Измерение
           type: boolean
+        number:
+          title: Число
+          description: 'Число'
+          x-configuration-kind: Измерение
+          type: number
+          format: double
+        period:
+          title: Период
+          description: 'Период'
+          x-configuration-kind: Свойство
+          type: string
+          format: date-time
         string:
+          title: Строка
+          description: 'Строка'
+          x-configuration-kind: Измерение
           type: string
           maxLength: 50
-        number:
-          type: number
-        dateTime:
+        testReferenceId:
+          title: ТестоваяСсылка
+          description: 'Тестовая ссылка'
+          x-configuration-kind: Измерение
           type: string
-          format: date-time
-        uuid:
+          format: uuid
+          x-topics:
+            - 1c.test-catalogs
+    TestInformationRegistersPRPayload:
+      title: кфк_т_ТестовыйРегистрСведенийПР
+      description: 'РегистрСведенийЗапись.кфк_т_ТестовыйРегистрСведенийПР'
+      x-configuration-kind: РегистрСведений
+      type: object
+      properties:
+        document:
+          title: Регистратор
+          x-configuration-kind: Свойство
           type: string
-          minLength: 36
+          format: uuid
+        identifier:
+          title: Идентификатор
+          description: 'Идентификатор'
+          x-configuration-kind: Измерение
+          type: string
           maxLength: 36
-        comment:
-          type: string
-    TestRegisterRS:
-      type: object
-      additionalProperties: false
-      required:
-        - period
-        - recorder
-        - id
-      properties:
+        isActive:
+          title: Активность
+          description: 'Активность'
+          x-configuration-kind: Свойство
+          type: boolean
         period:
+          title: Период
+          description: 'Период'
+          x-configuration-kind: Свойство
           type: string
           format: date-time
-        recorder:
-          type: string
-          format: uuid
-        id:
-          type: string
-          format: uuid
         value:
+          title: Значение
+          description: 'Значение'
+          x-configuration-kind: Ресурс
           type: number
-    TestAccumulationRegister:
-      type: object
-      additionalProperties: false
-      required:
-        - period
-        - recorder
-        - id
-      properties:
-        period:
-          type: string
-          format: date-time
-        recorder:
-          type: string
-          format: uuid
-        id:
-          type: string
-          format: uuid
-        value:
-          type: number
+          format: double
+    TestEnumerations:
+      type: string
+      enum:
+        - Значение1
+        - Значение2
+        - Значение3
+      x-enumNames:
+        - Значение1
+        - Значение2
+        - Значение3
