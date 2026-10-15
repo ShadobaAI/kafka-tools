@@ -10,6 +10,14 @@ GUI и четыре штатных Windows CLI используют общую �
 
 Каталог `tools/ai` содержит общую AI-инфраструктуру фиксированного Kafka workspace:
 установщик, `code-index`, общие 1С-skills, routing guard и regression-тесты.
+Для работы с Vanessa Automation через MCP доступны [UI-команды](ui/README.md)
+и навык [vanessa-ui-tests](.codex/skills/vanessa-ui-tests/SKILL.md). Команды используют отдельный локальный профиль.
+Коллекция `vanessa` в `v8std` хранит синтаксис, паттерны и MCP-справку;
+`vanessa:patterns:catalog` связывает темы по задачам. Навык определяет порядок
+работы ИИ и подтверждение результата, профиль — базу, пути и параметры запуска.
+Проверка только UI-окружения: `node tools/ai/doctor.mjs --ui-profile <profile.json>`;
+профиль разрешается независимо от Kafka EDT-маршрутов. Штатный `install.cmd`
+доставляет этот навык вместе с остальными managed skills.
 Новый [policy subsystem](policy/README.md) содержит versioned exact-selector registry
 и read-only MCP; штатный installer доставляет его декларацию вместе с OpenViking MCP.
 Доставкой shared skills, MCP declarations и routing guard владеет `install.cmd`.

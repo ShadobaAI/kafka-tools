@@ -198,6 +198,18 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   const args = process.argv.slice(2);
   const human = args[0] === "--human";
   if (human) args.shift();
+  if (args.length === 2 && args[0] === "--ui-profile") {
+    try {
+      const { doctor, loadProfile } = await import("./ui/vanessa.mjs");
+      const { redact } = await import("./ui/mcp.mjs");
+      const result = redact(await doctor(loadProfile(args[1])));
+      process.stdout.write(human ? `Vanessa UI: ${result.status}\n${result.reason ?? ""}\n` : `${JSON.stringify(result, null, 2)}\n`);
+      if (result.status !== "ready") process.exitCode = 1;
+    } catch (error) {
+      process.stderr.write(`Vanessa UI doctor: ${error.code ?? error.message}\n`);
+      process.exitCode = 1;
+    }
+  } else {
   const projectRoot = args.length === 0 ? process.cwd() :
     args.length === 2 && args[0] === "--project-root" ? args[1] : null;
   if (!projectRoot) {
@@ -207,4 +219,5 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     process.stdout.write(human ? formatReport(result) : `${JSON.stringify(result, null, 2)}\n`);
     if (result.status !== "ready") process.exitCode = 1;
   }).catch((error) => { process.stderr.write(`doctor: ${error.message}\n`); process.exitCode = 1; });
+  }
 }

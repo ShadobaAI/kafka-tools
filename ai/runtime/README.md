@@ -1,5 +1,32 @@
 # Runtime-артефакты
 
+## Vanessa Automation Single
+
+Встроенная обработка запускается по `runtime.navigationUrl` из профиля и не
+требует внешней EPF. Для внешнего runtime подготовьте закреплённый официальный
+Single-релиз с проверкой SHA-256 архива и EPF:
+
+```powershell
+powershell -NoProfile -File tools/ai/runtime/prepare-vanessa.ps1
+```
+
+Команда принимает `-ArchivePath <zip>` для установки из локального архива без сети
+и `-Destination <directory>` для явного каталога. Версия и контрольные суммы
+находятся в `vanessa-release.json`; лицензия поставляется в `vanessa-LICENSE`.
+Каталог `windows/vanessa/<version>` — локальный runtime cache, исключённый из Git.
+Укажите полученные `epf` и `manifest` в `runtime` профиля. Существующая EPF
+проверяется и повторно не скачивается; несовпадение хеша останавливает подготовку.
+Команда не запускает 1С и не устанавливает расширения. Ежедневная работа использует
+готовый runtime или обработку базы и не обращается к upstream checkout.
+
+Проверка повторной подготовки без загрузки после первой установки:
+
+```powershell
+powershell -NoProfile -File tools/ai/runtime/prepare-vanessa.ps1
+```
+
+## Общие анализаторы
+
 Если runtime не передан явно, `install.cmd` определяет локальные версии в
 `runtime/windows`, получает сведения о canonical GitHub releases и сравнивает их.
 Отсутствующие или отличающиеся по версии компоненты он получает с GitHub:

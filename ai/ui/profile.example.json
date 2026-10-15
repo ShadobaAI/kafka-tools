@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "id": "project-ui",
+  "projectRoot": "..",
+  "platform": "C:/Program Files/1cv8/8.3.27.2130/bin/1cv8.exe",
+  "runtime": {
+    "epf": "C:/VanessaRuntime/vanessa-automation.epf",
+    "paramsFile": "./interactive.local.json"
+  },
+  "manager": { "infobase": { "type": "file", "path": "C:/Bases/TestManager" }, "interface": "taxi" },
+  "client": { "name": "TestClient", "infobase": { "type": "file", "path": "C:/Bases/TestClient" }, "interface": "taxi" },
+  "mcp": { "serverName": "vanessa", "url": "http://127.0.0.1:9876/mcp", "port": 9876 },
+  "features": "../features",
+  "results": "../results"
+}
