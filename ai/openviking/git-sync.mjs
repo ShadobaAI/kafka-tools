@@ -9,7 +9,7 @@ const moduleDir = path.dirname(fileURLToPath(import.meta.url));
 const sourcePath = path.join(moduleDir, "sources.json");
 const releasePolicyPath = path.join(moduleDir, "version.json");
 const STATE_SCHEMA = 1;
-const INDEX_TIMEOUT_SECONDS = 600;
+const INDEX_HTTP_TIMEOUT_SECONDS = 630;
 
 // Native fetch has a separate response-header timeout, shorter than ingestion.
 // Use one explicit deadline for long requests, including the response body.
@@ -241,9 +241,12 @@ export class OpenVikingClient {
         readiness.status !== "ready") throw new Error("OpenViking runtime is not ready at the selected latest version");
     // Upstream /ready permits not_configured. Semantic retrieval requires both providers and storage.
     const checks = readiness.checks;
+    // OpenViking 0.5.1 removed multiwrite_sync from AGFS readiness.
+    // Older servers may report it; reject an unhealthy value when present.
     if (checks?.embedding !== "ok" || checks?.vectordb !== "ok" ||
         checks?.agfs?.status !== "ok" || checks.agfs.checks?.filesystem !== "ok" ||
-        !["ok", "not_supported"].includes(checks.agfs.checks?.multiwrite_sync)) {
+        (Object.hasOwn(checks.agfs.checks, "multiwrite_sync") &&
+          !["ok", "not_supported"].includes(checks.agfs.checks.multiwrite_sync))) {
       throw new Error("OpenViking embedding/vector/filesystem readiness is incomplete");
     }
   }
@@ -263,10 +266,11 @@ export class OpenVikingClient {
     let value;
     try {
       value = await this.request("POST", "/api/v1/content/write", {
-        uri, content, mode: "replace", wait: true, timeout: INDEX_TIMEOUT_SECONDS,
-      }, (INDEX_TIMEOUT_SECONDS + 30) * 1000);
+        // OpenViking 0.5.1 forbids the former server-side timeout field.
+        uri, content, mode: "replace", wait: true,
+      }, INDEX_HTTP_TIMEOUT_SECONDS * 1000);
     } catch (error) {
-      throw new Error(`OpenViking indexing failed for ${uri} (server wait: ${INDEX_TIMEOUT_SECONDS}s; HTTP deadline: ${INDEX_TIMEOUT_SECONDS + 30}s): ${error.message}. Write outcome is unverified; no automatic retry.`, { cause: error });
+      throw new Error(`OpenViking indexing failed for ${uri} (HTTP deadline: ${INDEX_HTTP_TIMEOUT_SECONDS}s): ${error.message}. Write outcome is unverified; no automatic retry.`, { cause: error });
     }
     const result = value.result ?? {};
     if (value.status !== "ok" || result.semantic_status !== "complete" || result.vector_status !== "complete") {

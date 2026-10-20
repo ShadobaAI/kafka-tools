@@ -12,6 +12,33 @@ const directory = path.dirname(fileURLToPath(import.meta.url));
 export const project = "kafka-openviking";
 export const models = { embedding: "qwen3-embedding:0.6b", vlm: "qwen3.5:4b" };
 const digestPattern = /^sha256:[a-f0-9]{64}$/;
+const stableVersionPattern = /^\d+\.\d+\.\d+(?:\.post\d+)?$/;
+
+function compareStableVersions(left, right) {
+  const parse = (value) => value.split(".").map(Number);
+  const a = parse(left.replace(".post", "."));
+  const b = parse(right.replace(".post", "."));
+  for (let index = 0; index < Math.max(a.length, b.length); index += 1) {
+    const difference = (a[index] ?? 0) - (b[index] ?? 0);
+    if (difference) return difference;
+  }
+  return 0;
+}
+
+export function resolveLatestStableVersion(metadata) {
+  const releases = metadata?.releases;
+  if (releases !== undefined) {
+    const candidates = releases && typeof releases === "object" ? Object.entries(releases)
+      .filter(([version, files]) => stableVersionPattern.test(version) &&
+        Array.isArray(files) && files.some((file) => file?.yanked !== true))
+      .map(([version]) => version) : [];
+    if (candidates.length) return candidates.sort(compareStableVersions).at(-1);
+    throw new Error("Latest release is not stable.");
+  }
+  const version = metadata?.info?.version;
+  if (typeof version === "string" && stableVersionPattern.test(version)) return version;
+  throw new Error("Latest release is not stable.");
+}
 
 export async function provisionAccount(stateDir, rootClient) {
   const keyFile = path.join(stateDir, "tenant-api-key");
@@ -217,8 +244,7 @@ export async function install({ stateDir, yes = false, gpu = false, ollamaUrl,
   const response = await fetch(policy.metadataUrl, { signal: AbortSignal.timeout(30000) });
   if (!response.ok) throw new Error("Cannot resolve latest stable OpenViking release.");
   const metadata = await response.json();
-  const version = metadata.info.version;
-  if (!/^\d+\.\d+\.\d+(?:\.post\d+)?$/.test(version)) throw new Error("Latest release is not stable.");
+  const version = resolveLatestStableVersion(metadata);
   if (owners && !fs.existsSync(runtimeFile)) {
     throw new Error("Managed OpenViking is running without runtime metadata; existing database was not changed.");
   }

@@ -43,11 +43,21 @@ healthVersion = `v${runtime.version}.dev1`;
 await assert.rejects(readinessClient.ready(runtime.version), /not ready at the selected latest version/);
 healthVersion = runtime.version;
 for (const mutate of [
+  (item) => { delete item.checks.agfs.checks.multiwrite_sync; },
+  (item) => { item.checks.agfs.checks.multiwrite_sync = "ok"; },
+]) {
+  readyResponse = structuredClone(readiness);
+  mutate(readyResponse);
+  await readinessClient.ready(runtime.version);
+}
+for (const mutate of [
   (item) => { delete item.checks; },
   (item) => { item.checks.embedding = "not_configured"; },
   (item) => { item.checks.vectordb = "not_configured"; },
+  (item) => { delete item.checks.agfs.checks.filesystem; },
   (item) => { item.checks.agfs.checks.filesystem = "error"; },
   (item) => { item.checks.agfs.checks.multiwrite_sync = "error"; },
+  (item) => { item.checks.agfs.checks.multiwrite_sync = null; },
 ]) {
   readyResponse = structuredClone(readiness);
   mutate(readyResponse);

@@ -20,7 +20,8 @@ assert.equal(policy.image, "ghcr.io/volcengine/openviking");
 assert.equal(Object.hasOwn(policy, "version"), false);
 for (const fragment of [
   "fetch(policy.metadataUrl",
-  "metadata.info.version",
+  "resolveLatestStableVersion(metadata)",
+  "releases",
   "image version",
   "RepoDigests",
   "Persistent volumes retained",

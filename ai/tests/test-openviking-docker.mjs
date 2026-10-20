@@ -5,7 +5,7 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { fileURLToPath } from "node:url";
-import { composeDocument, configuration, install, normalizeOllamaUrl, resolveOpenVikingImage, provisionAccount } from "../openviking/docker-runtime.mjs";
+import { composeDocument, configuration, install, normalizeOllamaUrl, resolveLatestStableVersion, resolveOpenVikingImage, provisionAccount } from "../openviking/docker-runtime.mjs";
 import { inventory, localClient, loadManifest, plan } from "../openviking/git-sync.mjs";
 import { beginIndexReuse, compatibleIndexUpgrade, finishIndexReuse, prepareIndexReuse } from "../openviking/index-preservation.mjs";
 
@@ -45,6 +45,13 @@ try {
   assert.equal(remoteCompose.services.openviking.depends_on, undefined);
   assert.equal(remoteCompose.volumes["ollama-models"], undefined);
   assert.equal(configuration("test-only-key", "http://gpu-host:11434").embedding.dense.api_base, "http://gpu-host:11434/v1");
+  assert.equal(resolveLatestStableVersion({ info: { version: "0.5.0.dev1" }, releases: {
+    "0.4.23": [{ yanked: false }], "0.5.0.dev1": [{ yanked: false }],
+  }}), "0.4.23");
+  assert.equal(resolveLatestStableVersion({ info: { version: "0.4.20" }}), "0.4.20");
+  assert.throws(() => resolveLatestStableVersion({ info: { version: "0.5.0.dev1" }, releases: {
+    "0.5.0.dev1": [{ yanked: false }],
+  }}), /Latest release is not stable/);
   const composeFile = path.join(root, "compose.json");
   fs.writeFileSync(composeFile, JSON.stringify(compose));
   const validated = spawnSync("docker", ["compose", "-f", composeFile, "config", "--quiet"], { encoding: "utf8", windowsHide: true });

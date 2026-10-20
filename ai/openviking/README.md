@@ -6,6 +6,11 @@
 
 Every full installation pulls the official image, records its digest and verifies its package version against latest-stable PyPI metadata. A mismatch fails setup. Semantic readiness requires embedding, VLM, vector DB and AGFS filesystem checks. Health/readiness requests have a 15-second limit. Retrieval quality and completed ingestion require separate acceptance.
 
+OpenViking 0.5.1 omits `agfs.checks.multiwrite_sync` from `/ready`.
+The toolkit accepts its absence and still requires successful embedding, vector DB
+and filesystem checks. If an older server reports `multiwrite_sync`, its value
+must be `ok` or `not_supported`.
+
 The installer pulls the release tag `v<resolved-version>` from GHCR. If Docker
 cannot pull from GHCR, it reads and hashes the official release index via the
 GHCR API, selects the Linux platform digest and pulls that exact digest from
@@ -15,8 +20,10 @@ metadata, ambiguous architecture or a digest mismatch blocks this fallback.
 
 `git-sync.mjs` reads selected blobs from committed Git trees, reconciles them to the selected local server version recorded in derived state, and stores revision state outside Git. A failed or partial sync leaves a dirty marker and forces a later rebuild. `read-only-mcp.mjs` exposes exactly `find`, `search`, `read`, `list`, and `tree`, with pre-use reconciliation and bounded results. Static and mock tests cover this behavior.
 
-Each document write waits up to 600 seconds for semantic/vector processing, with
-a 630-second HTTP deadline covering the response body. Long writes use Node HTTP
+Each document write uses `wait: true` for semantic/vector processing, with
+a 630-second HTTP deadline covering the response body. OpenViking 0.5.1 rejects
+the former request-body `timeout` field, so the client sends no server wait limit.
+Long writes use Node HTTP
 so the native fetch response-header timeout does not cut ingestion short.
 Write failures identify the document and are not retried automatically: a timeout
 does not prove that the server stopped processing. A failed installation remains
