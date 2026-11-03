@@ -8,7 +8,6 @@
 
 | Задача | Что входит | Руководство |
 |---|---|---|
-| Настроить AI-инструменты | Установка, маршрутизация MCP, проверки | [ai](ai/README.md) |
 | Собрать Docker-образы для CI | Профили `edtcli`, `ibcmd`, `client`, дистрибутивы и публикация | [.github/ci-images](.github/ci-images/README.md) |
 | Настроить сборку релизов | GitHub Actions, сборка CF/CFE, упаковка EDT/XML | [.github](.github/README_CI.md) |
 | Запустить Kafka и отправить тестовые сообщения | Два узла KRaft, ACL, Kafka UI, Schema Registry, генератор нагрузки | [kafka](kafka/README.md) |
