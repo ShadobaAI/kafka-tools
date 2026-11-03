@@ -15,6 +15,7 @@
 | Настроить логирование через OpenSearch | OpenSearch, Dashboards, Fluent Bit | [opensearch](opensearch/README.md) |
 | Запустить MS SQL Server | Локальный сервер и утилитарные SQL-скрипты | [mssql](mssql/README.md) |
 | Настроить анализ BSL-кода | SonarQube, BSL-плагин, runner, обслуживание и восстановление | [sonarqube](sonarqube/README.md) |
+| Запустить OpenViking и Ollama | Индекс документации и модели на GPU-машине | [openviking](openviking/README.md) |
 | Преобразовать или просмотреть AsyncAPI | Генерация XSD для XDTO и просмотр спецификации в Confluence | [xdto](xdto/README.md) |
 
 ## Как пользоваться инструкциями
