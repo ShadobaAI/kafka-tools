@@ -1,0 +1,458 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<config xmlns="http://v8.1c.ru/v8/tech-log">
+  <log location="C:\kfk" history="0" format="json">
+    <event>
+      <eq property="Name" value="EXCP" />
+      <eq property="p:processName" value="kafka" />
+      <eq property="Usr" value="Администратор" />
+    </event>
+    <event>
+      <eq property="Name" value="TDEADLOCK" />
+      <eq property="p:processName" value="kafka" />
+      <eq property="Usr" value="Администратор" />
+    </event>
+    <event>
+      <eq property="Name" value="TTIMEOUT" />
+      <eq property="p:processName" value="kafka" />
+      <eq property="Usr" value="Администратор" />
+    </event>
+    <event>
+      <eq property="Name" value="TLOCK" />
+      <eq property="p:processName" value="kafka" />
+      <eq property="Usr" value="Администратор" />
+      <ne property="WaitConnections" value="" />
+      <ge property="Durationus" value="100000" />
+    </event>
+    <event>
+      <eq property="Name" value="SDBL" />
+      <eq property="p:processName" value="kafka" />
+      <eq property="Usr" value="Администратор" />
+      <ge property="Durationus" value="500000" />
+    </event>
+    <event>
+      <eq property="Name" value="DBMSSQL" />
+      <eq property="p:processName" value="kafka" />
+      <eq property="Usr" value="Администратор" />
+      <ge property="Durationus" value="500000" />
+    </event>
+    <event>
+      <eq property="Name" value="DBPOSTGRS" />
+      <eq property="p:processName" value="kafka" />
+      <eq property="Usr" value="Администратор" />
+      <ge property="Durationus" value="500000" />
+    </event>
+    <event>
+      <eq property="Name" value="CALL" />
+      <eq property="p:processName" value="kafka" />
+      <eq property="Usr" value="Администратор" />
+      <ge property="Durationus" value="1000000" />
+    </event>
+    <event>
+      <eq property="Name" value="SCALL" />
+      <eq property="p:processName" value="kafka" />
+      <eq property="Usr" value="Администратор" />
+      <ge property="Durationus" value="1000000" />
+    </event>
+    <event>
+      <eq property="Name" value="EXCPCNTX" />
+      <eq property="p:processName" value="kafka" />
+      <eq property="Usr" value="Администратор" />
+    </event>
+    <event>
+      <eq property="Name" value="CALL" />
+      <eq property="p:processName" value="kafka" />
+      <eq property="Usr" value="Администратор" />
+      <ne property="RetExcp" value="" />
+    </event>
+    <property name="process" />
+    <property name="OSThread" />
+    <property name="p:processName" />
+    <property name="t:applicationName" />
+    <property name="t:computerName" />
+    <property name="t:clientID" />
+    <property name="t:connectID" />
+    <property name="SessionID" />
+    <property name="Usr" />
+    <property name="Durationus" />
+    <property name="Level" />
+    <property name="Context" />
+    <property name="Exception" />
+    <property name="Descr" />
+    <property name="Trans" />
+    <property name="DBMS" />
+    <property name="DataBase" />
+    <property name="dbpid" />
+    <property name="SrcName" />
+    <property name="Sdbl">
+      <event>
+        <eq property="Name" value="EXCP" />
+      </event>
+      <event>
+        <eq property="Name" value="EXCPCNTX" />
+      </event>
+      <event>
+        <eq property="Name" value="SDBL" />
+      </event>
+      <event>
+        <eq property="Name" value="DBMSSQL" />
+      </event>
+      <event>
+        <eq property="Name" value="DBPOSTGRS" />
+      </event>
+    </property>
+    <property name="Sql">
+      <event>
+        <eq property="Name" value="EXCP" />
+      </event>
+      <event>
+        <eq property="Name" value="EXCPCNTX" />
+      </event>
+      <event>
+        <eq property="Name" value="SDBL" />
+      </event>
+      <event>
+        <eq property="Name" value="DBMSSQL" />
+      </event>
+      <event>
+        <eq property="Name" value="DBPOSTGRS" />
+      </event>
+    </property>
+    <property name="Func">
+      <event>
+        <eq property="Name" value="EXCPCNTX" />
+      </event>
+      <event>
+        <eq property="Name" value="SDBL" />
+      </event>
+      <event>
+        <eq property="Name" value="DBMSSQL" />
+      </event>
+      <event>
+        <eq property="Name" value="DBPOSTGRS" />
+      </event>
+      <event>
+        <eq property="Name" value="CALL" />
+      </event>
+      <event>
+        <eq property="Name" value="SCALL" />
+      </event>
+    </property>
+    <property name="Rows">
+      <event>
+        <eq property="Name" value="EXCPCNTX" />
+      </event>
+      <event>
+        <eq property="Name" value="SDBL" />
+      </event>
+      <event>
+        <eq property="Name" value="DBMSSQL" />
+      </event>
+      <event>
+        <eq property="Name" value="DBPOSTGRS" />
+      </event>
+    </property>
+    <property name="RowsAffected">
+      <event>
+        <eq property="Name" value="EXCPCNTX" />
+      </event>
+      <event>
+        <eq property="Name" value="SDBL" />
+      </event>
+      <event>
+        <eq property="Name" value="DBMSSQL" />
+      </event>
+      <event>
+        <eq property="Name" value="DBPOSTGRS" />
+      </event>
+    </property>
+    <property name="WaitConnections">
+      <event>
+        <eq property="Name" value="EXCP" />
+      </event>
+      <event>
+        <eq property="Name" value="EXCPCNTX" />
+      </event>
+      <event>
+        <eq property="Name" value="TDEADLOCK" />
+      </event>
+      <event>
+        <eq property="Name" value="TTIMEOUT" />
+      </event>
+      <event>
+        <eq property="Name" value="TLOCK" />
+      </event>
+    </property>
+    <property name="Regions">
+      <event>
+        <eq property="Name" value="EXCP" />
+      </event>
+      <event>
+        <eq property="Name" value="EXCPCNTX" />
+      </event>
+      <event>
+        <eq property="Name" value="TDEADLOCK" />
+      </event>
+      <event>
+        <eq property="Name" value="TTIMEOUT" />
+      </event>
+      <event>
+        <eq property="Name" value="TLOCK" />
+      </event>
+    </property>
+    <property name="Locks">
+      <event>
+        <eq property="Name" value="EXCP" />
+      </event>
+      <event>
+        <eq property="Name" value="EXCPCNTX" />
+      </event>
+      <event>
+        <eq property="Name" value="TDEADLOCK" />
+      </event>
+      <event>
+        <eq property="Name" value="TTIMEOUT" />
+      </event>
+      <event>
+        <eq property="Name" value="TLOCK" />
+      </event>
+    </property>
+    <property name="connectionID">
+      <event>
+        <eq property="Name" value="EXCP" />
+      </event>
+      <event>
+        <eq property="Name" value="EXCPCNTX" />
+      </event>
+      <event>
+        <eq property="Name" value="TDEADLOCK" />
+      </event>
+      <event>
+        <eq property="Name" value="TTIMEOUT" />
+      </event>
+      <event>
+        <eq property="Name" value="TLOCK" />
+      </event>
+    </property>
+    <property name="DeadlockConnectionList">
+      <event>
+        <eq property="Name" value="EXCP" />
+      </event>
+      <event>
+        <eq property="Name" value="EXCPCNTX" />
+      </event>
+      <event>
+        <eq property="Name" value="TDEADLOCK" />
+      </event>
+      <event>
+        <eq property="Name" value="TTIMEOUT" />
+      </event>
+    </property>
+    <property name="DeadlockConnectionIntersections">
+      <event>
+        <eq property="Name" value="EXCP" />
+      </event>
+      <event>
+        <eq property="Name" value="EXCPCNTX" />
+      </event>
+      <event>
+        <eq property="Name" value="TDEADLOCK" />
+      </event>
+      <event>
+        <eq property="Name" value="TTIMEOUT" />
+      </event>
+    </property>
+    <property name="CallID">
+      <event>
+        <eq property="Name" value="EXCPCNTX" />
+      </event>
+      <event>
+        <eq property="Name" value="CALL" />
+      </event>
+      <event>
+        <eq property="Name" value="SCALL" />
+      </event>
+    </property>
+    <property name="Interface">
+      <event>
+        <eq property="Name" value="EXCPCNTX" />
+      </event>
+      <event>
+        <eq property="Name" value="CALL" />
+      </event>
+      <event>
+        <eq property="Name" value="SCALL" />
+      </event>
+    </property>
+    <property name="IName">
+      <event>
+        <eq property="Name" value="EXCPCNTX" />
+      </event>
+      <event>
+        <eq property="Name" value="CALL" />
+      </event>
+      <event>
+        <eq property="Name" value="SCALL" />
+      </event>
+    </property>
+    <property name="Method">
+      <event>
+        <eq property="Name" value="EXCPCNTX" />
+      </event>
+      <event>
+        <eq property="Name" value="CALL" />
+      </event>
+      <event>
+        <eq property="Name" value="SCALL" />
+      </event>
+    </property>
+    <property name="MName">
+      <event>
+        <eq property="Name" value="EXCPCNTX" />
+      </event>
+      <event>
+        <eq property="Name" value="CALL" />
+      </event>
+      <event>
+        <eq property="Name" value="SCALL" />
+      </event>
+    </property>
+    <property name="ClientID">
+      <event>
+        <eq property="Name" value="EXCPCNTX" />
+      </event>
+      <event>
+        <eq property="Name" value="CALL" />
+      </event>
+      <event>
+        <eq property="Name" value="SCALL" />
+      </event>
+    </property>
+    <property name="DstClientID">
+      <event>
+        <eq property="Name" value="EXCPCNTX" />
+      </event>
+      <event>
+        <eq property="Name" value="CALL" />
+      </event>
+      <event>
+        <eq property="Name" value="SCALL" />
+      </event>
+    </property>
+    <property name="callWait">
+      <event>
+        <eq property="Name" value="EXCPCNTX" />
+      </event>
+      <event>
+        <eq property="Name" value="CALL" />
+      </event>
+      <event>
+        <eq property="Name" value="SCALL" />
+      </event>
+    </property>
+    <property name="RetExcp">
+      <event>
+        <eq property="Name" value="EXCPCNTX" />
+      </event>
+      <event>
+        <eq property="Name" value="CALL" />
+      </event>
+      <event>
+        <eq property="Name" value="SCALL" />
+      </event>
+    </property>
+    <property name="Memory">
+      <event>
+        <eq property="Name" value="EXCPCNTX" />
+      </event>
+      <event>
+        <eq property="Name" value="CALL" />
+      </event>
+      <event>
+        <eq property="Name" value="SCALL" />
+      </event>
+    </property>
+    <property name="MemoryPeak">
+      <event>
+        <eq property="Name" value="EXCPCNTX" />
+      </event>
+      <event>
+        <eq property="Name" value="CALL" />
+      </event>
+      <event>
+        <eq property="Name" value="SCALL" />
+      </event>
+    </property>
+    <property name="CpuTime">
+      <event>
+        <eq property="Name" value="EXCPCNTX" />
+      </event>
+      <event>
+        <eq property="Name" value="CALL" />
+      </event>
+      <event>
+        <eq property="Name" value="SCALL" />
+      </event>
+    </property>
+    <property name="InBytes">
+      <event>
+        <eq property="Name" value="EXCPCNTX" />
+      </event>
+      <event>
+        <eq property="Name" value="CALL" />
+      </event>
+      <event>
+        <eq property="Name" value="SCALL" />
+      </event>
+    </property>
+    <property name="OutBytes">
+      <event>
+        <eq property="Name" value="EXCPCNTX" />
+      </event>
+      <event>
+        <eq property="Name" value="CALL" />
+      </event>
+      <event>
+        <eq property="Name" value="SCALL" />
+      </event>
+    </property>
+    <property name="Module">
+      <event>
+        <eq property="Name" value="EXCPCNTX" />
+      </event>
+      <event>
+        <eq property="Name" value="CALL" />
+      </event>
+      <event>
+        <eq property="Name" value="SCALL" />
+      </event>
+    </property>
+    <property name="Meth">
+      <event>
+        <eq property="Name" value="EXCPCNTX" />
+      </event>
+      <event>
+        <eq property="Name" value="CALL" />
+      </event>
+      <event>
+        <eq property="Name" value="SCALL" />
+      </event>
+    </property>
+    <property name="Txt">
+      <event>
+        <eq property="Name" value="EXCP" />
+      </event>
+      <event>
+        <eq property="Name" value="EXCPCNTX" />
+      </event>
+      <event>
+        <eq property="Name" value="TDEADLOCK" />
+      </event>
+      <event>
+        <eq property="Name" value="TTIMEOUT" />
+      </event>
+      <event>
+        <eq property="Name" value="TLOCK" />
+      </event>
+    </property>
+  </log>
+</config>
