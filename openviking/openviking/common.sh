@@ -17,7 +17,6 @@ finish() {
 trap finish EXIT
 
 STATE_DIR="$HOME/.openviking"
-REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../adapter/adapter" && pwd -P)" || fail 'Cannot locate adapter/adapter relative to openviking/openviking.'
 OLLAMA_URL="http://iA11:11434"
 OPENVIKING_IMAGE="ghcr.io/volcengine/openviking:v0.5.1"
 OPENVIKING_VERSION="0.5.1"

@@ -11,7 +11,8 @@ trap early_finish EXIT
 printf 'Starting OpenViking documentation update...\n'
 source "$(dirname "$0")/common.sh" || { printf 'ERROR: Could not load common.sh.\n' >&2; exit 1; }
 trap 'error_code=$?; printf "ERROR: Command failed at line %s (exit code %s).\n" "$LINENO" "$error_code" >&2' ERR
-for program in git curl jq mktemp cygpath; do require "$program"; done
+for program in git curl jq mktemp cygpath cmp; do require "$program"; done
+REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../adapter/adapter" && pwd -P)" || fail 'Cannot locate adapter/adapter relative to openviking/openviking.'
 [[ -f "$STATE_DIR/tenant.curl" ]] || fail 'Run start.sh first.'
 printf 'Checking OpenViking and Ollama...\n'
 check_ready
@@ -32,7 +33,7 @@ cleanup() {
     wait "$progress_pid" 2>/dev/null || true
   fi
   if [[ -n "$work" ]]; then
-    rm -f -- "$work/previous.json" "$work/current.json" "$work/inventory" "$work/response" "$work/body" "$work/next" "$work/plan" "$work/content" "$work/state.json"
+    rm -f -- "$work/previous.json" "$work/current.json" "$work/inventory" "$work/response" "$work/body" "$work/next" "$work/plan" "$work/content" "$work/stored-content" "$work/state.json"
     rmdir -- "$work"
   fi
   rmdir -- "$lock"
@@ -96,7 +97,9 @@ if (( deletes > 0 )); then
   read -r -p 'Delete these documents from OpenViking? Type yes: ' answer
   [[ "$answer" == yes ]] || fail 'Cancelled; index unchanged.'
 fi
-if (( writes > 0 || deletes > 0 )); then printf 'incomplete\n' > "$STATE_DIR/dirty"; fi
+# Preserve the incomplete marker until both mutation and verification succeed,
+# including verification-only runs with no changes.
+printf 'incomplete\n' > "$STATE_DIR/dirty"
 deleted=0
 while IFS= read -r file; do
   # Native Windows jq may end each output line with CRLF under Git Bash.
@@ -146,11 +149,19 @@ while IFS= read -r file; do
   file=${file%$'\r'}
   curl --silent --show-error --fail --max-time 15 --config "$(cygpath -m "$STATE_DIR/tenant.curl")" --get --data-urlencode "uri=$NAMESPACE/$file" "$OPENVIKING_URL/api/v1/fs/stat" > "$response" || fail "Missing indexed document: $file"
   jq -e '.status == "ok" and .result.isDir == false' "$response" >/dev/null || fail "Invalid indexed document: $file"
+  oid=$(jq -er --arg f "$file" '.[$f] | select(type == "string" and test("^([0-9a-f]{40}|[0-9a-f]{64})$"))' "$current") || fail "Missing or invalid Git object ID for $file"
+  git -C "$REPO_DIR" cat-file blob "$oid" > "$work/content"
+  curl --silent --show-error --fail --max-time 60 --config "$(cygpath -m "$STATE_DIR/tenant.curl")" --get --data-urlencode "uri=$NAMESPACE/$file" "$OPENVIKING_URL/api/v1/content/download" > "$work/stored-content" || fail "Cannot read indexed document: $file"
+  cmp -s "$work/content" "$work/stored-content" || fail "Indexed document content differs from Git: $file"
   ((verified += 1))
   if (( verified % 10 == 0 || verified == total_documents )); then
     printf 'Verified %s/%s documents; total %ss.\n' "$verified" "$total_documents" "$((SECONDS - sync_started))"
   fi
 done < <(jq -r 'keys[]' "$current")
+printf 'Checking filesystem and vector-index consistency...\n'
+jq -n --arg uri "$NAMESPACE/docs" '{uri:$uri}' > "$body"
+request "$STATE_DIR/tenant.curl" POST '/api/v1/system/consistency' "$response" -H 'Content-Type: application/json' --data-binary "@$(cygpath -m "$body")" || fail 'Cannot check vector-index consistency.'
+jq -e '.status == "ok" and .result.ok == true and .result.missing_record_count == 0 and .result.missing_records_truncated == false' "$response" >/dev/null || fail 'Vector-index consistency check failed.'
 [[ $(git -C "$REPO_DIR" rev-parse HEAD) == "$revision" ]] || fail 'Git HEAD changed during synchronization.'
 models_after=$(model_digests) || fail 'Cannot recheck model digests after synchronization.'
 [[ "$models_after" == "$models" ]] || fail 'Model digests changed during synchronization.'

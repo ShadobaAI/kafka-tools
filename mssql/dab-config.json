@@ -1,0 +1,48 @@
+{
+  "$schema": "https://github.com/Azure/data-api-builder/releases/download/v2.0.12/dab.draft.schema.json",
+  "data-source": {
+    "database-type": "mssql",
+    "connection-string": "@env('MSSQL_CONNECTION_STRING')"
+  },
+  "runtime": {
+    "rest": { "enabled": false },
+    "graphql": { "enabled": false },
+    "mcp": {
+      "enabled": true,
+      "path": "/mcp",
+      "dml-tools": { "describe-entities": true, "execute-entity": true }
+    },
+    "host": {
+      "mode": "development",
+      "authentication": { "provider": "Unauthenticated" }
+    }
+  },
+  "entities": {
+    "ExecuteSql": {
+      "description": "Execute a T-SQL batch without a result set, including DDL and DML. Parameters: sql and database (defaults to master).",
+      "source": {
+        "object": "dbo.mcp_execute_sql",
+        "type": "stored-procedure",
+        "parameters": [
+          { "name": "sql", "required": true, "description": "T-SQL batch without result sets" },
+          { "name": "database", "required": false, "default": "master", "description": "Target database" }
+        ]
+      },
+      "permissions": [{ "role": "anonymous", "actions": ["execute"] }],
+      "mcp": { "dml-tools": true, "custom-tool": true }
+    },
+    "QuerySql": {
+      "description": "Run one SELECT and return its rows as JSON. Parameters: sql and database (defaults to master). Do not include FOR JSON or GO.",
+      "source": {
+        "object": "dbo.mcp_query_sql",
+        "type": "stored-procedure",
+        "parameters": [
+          { "name": "sql", "required": true, "description": "One SELECT statement" },
+          { "name": "database", "required": false, "default": "master", "description": "Target database" }
+        ]
+      },
+      "permissions": [{ "role": "anonymous", "actions": ["execute"] }],
+      "mcp": { "dml-tools": true, "custom-tool": true }
+    }
+  }
+}

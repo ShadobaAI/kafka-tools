@@ -1,0 +1,59 @@
+services:
+  mssql:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: mssql-mcp
+    restart: unless-stopped
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: 'Qwerty123!'
+      MSSQL_COLLATION: Cyrillic_General_CI_AS
+      MSSQL_LCID: "1049"
+    ports:
+      - "1433:1433"
+    volumes:
+      - mssql-data:/var/opt/mssql
+      - type: bind
+        source: C:/docker-backups/mssql
+        target: /var/opt/mssql/backup
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - 'SQLCMDPASSWORD="$$MSSQL_SA_PASSWORD" /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -C -b -Q "SELECT 1" -o /dev/null'
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 45s
+
+  mssql-mcp-init:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: mssql-mssql-mcp-init
+    profiles: ["mcp"]
+    depends_on:
+      mssql:
+        condition: service_healthy
+    environment:
+      SQLCMDPASSWORD: 'Qwerty123!'
+    entrypoint: ["/opt/mssql-tools18/bin/sqlcmd"]
+    command: ["-S", "mssql", "-U", "sa", "-C", "-b", "-i", "/config/mcp-init.sql"]
+    volumes:
+      - ./mcp-init.sql:/config/mcp-init.sql:ro
+    restart: "no"
+
+  mssql-mcp:
+    image: mcr.microsoft.com/azure-databases/data-api-builder:2.0.12
+    container_name: mssql-mssql-mcp
+    profiles: ["mcp"]
+    restart: "no"
+    depends_on:
+      mssql-mcp-init:
+        condition: service_completed_successfully
+    environment:
+      MSSQL_CONNECTION_STRING: 'Data Source=mssql,1433;Initial Catalog=master;User ID=sa;Password=Qwerty123!;TrustServerCertificate=True'
+      ASPNETCORE_URLS: http://+:5000
+    ports:
+      - "127.0.0.1:${MCP_PORT:-5000}:5000"
+    volumes:
+      - ./dab-config.json:/App/dab-config.json:ro
+
+volumes:
+  mssql-data:
