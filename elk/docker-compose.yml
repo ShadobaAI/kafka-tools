@@ -18,6 +18,18 @@ services:
     volumes:
       - elastic_data:/usr/share/elasticsearch/data
 
+  elasticsearch-mcp:
+    image: docker.elastic.co/mcp/elasticsearch:0.4.6
+    container_name: elasticsearch-mcp
+    command: http
+    environment:
+      - ES_URL=http://elasticsearch:9200
+    ports:
+      - "127.0.0.1:8080:8080"
+    depends_on:
+      - elasticsearch
+    restart: unless-stopped
+
   kibana:
     image: kibana:9.2.1
     container_name: kibana
