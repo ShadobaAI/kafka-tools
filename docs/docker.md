@@ -8,6 +8,7 @@
 
 | Команда | Описание |
 |---------|----------|
+| `docker compose config --quiet` | Проверить конфигурацию Compose |
 | `docker compose up -d` | Поднять сервисы в фоне |
 | `docker compose up -d --build` | Пересобрать образы и запустить |
 | `docker compose down` | Остановить и удалить контейнеры и сети |

@@ -6,6 +6,8 @@
 
 ## Содержание
 
+- [Запуск](#запуск)
+- [Ручной запуск анализа](#ручной-запуск-анализа)
 - [Обновление BSL-плагина](#обновление-bsl-плагина)
 - [Резервное копирование](#резервное-копирование-sonarqube)
 - [Восстановление](#восстановление-sonarqube)
@@ -15,7 +17,13 @@
 
 ## Запуск
 
-Локальный SonarQube Community Build для статического анализа BSL-кода. Окружение включает PostgreSQL, `sonar-bsl-plugin-community` и русский language pack для интерфейса.
+Создайте `.env` из [шаблона](.env.example), если файл ещё отсутствует. Задайте `GITHUB_ACCESS_TOKEN` для runner и `SONAR_TOKEN` для MCP. Параметры PostgreSQL задаются переменными `SONARQUBE_DB_*`. Для существующего тома используйте параметры его базы.
+
+```powershell
+if (-not (Test-Path .env)) { Copy-Item .env.example .env }
+```
+
+После настройки запустите стенд.
 
 ```powershell
 docker compose up -d --build
@@ -24,10 +32,19 @@ docker compose up -d --build
 | Сервис | Адрес |
 |--------|-------|
 | SonarQube | http://localhost:9000 |
-| GitHub Actions runner | `1c.github-runner`, labels: `self-hosted,linux,x64,sonar-docker` |
+| SonarQube MCP | http://localhost:9001 |
+| GitHub Actions runner | `docker-sonar`, метки `self-hosted,linux,x64,sonar-docker` |
 | PostgreSQL | внутренний сервис `db:5432` |
 
 Настройки анализа проекта задаются в `sonar-project.properties` анализируемого репозитория.
+
+## Ручной запуск анализа
+
+[upload-sonar.sh](upload-sonar.sh) запускает SonarScanner из `PATH` или через Docker. Скопируйте скрипт рядом с `sonar-project.properties` в анализируемом репозитории. В локальной копии задайте адрес сервера, параметры проекта, версию анализа и `SONAR_TOKEN`. Выполните команду из корня этого репозитория.
+
+```bash
+bash upload-sonar.sh
+```
 
 ## Обновление BSL-плагина
 
@@ -92,25 +109,9 @@ PostgreSQL volume удалять нельзя. Опубликованные от
 
 ## GitHub Actions runner
 
-Перед запуском заполнить `sonarqube/.env`:
-
-```env
-GITHUB_ACCESS_TOKEN=github_pat_...
-```
-
-Используется Personal Access Token GitHub, а не registration token со страницы `Settings -> Actions -> Runners -> New self-hosted runner`. Registration token истекает примерно через час и после перезапуска Docker может приводить к ошибке `404 Not Found` на `actions/runner-registration`.
-
 Для repo-runner к `https://github.com/ShadobaAI/kafka-adapter` PAT должен принадлежать пользователю с admin-доступом к репозиторию. Для classic PAT достаточно scope `repo` для приватного репозитория. Для fine-grained PAT выбрать репозиторий `ShadobaAI/kafka-adapter` и выдать repository permission `Administration: Read and write`.
 
-Проверить, что `.env` заполнен и Compose видит токен:
-
-```powershell
-($line = Get-Content .env | Where-Object { $_ -like 'GITHUB_ACCESS_TOKEN=*' })
-($line -replace '^GITHUB_ACCESS_TOKEN=', '').Trim().Length
-docker compose config | Select-String 'ACCESS_TOKEN:'
-```
-
-Последняя команда покажет значение токена в открытом виде, не публиковать её вывод.
+Конфигурацию Compose можно проверить командой `docker compose config --quiet`.
 
 Проверить PAT напрямую через GitHub API:
 

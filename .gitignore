@@ -3,3 +3,14 @@
 *.zip
 *.dt
 /AGENTS.md
+
+.env
+.venv/
+__pycache__/
+*.py[cod]
+
+/.github/ci-images/.build-context/
+/ones/oras
+/ones/oras.exe
+/sonarqube/backups/
+/xdto/viewer/download/attachments/1/asyncapi.yaml

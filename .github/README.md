@@ -4,6 +4,8 @@
 
 Здесь находятся GitHub Actions workflows, переиспользуемые actions и Python-скрипты сборки проектов 1С.
 
+Публикация выгрузок `.dt` и локальный экспорт YAxUnit описаны в [руководстве по инструментам 1С](../ones/README.md).
+
 ## Сборка CI-образов
 
 Workflow [Build 1C CI Images](workflows/build-ci-images.yml) запускается вручную через `workflow_dispatch`. Выберите профиль `edtcli`, `ibcmd` или `client`.

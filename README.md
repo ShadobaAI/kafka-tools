@@ -1,32 +1,28 @@
-# 1С: Адаптер Kafka — Инструменты разработки
+# 1С: Адаптер Kafka — инструменты разработки
 
-Вспомогательные скрипты и Docker-окружения для локальной разработки и тестирования [1С: Адаптер Kafka](https://github.com/ShadobaAI/kafka-adapter).
+Стенды и инструменты для разработки, тестирования и выпуска [1С: Адаптера Kafka](https://github.com/ShadobaAI/kafka-adapter).
 
-## Выберите задачу
+## Стенды
 
-Подробные инструкции находятся в README соответствующих каталогов.
+| Компонент | Назначение |
+|---|---|
+| [Kafka](kafka/README.md) | Два брокера KRaft, Kafka UI, Schema Registry и отправка тестовых сообщений |
+| [MS SQL Server](mssql/README.md) | SQL Server 2022, MCP, диагностика и импорт Extended Events |
+| [ELK](elk/README.md) | История обмена и импорт технологического журнала 1С в Elasticsearch |
+| [OpenSearch](opensearch/README.md) | История обмена через Fluent Bit и OpenSearch Dashboards |
+| [SonarQube](sonarqube/README.md) | Анализ BSL-кода, GitHub Actions runner и обслуживание стенда |
+| [OpenViking и Ollama](openviking/README.md) | Индексация документации и запуск моделей на отдельной GPU-машине |
 
-| Задача | Что входит | Руководство |
-|---|---|---|
-| Собрать Docker-образы для CI | Профили `edtcli`, `ibcmd`, `client`, дистрибутивы и публикация | [.github/ci-images](.github/ci-images/README.md) |
-| Настроить сборку релизов | GitHub Actions, сборка CF/CFE, упаковка EDT/XML | [.github](.github/README_CI.md) |
-| Запустить Kafka и отправить тестовые сообщения | Два узла KRaft, ACL, Kafka UI, Schema Registry, генератор нагрузки | [kafka](kafka/README.md) |
-| Настроить логирование через ELK | Elasticsearch, Logstash, Kibana | [elk](elk/README.md) |
-| Настроить логирование через OpenSearch | OpenSearch, Dashboards, Fluent Bit | [opensearch](opensearch/README.md) |
-| Запустить MS SQL Server | Локальный сервер и утилитарные SQL-скрипты | [mssql](mssql/README.md) |
-| Настроить анализ BSL-кода | SonarQube, BSL-плагин, runner, обслуживание и восстановление | [sonarqube](sonarqube/README.md) |
-| Запустить OpenViking и Ollama | Индекс документации и модели на GPU-машине | [openviking](openviking/README.md) |
-| Преобразовать или просмотреть AsyncAPI | Генерация XSD для XDTO и просмотр спецификации в Confluence | [xdto](xdto/README.md) |
+Каждое руководство указывает рабочий каталог. Общие команды запуска, проверки и остановки стендов собраны в [справочнике Docker](docs/docker.md).
 
-## Как пользоваться инструкциями
+## Инструменты разработки
 
-- Выберите нужный компонент в таблице и откройте его README.
-- Рабочий каталог для команд указан в каждом руководстве. Корень репозитория `tools` и корень workspace Kafka — разные каталоги.
-- Требования, адреса сервисов, параметры и устранение ошибок описаны рядом с компонентом.
-- Общие команды запуска, просмотра логов и управления Docker собраны в [справочнике Docker](docs/docker.md).
+| Компонент | Назначение |
+|---|---|
+| [CI/CD](.github/README.md) | Сборка CI-образов, выпуск CF/CFE и упаковка исходников EDT/XML через GitHub Actions |
+| [Инструменты 1С](ones/README.md) | Настройки технологического журнала, публикация выгрузок `.dt` и экспорт YAxUnit |
+| [AsyncAPI и XDTO](xdto/README.md) | Генерация XSD, примеры обмена и просмотр AsyncAPI в Confluence |
 
 ## Лицензия
 
 Проект распространяется под лицензией [Apache License 2.0](LICENSE).
-
-**Разрешается:** использование, модификация и распространение — в том числе в коммерческих проектах — без ограничений.

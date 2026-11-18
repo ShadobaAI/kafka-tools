@@ -321,7 +321,11 @@ class GeneratorTests(unittest.TestCase):
 
     def test_example_xsd_files_are_reproducible(self):
         examples = SCRIPT.parent.parent / "examples"
-        cases = (("kfk-test", "http://v8.fsk.ru/kfk/test/1.0", "1c.", "", "TestCatalog"), ("asyncapi_example", "http://v8.fsk.ru/example/kfk/1.0", "1c.", ".changed", "TestDocument"), ("kfk-unit", "http://v8.fsk.ru/kfk/unit/1.0", "", "", "TestConversion"))
+        cases = (
+            ("kfk-test", "http://v8.fsk.ru/kfk/test/1.0", "1c.", "", "TestCatalogs"),
+            ("asyncapi_example", "http://v8.fsk.ru/example/kfk/1.0", "1c.", ".changed", "TestDocument"),
+            ("kfk-unit", "http://v8.fsk.ru/kfk/unit/1.0", "", "", "TestConversion"),
+        )
         for stem, namespace, prefix, suffix, expected_type in cases:
             with self.subTest(stem=stem):
                 generated = generate_xsd(load_document(examples / (stem + ".yaml")), namespace, prefix=prefix, suffix=suffix)

@@ -16,4 +16,4 @@ docker compose up -d
 | OpenSearch Dashboards | http://localhost:5602 |
 | Fluent Bit (HTTP input) | http://localhost:9880 |
 
-Конфигурация — `opensearch/config/`.
+Конфигурация входа HTTP, парсеров и интерфейса находится в [config](config/).
