@@ -85,6 +85,7 @@ class ObjectType:
     description: str = ""
     array_value: bool = False
     is_open: bool = False
+    ordered: bool = True
 
 
 @dataclass(frozen=True)
@@ -734,7 +735,8 @@ class Compiler:
                 fields.append(Property(field, child_name, lower, 1, field_path, self.description(child), nullable=nullable))
                 self.remember_values(child, child_name, field_path, nullable)
         self.types[name] = ObjectType(name, tuple(fields), path, self.description(schema),
-                                      is_open=schema.get("additionalProperties", False))
+                                      is_open=schema.get("additionalProperties", False),
+                                      ordered=schema.get("x-ordered") is not False)
         return name
 
     def simple_type(self, schema, name, path, *, named):
@@ -876,7 +878,7 @@ def build_schema(model):
         complex_type = node(root, "complexType", name=target.name)
         documentation(complex_type, target.description)
         has_repeated_fields = any(field.upper is None or field.upper > 1 for field in target.properties)
-        content = node(complex_type, "sequence" if has_repeated_fields else "all")
+        content = node(complex_type, "sequence" if target.ordered or has_repeated_fields else "all")
         for field in target.properties:
             target_type = types[field.type_name]
             attributes = {"name": field.name, **type_attributes(target_type)}
@@ -889,7 +891,7 @@ def build_schema(model):
             element = node(content, "element", **attributes)
             documentation(element, field.description)
             write_inline_type(element, target_type)
-        if has_repeated_fields:
+        if not target.ordered and has_repeated_fields:
             # XSD 1.0 forbids repeated elements in xs:all. The empty choice
             # sets Ordered to false on XDTO import. Occurrence constraints
             # stay on the XML elements for validation against this XSD.

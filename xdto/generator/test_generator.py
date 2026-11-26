@@ -62,8 +62,8 @@ class GeneratorTests(unittest.TestCase):
             ["UUID", "Alpha", "Zulu", "AObject", "ZObject"],
             [element.get("name") for element in root])
         self.assertEqual(["second", "first", "id"], root.xpath(
-            "//xs:complexType[@name='AObject']/xs:all/xs:element/@name", namespaces=XS))
-        self.assertEqual(3, len(root.xpath("xs:complexType/xs:all/xs:element/xs:simpleType/xs:restriction/xs:minLength", namespaces=XS)))
+            "//xs:complexType[@name='AObject']/xs:sequence/xs:element/@name", namespaces=XS))
+        self.assertEqual(3, len(root.xpath("xs:complexType/xs:sequence/xs:element/xs:simpleType/xs:restriction/xs:minLength", namespaces=XS)))
         self.assertEqual([], root.xpath("//xs:element[@type]/xs:simpleType", namespaces=XS))
         spec["components"]["schemas"] = dict(reversed(list(spec["components"]["schemas"].items())))
         self.assertEqual(etree.tostring(root), etree.tostring(tree(spec)))
@@ -302,24 +302,41 @@ class GeneratorTests(unittest.TestCase):
         self.rejects(spec, "value")
 
     def test_object_flags_apply_to_each_definition(self):
-        row = obj({"qty": {"type": "integer"}, "unit": {"type": "string"}}, additionalProperties=True)
+        unordered = {"x-ordered": False}
+        row = obj({"qty": {"type": "integer"}, "unit": {"type": "string"}},
+                  additionalProperties=True, **unordered)
         spec = document(A=obj({"header": ref("Header"), "lines": {"type": "array", "items": row}},
-                              additionalProperties=True),
-                        Header=obj({"details": {"type": "object", "additionalProperties": True}},
-                                   additionalProperties=False))
+                              additionalProperties=True, **unordered),
+                        Header=obj({"details": {"type": "object", "additionalProperties": True, **unordered}},
+                                   additionalProperties=False),
+                        List=obj({"values": {"type": "array", "items": {"type": "string"}}},
+                                 **unordered))
         root = tree(spec)
         self.assertEqual({"A", "A.Lines.Row", "Header.Details"},
                          set(root.xpath("xs:complexType[xs:anyAttribute]/@name", namespaces=XS)))
-        self.assertEqual({"A", "Header", "Header.Details", "A.Lines.Row"},
+        self.assertEqual({"A", "Header.Details", "A.Lines.Row"},
                          set(root.xpath("xs:complexType[xs:all]/@name", namespaces=XS)))
-        self.assertEqual(["A.Lines"], root.xpath(
+        self.assertEqual(["List"], root.xpath(
             "xs:complexType[xs:sequence/xs:choice[@minOccurs='0' and not(*)]]/@name", namespaces=XS))
+        self.assertEqual({"A.Lines", "Header"},
+                         set(root.xpath("xs:complexType[xs:sequence[not(xs:choice)]]/@name", namespaces=XS)))
         valid = validator(spec)
         header = "<header><details extra='ok'/></header>"
         lines = "<lines><row extra='ok'><unit>pcs</unit><qty>2</qty></row></lines>"
         self.assertTrue(valid.validate(instance(lines + header)))
         self.assertFalse(valid.validate(instance(lines + header.replace("<header>", "<header extra='x'>"))))
         self.assertFalse(valid.validate(instance(lines.replace("<qty>2</qty>", "<qty>x</qty>") + header)))
+
+    def test_only_boolean_false_on_objects_enables_unordered_mode(self):
+        fields = {"first": {"type": "string"}, "second": {"type": "string"}}
+        for options in ({}, {"x-ordered": True}, {"x-ordered": "false"}, {"x-ordered": 0}):
+            with self.subTest(options=options):
+                valid = validator(document(A=obj(fields, **options)))
+                self.assertTrue(valid.validate(instance("<first>a</first><second>b</second>")))
+                self.assertFalse(valid.validate(instance("<second>b</second><first>a</first>")))
+        root = tree(document(A={"type": "array", "items": obj(fields), "x-ordered": False}))
+        self.assertEqual(["A", "A.Row"], root.xpath(
+            "xs:complexType[xs:sequence[not(xs:choice)]]/@name", namespaces=XS))
 
     def test_additional_properties_in_examples_and_defaults(self):
         extra = {"extra": [{"value": 1}, None]}
@@ -393,7 +410,7 @@ class GeneratorTests(unittest.TestCase):
     def test_optional_positive_scalar_minimum_allows_null(self):
         spec = document(A=obj({"name": {"type": "string", "minLength": 3, "default": None}, "number": {"type": "number", "minimum": 10}}, examples=[{"name": None, "number": None}]))
         root = tree(spec)
-        self.assertEqual(["true", "true"], root.xpath("xs:complexType[@name='A']/xs:all/xs:element/@nillable", namespaces=XS))
+        self.assertEqual(["true", "true"], root.xpath("xs:complexType[@name='A']/xs:sequence/xs:element/@nillable", namespaces=XS))
 
     def test_array_default_minimum_is_zero_only_for_arrays(self):
         fields = {"text": {"type": "string"}, "integer": {"type": "integer"}, "number": {"type": "number"}, "boolean": {"type": "boolean"}, "date": {"type": "string", "format": "date"}, "group": obj({}), "array": {"type": "array", "items": {"type": "string"}}}
@@ -478,7 +495,7 @@ class GeneratorTests(unittest.TestCase):
     def test_reference_zero_minimum_and_nullable_context(self):
         spec = document(Text={"type": "string", "minLength": 0}, A=obj({"text": ref("Text")}, ["text"], examples=[{}]))
         root = tree(spec)
-        self.assertEqual(["0"], root.xpath("xs:complexType[@name='A']/xs:all/xs:element/@minOccurs", namespaces=XS))
+        self.assertEqual(["0"], root.xpath("xs:complexType[@name='A']/xs:sequence/xs:element/@minOccurs", namespaces=XS))
         spec["components"]["schemas"]["A"]["examples"] = [{"text": None}]
         self.rejects(spec, "value")
 
@@ -487,7 +504,7 @@ class GeneratorTests(unittest.TestCase):
                 number = {"type": "integer", "minimum": minimum}
                 root = tree(document(Number=number, Alias=ref("Number"),
                                      A=obj({"direct": number, "linked": ref("Alias")}, ["direct", "linked"])))
-                fields = root.xpath("xs:complexType[@name='A']/xs:all/xs:element", namespaces=XS)
+                fields = root.xpath("xs:complexType[@name='A']/xs:sequence/xs:element", namespaces=XS)
                 self.assertEqual([str(int(minimum != 0))] * 2,
                                  [field.get("minOccurs", "1") for field in fields])
 

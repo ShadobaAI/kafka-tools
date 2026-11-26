@@ -150,23 +150,20 @@
       <xs:element name="rowTable" type="tns:TestConversionRowTable" nillable="true"/>
       <xs:element name="emptyObject" type="tns:TestConversionEmpty" nillable="true"/>
       <xs:element name="additionalCases" type="tns:TestConversionAdditionalCases" nillable="true"/>
-      <xs:choice minOccurs="0"/>
     </xs:sequence>
   </xs:complexType>
   <xs:complexType name="TestConversion.Nodes">
     <xs:sequence>
       <xs:element name="row" type="tns:TestConversionNode" minOccurs="0" maxOccurs="unbounded"/>
-      <xs:choice minOccurs="0"/>
     </xs:sequence>
   </xs:complexType>
   <xs:complexType name="TestConversion.RequiredRows">
     <xs:sequence>
       <xs:element name="row" type="tns:TestConversion.RequiredRows.Row" maxOccurs="3"/>
-      <xs:choice minOccurs="0"/>
     </xs:sequence>
   </xs:complexType>
   <xs:complexType name="TestConversion.RequiredRows.Row">
-    <xs:all>
+    <xs:sequence>
       <xs:element name="code">
         <xs:simpleType>
           <xs:restriction base="xs:string">
@@ -175,27 +172,26 @@
         </xs:simpleType>
       </xs:element>
       <xs:element name="value" type="xs:decimal" nillable="true"/>
-    </xs:all>
+    </xs:sequence>
   </xs:complexType>
   <xs:complexType name="TestConversion.SingleRow">
-    <xs:all>
+    <xs:sequence>
       <xs:element name="row" type="tns:TestConversion.SingleRow.Row"/>
-    </xs:all>
+    </xs:sequence>
   </xs:complexType>
   <xs:complexType name="TestConversion.SingleRow.Row">
-    <xs:all>
+    <xs:sequence>
       <xs:element name="code" type="xs:string" nillable="true"/>
       <xs:element name="value" type="xs:decimal" nillable="true"/>
-    </xs:all>
+    </xs:sequence>
   </xs:complexType>
   <xs:complexType name="TestConversion.TabularSection">
     <xs:sequence>
       <xs:element name="row" type="tns:TestConversion.TabularSection.Row" minOccurs="0" maxOccurs="unbounded"/>
-      <xs:choice minOccurs="0"/>
     </xs:sequence>
   </xs:complexType>
   <xs:complexType name="TestConversion.TabularSection.Row">
-    <xs:all>
+    <xs:sequence>
       <xs:element name="lineNumber" type="xs:integer"/>
       <xs:element name="string" type="xs:string" nillable="true"/>
       <xs:element name="number" type="xs:decimal" nillable="true"/>
@@ -205,79 +201,76 @@
       <xs:element name="enum" type="tns:TestConversionEnum" nillable="true"/>
       <xs:element name="nested" type="tns:TestConversionLevel1" nillable="true"/>
       <xs:element name="details" type="tns:TestConversion.TabularSection.Row.Details" nillable="true"/>
-    </xs:all>
+    </xs:sequence>
   </xs:complexType>
   <xs:complexType name="TestConversion.TabularSection.Row.Details">
     <xs:sequence>
       <xs:element name="row" type="tns:TestConversion.TabularSection.Row.Details.Row" minOccurs="0" maxOccurs="unbounded"/>
-      <xs:choice minOccurs="0"/>
     </xs:sequence>
   </xs:complexType>
   <xs:complexType name="TestConversion.TabularSection.Row.Details.Row">
-    <xs:all>
+    <xs:sequence>
       <xs:element name="code" type="xs:string"/>
       <xs:element name="value" type="xs:decimal" nillable="true"/>
-    </xs:all>
+    </xs:sequence>
   </xs:complexType>
   <xs:complexType name="TestConversionAdditionalCases">
-    <xs:all>
+    <xs:sequence>
       <xs:element name="objectId" type="tns:UUID"/>
       <xs:element name="typeDocumentManagement" type="tns:TestConversionDocumentKindEnum" nillable="true"/>
       <xs:element name="documentManagement" type="tns:UUID" nillable="true"/>
       <xs:element name="dateTime" type="xs:dateTime"/>
       <xs:element name="paymentKind" type="tns:TestConversionPaymentKind" nillable="true"/>
       <xs:element name="stringLimits" type="tns:TestConversionStringLimits" nillable="true"/>
-    </xs:all>
+    </xs:sequence>
   </xs:complexType>
   <xs:complexType name="TestConversionEmpty">
-    <xs:all/>
+    <xs:sequence/>
   </xs:complexType>
   <xs:complexType name="TestConversionLevel1">
-    <xs:all>
+    <xs:sequence>
       <xs:element name="level2" type="tns:TestConversionLevel2" nillable="true"/>
       <xs:element name="sibling" type="xs:string" nillable="true"/>
-    </xs:all>
+    </xs:sequence>
   </xs:complexType>
   <xs:complexType name="TestConversionLevel2">
-    <xs:all>
+    <xs:sequence>
       <xs:element name="level3" type="tns:TestConversionLevel3" nillable="true"/>
       <xs:element name="sibling" type="xs:decimal" nillable="true"/>
-    </xs:all>
+    </xs:sequence>
   </xs:complexType>
   <xs:complexType name="TestConversionLevel3">
-    <xs:all>
+    <xs:sequence>
       <xs:element name="value" type="xs:string" nillable="true"/>
       <xs:element name="ref" type="tns:UUID" nillable="true"/>
-    </xs:all>
+    </xs:sequence>
   </xs:complexType>
   <xs:complexType name="TestConversionNode">
-    <xs:all>
+    <xs:sequence>
       <xs:element name="ref" type="tns:UUID"/>
       <xs:element name="name" type="xs:string" nillable="true"/>
       <xs:element name="parent" type="tns:TestConversionNode" nillable="true"/>
       <xs:element name="children" type="tns:TestConversionNode.Children" nillable="true"/>
-    </xs:all>
+    </xs:sequence>
   </xs:complexType>
   <xs:complexType name="TestConversionNode.Children">
     <xs:sequence>
       <xs:element name="row" type="tns:TestConversionNode" minOccurs="0" maxOccurs="unbounded"/>
-      <xs:choice minOccurs="0"/>
     </xs:sequence>
   </xs:complexType>
   <xs:complexType name="TestConversionRowTable">
     <xs:sequence>
       <xs:element name="row" type="tns:TestConversionRowTable.Row" minOccurs="0" maxOccurs="unbounded"/>
-      <xs:choice minOccurs="0"/>
     </xs:sequence>
   </xs:complexType>
   <xs:complexType name="TestConversionRowTable.Row">
-    <xs:all>
+    <xs:sequence>
       <xs:element name="code" type="xs:string"/>
       <xs:element name="value" type="xs:decimal" nillable="true"/>
-    </xs:all>
+    </xs:sequence>
   </xs:complexType>
   <xs:complexType name="TestConversionStringLimits">
-    <xs:all>
+    <xs:sequence>
       <xs:element name="unlimited" type="xs:string" nillable="true"/>
       <xs:element name="maxLength" nillable="true">
         <xs:simpleType>
@@ -294,12 +287,11 @@
           </xs:restriction>
         </xs:simpleType>
       </xs:element>
-    </xs:all>
+    </xs:sequence>
   </xs:complexType>
   <xs:complexType name="TestConversionStringTable">
     <xs:sequence>
       <xs:element name="row" type="xs:string" minOccurs="0" maxOccurs="unbounded"/>
-      <xs:choice minOccurs="0"/>
     </xs:sequence>
   </xs:complexType>
 </xs:schema>
