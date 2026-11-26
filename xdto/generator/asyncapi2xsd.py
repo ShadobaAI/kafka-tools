@@ -84,6 +84,7 @@ class ObjectType:
     path: str
     description: str = ""
     array_value: bool = False
+    is_open: bool = False
 
 
 @dataclass(frozen=True)
@@ -595,8 +596,8 @@ class Compiler:
             if not isinstance(kind, str) or kind not in set(BASES) | {"object", "array"}:
                 raise SchemaError("type", path + ".type", "expected an explicit supported type; null/unions are outside the profile")
             applicable = {"properties", "required", "additionalProperties"} if kind == "object" else {"items", "minItems", "maxItems"} if kind == "array" else {"format", "enum"} | STRING_KEYS | NUMBER_KEYS
-            if "additionalProperties" in schema and schema["additionalProperties"] is not False:
-                raise SchemaError("unsupported", path + ".additionalProperties", "only false is supported; dictionaries require a separate representation")
+            if "additionalProperties" in schema and not isinstance(schema["additionalProperties"], bool):
+                raise SchemaError("unsupported", path + ".additionalProperties", "expected true or false")
             wrong = set(schema).intersection(STRUCTURE | STRING_KEYS | NUMBER_KEYS).difference(applicable | {"type"})
             if wrong:
                 raise SchemaError("keyword", path, f"keywords incompatible with {kind}: {sorted(wrong)}")
@@ -692,7 +693,7 @@ class Compiler:
         if schema["type"] in BASES:
             return self.simple_type(schema, name, path, named=True)
         self.register(name, path)
-        properties = mapping(schema.get("properties"), path + ".properties")
+        properties = mapping(schema.get("properties", {}), path + ".properties")
         required = schema.get("required", [])
         if not isinstance(required, list) or any(not isinstance(v, str) for v in required):
             raise SchemaError("required", path + ".required", "expected a list of field names")
@@ -732,7 +733,8 @@ class Compiler:
                 lower = 1 if is_array else int(minimum != 0)
                 fields.append(Property(field, child_name, lower, 1, field_path, self.description(child), nullable=nullable))
                 self.remember_values(child, child_name, field_path, nullable)
-        self.types[name] = ObjectType(name, tuple(fields), path, self.description(schema))
+        self.types[name] = ObjectType(name, tuple(fields), path, self.description(schema),
+                                      is_open=schema.get("additionalProperties", False))
         return name
 
     def simple_type(self, schema, name, path, *, named):
@@ -873,7 +875,8 @@ def build_schema(model):
     for target in model.object_types:
         complex_type = node(root, "complexType", name=target.name)
         documentation(complex_type, target.description)
-        sequence = node(complex_type, "sequence")
+        has_repeated_fields = any(field.upper is None or field.upper > 1 for field in target.properties)
+        content = node(complex_type, "sequence" if has_repeated_fields else "all")
         for field in target.properties:
             target_type = types[field.type_name]
             attributes = {"name": field.name, **type_attributes(target_type)}
@@ -883,9 +886,16 @@ def build_schema(model):
                 attributes["maxOccurs"] = "unbounded" if field.upper is None else str(field.upper)
             if field.nullable:
                 attributes["nillable"] = "true"
-            element = node(sequence, "element", **attributes)
+            element = node(content, "element", **attributes)
             documentation(element, field.description)
             write_inline_type(element, target_type)
+        if has_repeated_fields:
+            # XSD 1.0 forbids repeated elements in xs:all. The empty choice
+            # sets Ordered to false on XDTO import. Occurrence constraints
+            # stay on the XML elements for validation against this XSD.
+            node(content, "choice", minOccurs="0")
+        if target.is_open:
+            node(complex_type, "anyAttribute", processContents="lax")
     return root
 
 
@@ -967,9 +977,10 @@ def validate_values(model, root, values):
             return
         if not isinstance(value, dict):
             raise SchemaError("value", path, "expected an object")
-        unknown = set(value).difference(field.name for field in target.properties)
-        if unknown:
-            raise SchemaError("value", path, f"undeclared fields cannot be represented: {sorted(unknown)}")
+        if not target.is_open:
+            unknown = set(value).difference(field.name for field in target.properties)
+            if unknown:
+                raise SchemaError("value", path, f"undeclared fields cannot be represented: {sorted(unknown)}")
         for field in target.properties:
             field_path = path + "." + field.name
             if field.name not in value:

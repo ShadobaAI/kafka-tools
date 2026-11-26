@@ -44,7 +44,7 @@
     </xs:restriction>
   </xs:simpleType>
   <xs:complexType name="AuditLog">
-    <xs:sequence>
+    <xs:all>
       <xs:element name="eventId" type="tns:UUID"/>
       <xs:element name="occurredAt" type="xs:dateTime"/>
       <xs:element name="entity" type="tns:EntityRef"/>
@@ -52,10 +52,10 @@
       <xs:element name="oldValue" type="xs:string" nillable="true"/>
       <xs:element name="newValue" type="xs:string" nillable="true"/>
       <xs:element name="actor" type="tns:Person" nillable="true"/>
-    </xs:sequence>
+    </xs:all>
   </xs:complexType>
   <xs:complexType name="CatalogItemRef">
-    <xs:sequence>
+    <xs:all>
       <xs:element name="refId" type="tns:UUID"/>
       <xs:element name="refName" nillable="true">
         <xs:simpleType>
@@ -64,7 +64,7 @@
           </xs:restriction>
         </xs:simpleType>
       </xs:element>
-    </xs:sequence>
+    </xs:all>
   </xs:complexType>
   <xs:complexType name="CatalogItems">
     <xs:sequence>
@@ -86,10 +86,11 @@
           </xs:restriction>
         </xs:simpleType>
       </xs:element>
+      <xs:choice minOccurs="0"/>
     </xs:sequence>
   </xs:complexType>
   <xs:complexType name="Contact">
-    <xs:sequence>
+    <xs:all>
       <xs:element name="type">
         <xs:simpleType>
           <xs:restriction base="xs:string">
@@ -106,20 +107,22 @@
           </xs:restriction>
         </xs:simpleType>
       </xs:element>
-    </xs:sequence>
+    </xs:all>
   </xs:complexType>
   <xs:complexType name="ContactList">
     <xs:sequence>
       <xs:element name="row" type="tns:Contact" minOccurs="0" maxOccurs="5"/>
+      <xs:choice minOccurs="0"/>
     </xs:sequence>
   </xs:complexType>
   <xs:complexType name="DictionaryCodes">
     <xs:sequence>
       <xs:element name="row" type="tns:CurrencyCode" maxOccurs="20"/>
+      <xs:choice minOccurs="0"/>
     </xs:sequence>
   </xs:complexType>
   <xs:complexType name="EntityRef">
-    <xs:sequence>
+    <xs:all>
       <xs:element name="type">
         <xs:simpleType>
           <xs:restriction base="xs:string">
@@ -136,15 +139,16 @@
           </xs:restriction>
         </xs:simpleType>
       </xs:element>
-    </xs:sequence>
+    </xs:all>
   </xs:complexType>
   <xs:complexType name="MetricValues">
     <xs:sequence>
       <xs:element name="row" type="tns:MetricValues.Row" maxOccurs="50"/>
+      <xs:choice minOccurs="0"/>
     </xs:sequence>
   </xs:complexType>
   <xs:complexType name="MetricValues.Row">
-    <xs:sequence>
+    <xs:all>
       <xs:element name="code">
         <xs:simpleType>
           <xs:restriction base="xs:string">
@@ -161,10 +165,10 @@
         </xs:simpleType>
       </xs:element>
       <xs:element name="quality" type="tns:QualityKind" nillable="true"/>
-    </xs:sequence>
+    </xs:all>
   </xs:complexType>
   <xs:complexType name="Person">
-    <xs:sequence>
+    <xs:all>
       <xs:element name="personId" type="tns:UUID"/>
       <xs:element name="name">
         <xs:simpleType>
@@ -184,7 +188,7 @@
         </xs:simpleType>
       </xs:element>
       <xs:element name="manager" type="tns:Person" nillable="true"/>
-    </xs:sequence>
+    </xs:all>
   </xs:complexType>
   <xs:complexType name="StringListPayload">
     <xs:sequence>
@@ -195,6 +199,7 @@
           </xs:restriction>
         </xs:simpleType>
       </xs:element>
+      <xs:choice minOccurs="0"/>
     </xs:sequence>
   </xs:complexType>
   <xs:complexType name="TestDocument">
@@ -317,10 +322,11 @@
       <xs:element name="statusHistory" type="tns:LineStatus" maxOccurs="10"/>
       <xs:element name="dimensions" type="tns:TestDocument.Dimensions" nillable="true"/>
       <xs:element name="lines" type="tns:TestDocument.Lines"/>
+      <xs:choice minOccurs="0"/>
     </xs:sequence>
   </xs:complexType>
   <xs:complexType name="TestDocument.Dimensions">
-    <xs:sequence>
+    <xs:all>
       <xs:element name="width" minOccurs="0">
         <xs:simpleType>
           <xs:restriction base="xs:decimal">
@@ -351,15 +357,16 @@
           </xs:restriction>
         </xs:simpleType>
       </xs:element>
-    </xs:sequence>
+    </xs:all>
   </xs:complexType>
   <xs:complexType name="TestDocument.Lines">
     <xs:sequence>
       <xs:element name="row" type="tns:TestDocument.Lines.Row" maxOccurs="100"/>
+      <xs:choice minOccurs="0"/>
     </xs:sequence>
   </xs:complexType>
   <xs:complexType name="TestDocument.Lines.Row">
-    <xs:sequence>
+    <xs:all>
       <xs:element name="lineNo">
         <xs:simpleType>
           <xs:restriction base="xs:integer">
@@ -393,10 +400,10 @@
       </xs:element>
       <xs:element name="lineStatus" type="tns:LineStatus" nillable="true"/>
       <xs:element name="attributes" type="tns:TestDocument.Lines.Row.Attributes" nillable="true"/>
-    </xs:sequence>
+    </xs:all>
   </xs:complexType>
   <xs:complexType name="TestDocument.Lines.Row.Attributes">
-    <xs:sequence>
+    <xs:all>
       <xs:element name="color" nillable="true">
         <xs:simpleType>
           <xs:restriction base="xs:string">
@@ -411,6 +418,6 @@
           </xs:restriction>
         </xs:simpleType>
       </xs:element>
-    </xs:sequence>
+    </xs:all>
   </xs:complexType>
 </xs:schema>

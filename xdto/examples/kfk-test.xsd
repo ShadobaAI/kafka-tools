@@ -20,7 +20,7 @@
     <xs:annotation>
       <xs:documentation>кфк_т_ТестовыйРегистрНакопления</xs:documentation>
     </xs:annotation>
-    <xs:sequence>
+    <xs:all>
       <xs:element name="document" type="tns:UUID" nillable="true">
         <xs:annotation>
           <xs:documentation>Регистратор</xs:documentation>
@@ -51,13 +51,13 @@
           <xs:documentation>Значение</xs:documentation>
         </xs:annotation>
       </xs:element>
-    </xs:sequence>
+    </xs:all>
   </xs:complexType>
   <xs:complexType name="TestCatalogs">
     <xs:annotation>
       <xs:documentation>кфк_т_ТестовыйСправочник</xs:documentation>
     </xs:annotation>
-    <xs:sequence>
+    <xs:all>
       <xs:element name="comment" nillable="true">
         <xs:annotation>
           <xs:documentation>Комментарий</xs:documentation>
@@ -114,18 +114,19 @@
         </xs:annotation>
       </xs:element>
       <xs:element name="tableRows" type="tns:TestCatalogs.TableRows" nillable="true"/>
-    </xs:sequence>
+    </xs:all>
   </xs:complexType>
   <xs:complexType name="TestCatalogs.TableRows">
     <xs:sequence>
       <xs:element name="row" type="tns:TestCatalogs.TableRows.Row" minOccurs="0" maxOccurs="unbounded"/>
+      <xs:choice minOccurs="0"/>
     </xs:sequence>
   </xs:complexType>
   <xs:complexType name="TestCatalogs.TableRows.Row">
     <xs:annotation>
       <xs:documentation>Строка табличной части</xs:documentation>
     </xs:annotation>
-    <xs:sequence>
+    <xs:all>
       <xs:element name="dateTime" type="xs:dateTime" nillable="true">
         <xs:annotation>
           <xs:documentation>ДатаИВремя</xs:documentation>
@@ -141,13 +142,13 @@
           </xs:restriction>
         </xs:simpleType>
       </xs:element>
-    </xs:sequence>
+    </xs:all>
   </xs:complexType>
   <xs:complexType name="TestDocuments">
     <xs:annotation>
       <xs:documentation>кфк_т_ТестовыйДокумент</xs:documentation>
     </xs:annotation>
-    <xs:sequence>
+    <xs:all>
       <xs:element name="comment" type="xs:string" nillable="true">
         <xs:annotation>
           <xs:documentation>Комментарий</xs:documentation>
@@ -183,13 +184,13 @@
           </xs:restriction>
         </xs:simpleType>
       </xs:element>
-    </xs:sequence>
+    </xs:all>
   </xs:complexType>
   <xs:complexType name="TestInformationRegisters">
     <xs:annotation>
       <xs:documentation>кфк_т_ТестовыйРегистрСведений</xs:documentation>
     </xs:annotation>
-    <xs:sequence>
+    <xs:all>
       <xs:element name="comment" nillable="true">
         <xs:annotation>
           <xs:documentation>Комментарий</xs:documentation>
@@ -240,13 +241,13 @@
           <xs:documentation>ТестоваяСсылка</xs:documentation>
         </xs:annotation>
       </xs:element>
-    </xs:sequence>
+    </xs:all>
   </xs:complexType>
   <xs:complexType name="TestInformationRegistersPR">
     <xs:annotation>
       <xs:documentation>кфк_т_ТестовыйРегистрСведенийПР</xs:documentation>
     </xs:annotation>
-    <xs:sequence>
+    <xs:all>
       <xs:element name="document" type="tns:UUID" nillable="true">
         <xs:annotation>
           <xs:documentation>Регистратор</xs:documentation>
@@ -277,6 +278,6 @@
           <xs:documentation>Значение</xs:documentation>
         </xs:annotation>
       </xs:element>
-    </xs:sequence>
+    </xs:all>
   </xs:complexType>
 </xs:schema>

@@ -62,8 +62,8 @@ class GeneratorTests(unittest.TestCase):
             ["UUID", "Alpha", "Zulu", "AObject", "ZObject"],
             [element.get("name") for element in root])
         self.assertEqual(["second", "first", "id"], root.xpath(
-            "//xs:complexType[@name='AObject']/xs:sequence/xs:element/@name", namespaces=XS))
-        self.assertEqual(3, len(root.xpath("xs:complexType/xs:sequence/xs:element/xs:simpleType/xs:restriction/xs:minLength", namespaces=XS)))
+            "//xs:complexType[@name='AObject']/xs:all/xs:element/@name", namespaces=XS))
+        self.assertEqual(3, len(root.xpath("xs:complexType/xs:all/xs:element/xs:simpleType/xs:restriction/xs:minLength", namespaces=XS)))
         self.assertEqual([], root.xpath("//xs:element[@type]/xs:simpleType", namespaces=XS))
         spec["components"]["schemas"] = dict(reversed(list(spec["components"]["schemas"].items())))
         self.assertEqual(etree.tostring(root), etree.tostring(tree(spec)))
@@ -162,6 +162,16 @@ class GeneratorTests(unittest.TestCase):
         self.assertFalse(valid.validate(instance("")))
         self.assertTrue(valid.validate(instance("<row><name>one</name></row>")))
 
+    def test_xml_bounds_for_tags_and_table_rows(self):
+        bounds = {"type": "array", "minItems": 2, "maxItems": 10}
+        valid = validator(document(A=obj({"tags": {**bounds, "items": {"type": "string"}},
+                                          "lines": {**bounds, "items": obj({})}}, ["tags", "lines"])))
+        for count in (0, 1, 2, 10, 11):
+            for tags, rows in ((count, 2), (2, count)):
+                with self.subTest(tags=tags, rows=rows):
+                    xml = "<tags>x</tags>" * tags + "<lines>" + "<row/>" * rows + "</lines>"
+                    self.assertEqual(2 <= count <= 10, valid.validate(instance(xml)))
+
     def test_unrepresentable_collections_rejected(self):
         for limit in (True, -1):
             with self.subTest(limit=limit):
@@ -234,7 +244,7 @@ class GeneratorTests(unittest.TestCase):
     def test_unknown_keywords_formats_and_wrong_required(self):
         for schema in ({"allOf": [ref("A")]}, {"type": "string", "const": "fixed"},
                        {"type": "string", "format": "custom"}, {"type": ["string", "null"]},
-                       {"type": "object", "properties": {}, "additionalProperties": True},
+                       {"type": "string", "additionalProperties": True},
                        {"type": "string", "minimum": 1}):
             self.rejects(document(A=schema))
         for required in (["missing"], ["value", "value"], "value", [True]):
@@ -291,6 +301,44 @@ class GeneratorTests(unittest.TestCase):
         spec["components"]["schemas"]["A"]["examples"] = [{"email": "a@b", "extra": 1}]
         self.rejects(spec, "value")
 
+    def test_object_flags_apply_to_each_definition(self):
+        row = obj({"qty": {"type": "integer"}, "unit": {"type": "string"}}, additionalProperties=True)
+        spec = document(A=obj({"header": ref("Header"), "lines": {"type": "array", "items": row}},
+                              additionalProperties=True),
+                        Header=obj({"details": {"type": "object", "additionalProperties": True}},
+                                   additionalProperties=False))
+        root = tree(spec)
+        self.assertEqual({"A", "A.Lines.Row", "Header.Details"},
+                         set(root.xpath("xs:complexType[xs:anyAttribute]/@name", namespaces=XS)))
+        self.assertEqual({"A", "Header", "Header.Details", "A.Lines.Row"},
+                         set(root.xpath("xs:complexType[xs:all]/@name", namespaces=XS)))
+        self.assertEqual(["A.Lines"], root.xpath(
+            "xs:complexType[xs:sequence/xs:choice[@minOccurs='0' and not(*)]]/@name", namespaces=XS))
+        valid = validator(spec)
+        header = "<header><details extra='ok'/></header>"
+        lines = "<lines><row extra='ok'><unit>pcs</unit><qty>2</qty></row></lines>"
+        self.assertTrue(valid.validate(instance(lines + header)))
+        self.assertFalse(valid.validate(instance(lines + header.replace("<header>", "<header extra='x'>"))))
+        self.assertFalse(valid.validate(instance(lines.replace("<qty>2</qty>", "<qty>x</qty>") + header)))
+
+    def test_additional_properties_in_examples_and_defaults(self):
+        extra = {"extra": [{"value": 1}, None]}
+        for options in ({}, {"additionalProperties": False}, {"additionalProperties": True}):
+            with self.subTest(options=options):
+                spec = document(A=obj({"id": {"type": "integer"}}, ["id"], **options,
+                                      default={"id": 1, **extra}, examples=[{"id": 2, **extra}]))
+                if options.get("additionalProperties"):
+                    tree(spec)
+                    for invalid in (extra, {"id": "bad", **extra}):
+                        spec["components"]["schemas"]["A"]["examples"] = [invalid]
+                        self.rejects(spec, "value")
+                else:
+                    self.rejects(spec, "value")
+        for invalid in ({"type": "string"}, "true", "false", 0, 1, None):
+            with self.subTest(invalid=invalid):
+                error = self.rejects(document(A=obj({}, additionalProperties=invalid)), "unsupported")
+                self.assertEqual("$.components.schemas.A.additionalProperties", error.path)
+
     def test_documentation_uses_trimmed_title(self):
         root = tree(document(A={"type": "string", "title": " Заголовок\n ", "description": " Описание\n\n  в несколько\nстрок "}))
         self.assertEqual(["Заголовок"], root.xpath("//xs:documentation/text()", namespaces=XS))
@@ -345,7 +393,7 @@ class GeneratorTests(unittest.TestCase):
     def test_optional_positive_scalar_minimum_allows_null(self):
         spec = document(A=obj({"name": {"type": "string", "minLength": 3, "default": None}, "number": {"type": "number", "minimum": 10}}, examples=[{"name": None, "number": None}]))
         root = tree(spec)
-        self.assertEqual(["true", "true"], root.xpath("xs:complexType[@name='A']/xs:sequence/xs:element/@nillable", namespaces=XS))
+        self.assertEqual(["true", "true"], root.xpath("xs:complexType[@name='A']/xs:all/xs:element/@nillable", namespaces=XS))
 
     def test_array_default_minimum_is_zero_only_for_arrays(self):
         fields = {"text": {"type": "string"}, "integer": {"type": "integer"}, "number": {"type": "number"}, "boolean": {"type": "boolean"}, "date": {"type": "string", "format": "date"}, "group": obj({}), "array": {"type": "array", "items": {"type": "string"}}}
@@ -364,7 +412,7 @@ class GeneratorTests(unittest.TestCase):
             self.skipTest("external working YAML is not part of the tools repository")
         root = etree.fromstring(generate_xsd(load_document(working), NS, prefix="crm.", suffix=".changed"))
         etree.XMLSchema(root)
-        guid = root.xpath("xs:complexType[@name='Property.Traits.Row']/xs:sequence/xs:element[@name='guid']", namespaces=XS)
+        guid = root.xpath("xs:complexType[@name='Property.Traits.Row']/*/xs:element[@name='guid']", namespaces=XS)
         self.assertEqual(1, len(guid))
         self.assertEqual("0", guid[0].get("minOccurs", "1"))
         self.assertEqual("false", guid[0].get("nillable", "false"))
@@ -406,7 +454,7 @@ class GeneratorTests(unittest.TestCase):
                                 warnings.simplefilter("always", SchemaWarning)
                                 root = tree(spec)
                             self.assertEqual(1 if not required and lower > 0 else 0, len(caught))
-                            element = root.xpath("xs:complexType[@name='A']/xs:sequence/xs:element[@name='list']", namespaces=XS)[0]
+                            element = root.xpath("xs:complexType[@name='A']/*/xs:element[@name='list']", namespaces=XS)[0]
                             self.assertEqual("true" if not required and lower == 0 else "false", element.get("nillable", "false"))
                             spec["components"]["schemas"]["A"]["examples"] = [{"list": None}]
                             if not required and lower == 0:
@@ -430,7 +478,7 @@ class GeneratorTests(unittest.TestCase):
     def test_reference_zero_minimum_and_nullable_context(self):
         spec = document(Text={"type": "string", "minLength": 0}, A=obj({"text": ref("Text")}, ["text"], examples=[{}]))
         root = tree(spec)
-        self.assertEqual(["0"], root.xpath("xs:complexType[@name='A']/xs:sequence/xs:element/@minOccurs", namespaces=XS))
+        self.assertEqual(["0"], root.xpath("xs:complexType[@name='A']/xs:all/xs:element/@minOccurs", namespaces=XS))
         spec["components"]["schemas"]["A"]["examples"] = [{"text": None}]
         self.rejects(spec, "value")
 
@@ -439,7 +487,7 @@ class GeneratorTests(unittest.TestCase):
                 number = {"type": "integer", "minimum": minimum}
                 root = tree(document(Number=number, Alias=ref("Number"),
                                      A=obj({"direct": number, "linked": ref("Alias")}, ["direct", "linked"])))
-                fields = root.xpath("xs:complexType[@name='A']/xs:sequence/xs:element", namespaces=XS)
+                fields = root.xpath("xs:complexType[@name='A']/xs:all/xs:element", namespaces=XS)
                 self.assertEqual([str(int(minimum != 0))] * 2,
                                  [field.get("minOccurs", "1") for field in fields])
 
